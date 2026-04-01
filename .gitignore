@@ -53,3 +53,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .fw-sync-cache/
+
+# worktrees
+.claude/worktrees/
+test-results/
