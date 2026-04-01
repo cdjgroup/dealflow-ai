@@ -16,6 +16,7 @@ export function TokenVaultInterrupt({
   onDismiss,
 }: TokenVaultInterruptProps) {
   const popupRef = useRef<Window | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const connectionLabel =
     connection === "google-oauth2" ? "Google" : connection;
@@ -36,18 +37,19 @@ export function TokenVaultInterrupt({
     );
     popupRef.current = popup;
 
-    const interval = setInterval(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
       if (popup?.closed) {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
         onAuthorized();
       }
     }, 500);
-
-    return () => clearInterval(interval);
   }, [connection, scopes, onAuthorized]);
 
   useEffect(() => {
     return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
       popupRef.current?.close();
     };
   }, []);

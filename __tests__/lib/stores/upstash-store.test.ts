@@ -22,6 +22,8 @@ describe("UpstashStore", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.UPSTASH_REDIS_REST_URL = "https://test.upstash.io";
+    process.env.UPSTASH_REDIS_REST_TOKEN = "test-token";
     store = new UpstashStore();
   });
 

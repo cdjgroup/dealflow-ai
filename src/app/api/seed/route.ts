@@ -1,5 +1,6 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { seedDemoData } from "@/lib/data/crm";
+import { getRateLimiter } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 export async function POST() {
@@ -9,9 +10,33 @@ export async function POST() {
   }
 
   const user = await getUser();
-  const userId = user?.sub ?? "anonymous";
+  if (!user?.sub) {
+    return NextResponse.json(
+      { error: "Invalid session: missing user ID" },
+      { status: 401 }
+    );
+  }
+  const userId = user.sub;
 
-  await seedDemoData(userId);
+  const limiter = getRateLimiter();
+  if (limiter) {
+    const { success } = await limiter.limit(userId);
+    if (!success) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded" },
+        { status: 429 }
+      );
+    }
+  }
+
+  try {
+    await seedDemoData(userId);
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Failed to seed data", details: String(err) },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({
     success: true,

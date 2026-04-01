@@ -6,7 +6,10 @@ import { SeedButton } from "@/components/seed-button";
 
 export default async function DashboardPage() {
   const session = await auth0.getSession();
-  const userId = session?.user?.sub ?? "anonymous";
+  const userId = session?.user?.sub;
+  if (!userId) {
+    throw new Error("Invalid session: missing user ID");
+  }
   const deals = await getDeals(userId);
 
   return (

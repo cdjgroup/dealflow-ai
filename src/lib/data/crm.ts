@@ -37,7 +37,7 @@ export interface Activity {
 }
 
 function genId(): string {
-  return Math.random().toString(36).substring(2, 10);
+  return crypto.randomUUID().replace(/-/g, "").substring(0, 12);
 }
 
 function now(): string {
