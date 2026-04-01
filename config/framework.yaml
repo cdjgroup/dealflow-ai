@@ -1,0 +1,185 @@
+# ============================================================================
+# dev-framework Configuration — DealFlow AI
+# ============================================================================
+# Hackathon entry for "Authorized to Act: Auth0 for AI Agents"
+# AI sales agent with Auth0 Token Vault + Claude + Upstash Redis
+# ============================================================================
+
+project:
+  name: "dealflow-ai"
+  repo: "cdjgroup/dealflow-ai"
+  description: "AI sales agent with Auth0 Token Vault — hackathon entry for Authorized to Act"
+
+# ============================================================================
+# Paths
+# ============================================================================
+paths:
+  worktree_base: "${HOME}/worktrees"
+
+# ============================================================================
+# Stack Configuration
+# ============================================================================
+stack:
+  frontend:
+    language: "typescript"
+    version: "22"
+    test_command: "npm test"
+    start_command: "npm run dev"
+    port: 3000
+    health_endpoint: "/"
+
+# ============================================================================
+# Versioning
+# ============================================================================
+versioning:
+  primary_source: "package.json"
+  primary_pattern: '"version"'
+  locations:
+    - file: "package.json"
+      pattern: '"version": "VERSION"'
+      sed: 's/"version": "[0-9.]*"/"version": "VERSION"/'
+      display: "package.json"
+    - file: "CLAUDE.md"
+      pattern: "Current Version: VERSION"
+      sed: 's/Current Version: [0-9.]*/Current Version: VERSION/'
+      display: "CLAUDE.md"
+
+# ============================================================================
+# CI/CD Configuration
+# ============================================================================
+ci:
+  blocking_jobs:
+    - "frontend-tests"
+    - "env-secrets-guard"
+  advisory_jobs:
+    - "docs-validation"
+  protected_branches:
+    - "main"
+
+# ============================================================================
+# Notifications
+# ============================================================================
+notifications:
+  provider: "none"
+  webhook_env: "NOTIFICATION_WEBHOOK_URL"
+
+# ============================================================================
+# TDD Configuration
+# ============================================================================
+tdd:
+  attribution: ""
+  require_tests: true
+
+# ============================================================================
+# Claude Integration
+# ============================================================================
+claude:
+  worktree_enforcement: false
+  auto_sync: true
+  session_timeout: 1800
+  drift_check_interval: 300
+
+# ============================================================================
+# Cost Management
+# ============================================================================
+cost:
+  model_tiers:
+    opus: ["ai-architect", "migration-author", "it-security-expert", "ai-code-forensics"]
+    sonnet: ["code-reviewer", "performance-reviewer", "ai-testing-expert",
+             "api-contract-reviewer", "ux-uxp-specialist", "release-manager",
+             "docs-efficiency-expert", "silent-failure-hunter", "type-design-analyzer"]
+    haiku: ["documentation-reviewer", "maintainability-reviewer", "comment-analyzer"]
+  skip_logic:
+    small_diff_threshold: 20
+    large_diff_threshold: 500
+
+# ============================================================================
+# Rules Configuration
+# ============================================================================
+rules:
+  extract_to_files: true
+  anti_patterns: true
+  security: true
+  database_migrations: false
+  sherlock_review_gate: true
+
+# ============================================================================
+# Skills Configuration
+# ============================================================================
+skills:
+  deploy: true
+  health: true
+  release_notes: true
+  schema_check: false
+  browse: true
+  qa: true
+  retro: true
+  tdd_commit: true
+  ship: true
+
+# ============================================================================
+# Team Scaling
+# ============================================================================
+team:
+  distribute_agents: false
+  distribute_skills: false
+
+# ============================================================================
+# Archive Configuration
+# ============================================================================
+archive:
+  insights_threshold: 1500
+  version_history_threshold: 800
+
+# ============================================================================
+# Visual QA Configuration
+# ============================================================================
+qa:
+  enabled: true
+  dev_url: "http://localhost:3000"
+  report_dir: ".qa-reports"
+
+# ============================================================================
+# Retro Configuration
+# ============================================================================
+retro:
+  enabled: true
+  default_window: "7d"
+  storage_dir: ".context/retros"
+  track_tdd_phases: true
+
+# ============================================================================
+# Prompt Versioning
+# ============================================================================
+prompts:
+  versioning: false
+  snapshot_dir: "prompt_snapshots"
+
+# ============================================================================
+# Deployment Configuration
+# ============================================================================
+deployment:
+  fast_deploy_enabled: true
+  post_deploy_monitoring_minutes: 15
+
+# ============================================================================
+# Agent Configuration
+# ============================================================================
+agents:
+  custom_agents: []
+
+hooks:
+  deploy_gate: false
+
+# ============================================================================
+# Metrics Configuration
+# ============================================================================
+metrics:
+  enabled: true
+  storage_dir: ".context/metrics"
+  max_size_mb: 50
+  dashboard:
+    output_path: ".context/dashboard.html"
+    default_window: "30d"
+
+profile: full

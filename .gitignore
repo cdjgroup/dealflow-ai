@@ -24,6 +24,19 @@
 .DS_Store
 *.pem
 
+# env files
+.env
+.env.local
+.env*.local
+
+# framework state (gitignored)
+.claude/state/
+.claude/expected-branch.txt
+.context/
+.qa-reports/
+.fw-sync-backups/
+.sherlock-plan.md
+
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -39,3 +52,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.fw-sync-cache/
