@@ -9,7 +9,7 @@ export default function ClosePage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-500">Authorization complete. You can close this window.</p>
+      <p className="text-muted-foreground">Authorization complete. You can close this window.</p>
     </div>
   );
 }

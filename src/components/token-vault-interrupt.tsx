@@ -55,33 +55,33 @@ export function TokenVaultInterrupt({
   }, []);
 
   return (
-    <div className="bg-amber-900/20 border border-amber-600/30 rounded-lg p-4 my-4">
+    <div className="bg-chart-4/10 border border-chart-4/20 rounded-lg p-4 my-4">
       <div className="flex items-start gap-3">
-        <div className="text-amber-400 text-xl mt-0.5">🔐</div>
+        <div className="text-chart-4 text-xl mt-0.5">🔐</div>
         <div className="flex-1">
-          <h3 className="text-amber-200 font-semibold">
+          <h3 className="text-foreground font-semibold">
             Authorization Required
           </h3>
-          <p className="text-sm text-amber-300/70 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             The agent needs access to your {connectionLabel} account to complete
             this action.
           </p>
           {scopes && scopes.length > 0 && (
-            <div className="mt-2 text-xs text-slate-400">
-              <span className="text-slate-500">Requested scopes:</span>{" "}
+            <div className="mt-2 text-xs text-muted-foreground">
+              <span className="text-muted-foreground/70">Requested scopes:</span>{" "}
               {scopes.map((s) => s.split("/").pop()).join(", ")}
             </div>
           )}
           <div className="mt-3 flex gap-2">
             <button
               onClick={handleAuthorize}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-1.5 rounded transition-colors"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-1.5 rounded transition-colors"
             >
               Authorize {connectionLabel}
             </button>
             <button
               onClick={onDismiss}
-              className="text-slate-400 hover:text-slate-300 text-sm px-3 py-1.5 transition-colors"
+              className="text-muted-foreground hover:text-foreground text-sm px-3 py-1.5 transition-colors"
             >
               Dismiss
             </button>

@@ -64,10 +64,10 @@ export function ChatWindow() {
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <h2 className="text-2xl font-semibold text-slate-300 mb-2">
+              <h2 className="text-2xl font-semibold text-foreground/80 mb-2">
                 Welcome to DealFlow AI
               </h2>
-              <p className="text-slate-500 mb-6 max-w-md">
+              <p className="text-muted-foreground mb-6 max-w-md">
                 Ask me about your pipeline, check your calendar, or draft a
                 follow-up email.
               </p>
@@ -81,7 +81,7 @@ export function ChatWindow() {
                   <button
                     key={suggestion}
                     onClick={() => handleSuggestion(suggestion)}
-                    className="text-sm bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg border border-slate-700 transition-colors"
+                    className="text-sm bg-card hover:bg-secondary text-foreground/80 px-3 py-2 rounded-lg border border-border transition-colors"
                   >
                     {suggestion}
                   </button>
@@ -109,9 +109,9 @@ export function ChatWindow() {
 
         {isLoading && messages[messages.length - 1]?.role === "user" && (
           <div className="flex justify-start mb-4">
-            <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <div className="bg-card border border-border rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
                 Thinking...
               </div>
             </div>
@@ -119,25 +119,25 @@ export function ChatWindow() {
         )}
 
         {error && !interrupt && (
-          <div className="text-red-400 text-sm bg-red-900/20 border border-red-800/30 rounded-lg px-4 py-3 mb-4">
+          <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-4">
             Error: {error.message}
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-slate-800 px-4 py-3">
+      <form onSubmit={handleSubmit} className="border-t border-border px-4 py-3">
         <div className="flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your deals, calendar, or contacts..."
-            className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20"
+            className="flex-1 bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+            className="bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground font-medium px-6 py-2.5 rounded-lg transition-colors"
           >
             Send
           </button>

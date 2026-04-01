@@ -30,12 +30,12 @@ export function SeedButton() {
       <button
         onClick={handleSeed}
         disabled={loading}
-        className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-slate-300 text-sm font-medium px-4 py-3 rounded-lg transition-colors"
+        className="w-full bg-card hover:bg-secondary disabled:opacity-50 border border-border text-foreground/80 text-sm font-medium px-4 py-3 rounded-lg transition-colors"
       >
         {loading ? "Seeding..." : "Load Demo Data"}
       </button>
       {error && (
-        <p className="text-red-400 text-xs mt-2">{error}</p>
+        <p className="text-destructive text-xs mt-2">{error}</p>
       )}
     </div>
   );
