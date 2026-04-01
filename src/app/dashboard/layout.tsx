@@ -13,7 +13,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Nav userName={session.user?.name || session.user?.email} />
       <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
     </div>
