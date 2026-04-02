@@ -8,7 +8,9 @@ export const auth0 = new Auth0Client({
   secret: process.env.AUTH0_SECRET,
   authorizationParameters: {
     scope: "openid profile email offline_access",
+    audience: `https://${process.env.AUTH0_DOMAIN}/me/`,
   },
+  enableConnectAccountEndpoint: true,
 });
 
 export async function getRefreshToken(): Promise<string> {
