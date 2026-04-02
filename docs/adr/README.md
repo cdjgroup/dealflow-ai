@@ -1,0 +1,5 @@
+# Architecture Decision Records
+
+| # | Title | Status | Date |
+|---|-------|--------|------|
+| 001 | [Direct Token Exchange vs SDK Wrapper](001-direct-token-exchange.md) | ACCEPTED | 2026-04-02 |
