@@ -3,6 +3,23 @@ import { z } from "zod";
 import { getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { withGmail } from "@/lib/auth0-ai";
 
+interface GmailMessageRef {
+  id: string;
+}
+
+interface GmailHeader {
+  name: string;
+  value?: string;
+}
+
+function sanitizeApiError(status: number, label: string): string {
+  if (status === 401 || status === 403) return `${label}: authorization failed — token may be expired`;
+  if (status === 404) return `${label}: resource not found`;
+  if (status === 429) return `${label}: rate limit exceeded`;
+  return `${label}: request failed (status ${status})`;
+}
+
+// Type cast needed: @auth0/ai-vercel was built for AI SDK v5 types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const draftEmail = (withGmail as any)(
   tool({
@@ -45,8 +62,7 @@ export const draftEmail = (withGmail as any)(
       );
 
       if (!response.ok) {
-        const err = await response.text();
-        return { error: `Gmail API error: ${response.status}`, details: err };
+        return { error: sanitizeApiError(response.status, "Gmail draft") };
       }
 
       const draft = await response.json();
@@ -72,9 +88,12 @@ export const searchEmails = (withGmail as any)(
         ),
       maxResults: z
         .number()
+        .int()
+        .min(1)
+        .max(20)
         .optional()
         .default(5)
-        .describe("Maximum number of results to return"),
+        .describe("Maximum number of results to return (1-20)"),
     }),
     execute: async ({ query, maxResults }) => {
       const accessToken = getAccessTokenFromTokenVault();
@@ -87,8 +106,7 @@ export const searchEmails = (withGmail as any)(
       );
 
       if (!response.ok) {
-        const err = await response.text();
-        return { error: `Gmail API error: ${response.status}`, details: err };
+        return { error: sanitizeApiError(response.status, "Gmail search") };
       }
 
       const data = await response.json();
@@ -97,18 +115,18 @@ export const searchEmails = (withGmail as any)(
       }
 
       const emails = await Promise.all(
-        data.messages.slice(0, maxResults).map(async (msg: { id: string }) => {
+        data.messages.slice(0, maxResults).map(async (msg: GmailMessageRef) => {
           const detail = await fetch(
             `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
             { headers: { Authorization: `Bearer ${accessToken}` } }
           );
           const d = await detail.json();
-          const headers = d.payload?.headers || [];
+          const headers: GmailHeader[] = d.payload?.headers || [];
           return {
             id: msg.id,
-            from: headers.find((h: { name: string }) => h.name === "From")?.value,
-            subject: headers.find((h: { name: string }) => h.name === "Subject")?.value,
-            date: headers.find((h: { name: string }) => h.name === "Date")?.value,
+            from: headers.find((h) => h.name === "From")?.value,
+            subject: headers.find((h) => h.name === "Subject")?.value,
+            date: headers.find((h) => h.name === "Date")?.value,
             snippet: d.snippet,
           };
         })

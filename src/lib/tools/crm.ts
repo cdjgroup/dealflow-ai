@@ -4,11 +4,15 @@ import {
   getDeals,
   getDeal,
   createDealRecord,
+  updateDealRecord,
   getContacts,
   getContact,
+  createContactRecord,
   getActivities,
   createActivityRecord,
 } from "@/lib/data/crm";
+
+const safeId = z.string().regex(/^[a-zA-Z0-9]+$/, "ID must be alphanumeric");
 
 export function createCrmTools(userId: string) {
   const listDeals = tool({
@@ -36,7 +40,7 @@ export function createCrmTools(userId: string) {
     description:
       "Get detailed information about a specific deal including its activity history.",
     inputSchema: z.object({
-      dealId: z.string().describe("The deal ID"),
+      dealId: safeId.describe("The deal ID"),
     }),
     execute: async ({ dealId }) => {
       const deal = await getDeal(userId, dealId);
@@ -98,7 +102,7 @@ export function createCrmTools(userId: string) {
         ])
         .default("lead")
         .describe("Pipeline stage"),
-      contactId: z.string().describe("Associated contact ID"),
+      contactId: safeId.describe("Associated contact ID"),
     }),
     execute: async ({ name, company, value, stage, contactId }) => {
       const deal = await createDealRecord(userId, {
@@ -112,12 +116,60 @@ export function createCrmTools(userId: string) {
     },
   });
 
+  const updateDeal = tool({
+    description:
+      "Update an existing deal's stage, value, or other fields. Use this to advance deals through the pipeline.",
+    inputSchema: z.object({
+      dealId: safeId.describe("The deal ID to update"),
+      stage: z
+        .enum([
+          "lead",
+          "qualified",
+          "proposal",
+          "negotiation",
+          "closed-won",
+          "closed-lost",
+        ])
+        .optional()
+        .describe("New pipeline stage"),
+      value: z.number().optional().describe("Updated deal value in dollars"),
+      name: z.string().optional().describe("Updated deal name"),
+    }),
+    execute: async ({ dealId, ...updates }) => {
+      const deal = await updateDealRecord(userId, dealId, updates);
+      if (!deal) return { error: "Deal not found" };
+      return { success: true, deal };
+    },
+  });
+
+  const createContact = tool({
+    description:
+      "Create a new contact in the CRM. Use this when the user mentions a new prospect or person not yet in the system.",
+    inputSchema: z.object({
+      name: z.string().describe("Contact's full name"),
+      email: z.string().email().describe("Contact's email address"),
+      company: z.string().describe("Contact's company name"),
+      role: z.string().describe("Contact's job title or role"),
+      phone: z.string().optional().describe("Contact's phone number"),
+    }),
+    execute: async ({ name, email, company, role, phone }) => {
+      const contact = await createContactRecord(userId, {
+        name,
+        email,
+        company,
+        role,
+        phone,
+      });
+      return { success: true, contact };
+    },
+  });
+
   const logActivity = tool({
     description:
       "Log an activity (email, call, meeting, or note) on a deal. Use this to record interactions with contacts.",
     inputSchema: z.object({
-      dealId: z.string().describe("The deal ID"),
-      contactId: z.string().describe("The contact ID"),
+      dealId: safeId.describe("The deal ID"),
+      contactId: safeId.describe("The contact ID"),
       type: z
         .enum(["email", "call", "meeting", "note"])
         .describe("Activity type"),
@@ -134,5 +186,13 @@ export function createCrmTools(userId: string) {
     },
   });
 
-  return { listDeals, getDealDetails, searchContacts, createDeal, logActivity };
+  return {
+    listDeals,
+    getDealDetails,
+    searchContacts,
+    createDeal,
+    updateDeal,
+    createContact,
+    logActivity,
+  };
 }

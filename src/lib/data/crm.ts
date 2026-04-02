@@ -44,6 +44,7 @@ function now(): string {
   return new Date().toISOString();
 }
 
+// Upstash Redis auto-deserializes JSON, so raw may arrive as an object
 function parse<T>(raw: string | null): T | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === "object") return raw as T;
@@ -54,12 +55,32 @@ function parse<T>(raw: string | null): T | null {
   }
 }
 
+// --- Index helpers (Redis Sets replace dangerous KEYS scans) ---
+
+function dealIndexKey(userId: string): string {
+  return `${userId}:_idx:deals`;
+}
+
+function contactIndexKey(userId: string): string {
+  return `${userId}:_idx:contacts`;
+}
+
+function activityIndexKey(userId: string, dealId: string): string {
+  return `${userId}:_idx:activities:${dealId}`;
+}
+
+// --- Deals ---
+
 export async function getDeals(userId: string): Promise<Deal[]> {
   const redis = getRedis();
-  const keys = await redis.keys(`${userId}:deal:*`);
-  if (keys.length === 0) return [];
+  const ids = await redis.smembers(dealIndexKey(userId));
+  if (ids.length === 0) return [];
+  const keys = ids.map((id) => `${userId}:deal:${id}`);
   const values = await redis.mget<string[]>(...keys);
-  return values.filter(Boolean).map((v) => parse<Deal>(v)!).filter(Boolean);
+  return values
+    .filter(Boolean)
+    .map((v) => parse<Deal>(v))
+    .filter((d): d is Deal => d !== null);
 }
 
 export async function getDeal(
@@ -82,19 +103,44 @@ export async function createDealRecord(
     createdAt: now(),
     updatedAt: now(),
   };
-  await redis.set(`${userId}:deal:${deal.id}`, JSON.stringify(deal));
+  const p = redis.pipeline();
+  p.set(`${userId}:deal:${deal.id}`, JSON.stringify(deal));
+  p.sadd(dealIndexKey(userId), deal.id);
+  await p.exec();
   return deal;
 }
 
+export async function updateDealRecord(
+  userId: string,
+  dealId: string,
+  data: Partial<Omit<Deal, "id" | "createdAt">>
+): Promise<Deal | null> {
+  const existing = await getDeal(userId, dealId);
+  if (!existing) return null;
+  const updated: Deal = {
+    ...existing,
+    ...data,
+    id: existing.id,
+    createdAt: existing.createdAt,
+    updatedAt: now(),
+  };
+  const redis = getRedis();
+  await redis.set(`${userId}:deal:${updated.id}`, JSON.stringify(updated));
+  return updated;
+}
+
+// --- Contacts ---
+
 export async function getContacts(userId: string): Promise<Contact[]> {
   const redis = getRedis();
-  const keys = await redis.keys(`${userId}:contact:*`);
-  if (keys.length === 0) return [];
+  const ids = await redis.smembers(contactIndexKey(userId));
+  if (ids.length === 0) return [];
+  const keys = ids.map((id) => `${userId}:contact:${id}`);
   const values = await redis.mget<string[]>(...keys);
   return values
     .filter(Boolean)
-    .map((v) => parse<Contact>(v)!)
-    .filter(Boolean);
+    .map((v) => parse<Contact>(v))
+    .filter((c): c is Contact => c !== null);
 }
 
 export async function getContact(
@@ -106,18 +152,38 @@ export async function getContact(
   return parse<Contact>(raw);
 }
 
+export async function createContactRecord(
+  userId: string,
+  data: Omit<Contact, "id" | "createdAt">
+): Promise<Contact> {
+  const redis = getRedis();
+  const contact: Contact = {
+    ...data,
+    id: genId(),
+    createdAt: now(),
+  };
+  const p = redis.pipeline();
+  p.set(`${userId}:contact:${contact.id}`, JSON.stringify(contact));
+  p.sadd(contactIndexKey(userId), contact.id);
+  await p.exec();
+  return contact;
+}
+
+// --- Activities ---
+
 export async function getActivities(
   userId: string,
   dealId: string
 ): Promise<Activity[]> {
   const redis = getRedis();
-  const keys = await redis.keys(`${userId}:activity:${dealId}:*`);
-  if (keys.length === 0) return [];
+  const ids = await redis.smembers(activityIndexKey(userId, dealId));
+  if (ids.length === 0) return [];
+  const keys = ids.map((id) => `${userId}:activity:${dealId}:${id}`);
   const values = await redis.mget<string[]>(...keys);
   return values
     .filter(Boolean)
-    .map((v) => parse<Activity>(v)!)
-    .filter(Boolean);
+    .map((v) => parse<Activity>(v))
+    .filter((a): a is Activity => a !== null);
 }
 
 export async function createActivityRecord(
@@ -130,154 +196,174 @@ export async function createActivityRecord(
     id: genId(),
     createdAt: now(),
   };
-  await redis.set(
+  const p = redis.pipeline();
+  p.set(
     `${userId}:activity:${activity.dealId}:${activity.id}`,
     JSON.stringify(activity)
   );
+  p.sadd(activityIndexKey(userId, activity.dealId), activity.id);
+  await p.exec();
   return activity;
 }
 
-export async function seedDemoData(userId: string): Promise<void> {
+// --- Seed data ---
+
+const SEED_CONTACTS: Contact[] = [
+  {
+    id: "c1",
+    name: "Sarah Chen",
+    email: "sarah.chen@meridian.io",
+    company: "Meridian Technologies",
+    role: "VP Engineering",
+    phone: "+1-555-0101",
+    createdAt: "2026-03-15T10:00:00Z",
+  },
+  {
+    id: "c2",
+    name: "Marcus Johnson",
+    email: "m.johnson@vantage.co",
+    company: "Vantage Partners",
+    role: "CTO",
+    phone: "+1-555-0202",
+    createdAt: "2026-03-10T14:00:00Z",
+  },
+  {
+    id: "c3",
+    name: "Elena Rodriguez",
+    email: "elena@brightpath.com",
+    company: "BrightPath Solutions",
+    role: "Director of Operations",
+    createdAt: "2026-03-20T09:00:00Z",
+  },
+  {
+    id: "c4",
+    name: "James Wilson",
+    email: "jwilson@pinnacle.dev",
+    company: "Pinnacle Dev",
+    role: "Head of Product",
+    createdAt: "2026-03-22T11:00:00Z",
+  },
+];
+
+const SEED_DEALS: Deal[] = [
+  {
+    id: "d1",
+    name: "Meridian Platform Migration",
+    company: "Meridian Technologies",
+    value: 85000,
+    stage: "proposal",
+    contactId: "c1",
+    createdAt: "2026-03-15T10:30:00Z",
+    updatedAt: "2026-03-28T16:00:00Z",
+  },
+  {
+    id: "d2",
+    name: "Vantage API Integration",
+    company: "Vantage Partners",
+    value: 42000,
+    stage: "negotiation",
+    contactId: "c2",
+    createdAt: "2026-03-10T14:30:00Z",
+    updatedAt: "2026-03-30T09:00:00Z",
+  },
+  {
+    id: "d3",
+    name: "BrightPath Onboarding System",
+    company: "BrightPath Solutions",
+    value: 28000,
+    stage: "qualified",
+    contactId: "c3",
+    createdAt: "2026-03-20T09:30:00Z",
+    updatedAt: "2026-03-25T14:00:00Z",
+  },
+  {
+    id: "d4",
+    name: "Pinnacle Dev Tools License",
+    company: "Pinnacle Dev",
+    value: 15000,
+    stage: "lead",
+    contactId: "c4",
+    createdAt: "2026-03-22T11:30:00Z",
+    updatedAt: "2026-03-22T11:30:00Z",
+  },
+];
+
+const SEED_ACTIVITIES: Activity[] = [
+  {
+    id: "a1",
+    dealId: "d1",
+    contactId: "c1",
+    type: "meeting",
+    summary:
+      "Initial discovery call with Sarah. Discussed migration timeline and budget.",
+    createdAt: "2026-03-15T11:00:00Z",
+  },
+  {
+    id: "a2",
+    dealId: "d1",
+    contactId: "c1",
+    type: "email",
+    summary: "Sent proposal document with 3 pricing tiers.",
+    createdAt: "2026-03-22T15:00:00Z",
+  },
+  {
+    id: "a3",
+    dealId: "d2",
+    contactId: "c2",
+    type: "call",
+    summary:
+      "Technical deep-dive on API requirements. Marcus wants SSO integration.",
+    createdAt: "2026-03-18T10:00:00Z",
+  },
+  {
+    id: "a4",
+    dealId: "d2",
+    contactId: "c2",
+    type: "meeting",
+    summary: "Contract review meeting. Legal on both sides reviewing terms.",
+    createdAt: "2026-03-28T14:00:00Z",
+  },
+  {
+    id: "a5",
+    dealId: "d3",
+    contactId: "c3",
+    type: "email",
+    summary: "Elena requested a product demo for her team next week.",
+    createdAt: "2026-03-24T09:00:00Z",
+  },
+];
+
+export interface SeedResult {
+  deals: number;
+  contacts: number;
+  activities: number;
+}
+
+export async function seedDemoData(userId: string): Promise<SeedResult> {
   const redis = getRedis();
+  const p = redis.pipeline();
 
-  const contacts: Contact[] = [
-    {
-      id: "c1",
-      name: "Sarah Chen",
-      email: "sarah.chen@meridian.io",
-      company: "Meridian Technologies",
-      role: "VP Engineering",
-      phone: "+1-555-0101",
-      createdAt: "2026-03-15T10:00:00Z",
-    },
-    {
-      id: "c2",
-      name: "Marcus Johnson",
-      email: "m.johnson@vantage.co",
-      company: "Vantage Partners",
-      role: "CTO",
-      phone: "+1-555-0202",
-      createdAt: "2026-03-10T14:00:00Z",
-    },
-    {
-      id: "c3",
-      name: "Elena Rodriguez",
-      email: "elena@brightpath.com",
-      company: "BrightPath Solutions",
-      role: "Director of Operations",
-      createdAt: "2026-03-20T09:00:00Z",
-    },
-    {
-      id: "c4",
-      name: "James Wilson",
-      email: "jwilson@pinnacle.dev",
-      company: "Pinnacle Dev",
-      role: "Head of Product",
-      createdAt: "2026-03-22T11:00:00Z",
-    },
-  ];
-
-  const deals: Deal[] = [
-    {
-      id: "d1",
-      name: "Meridian Platform Migration",
-      company: "Meridian Technologies",
-      value: 85000,
-      stage: "proposal",
-      contactId: "c1",
-      createdAt: "2026-03-15T10:30:00Z",
-      updatedAt: "2026-03-28T16:00:00Z",
-    },
-    {
-      id: "d2",
-      name: "Vantage API Integration",
-      company: "Vantage Partners",
-      value: 42000,
-      stage: "negotiation",
-      contactId: "c2",
-      createdAt: "2026-03-10T14:30:00Z",
-      updatedAt: "2026-03-30T09:00:00Z",
-    },
-    {
-      id: "d3",
-      name: "BrightPath Onboarding System",
-      company: "BrightPath Solutions",
-      value: 28000,
-      stage: "qualified",
-      contactId: "c3",
-      createdAt: "2026-03-20T09:30:00Z",
-      updatedAt: "2026-03-25T14:00:00Z",
-    },
-    {
-      id: "d4",
-      name: "Pinnacle Dev Tools License",
-      company: "Pinnacle Dev",
-      value: 15000,
-      stage: "lead",
-      contactId: "c4",
-      createdAt: "2026-03-22T11:30:00Z",
-      updatedAt: "2026-03-22T11:30:00Z",
-    },
-  ];
-
-  const activities: Activity[] = [
-    {
-      id: "a1",
-      dealId: "d1",
-      contactId: "c1",
-      type: "meeting",
-      summary:
-        "Initial discovery call with Sarah. Discussed migration timeline and budget.",
-      createdAt: "2026-03-15T11:00:00Z",
-    },
-    {
-      id: "a2",
-      dealId: "d1",
-      contactId: "c1",
-      type: "email",
-      summary: "Sent proposal document with 3 pricing tiers.",
-      createdAt: "2026-03-22T15:00:00Z",
-    },
-    {
-      id: "a3",
-      dealId: "d2",
-      contactId: "c2",
-      type: "call",
-      summary:
-        "Technical deep-dive on API requirements. Marcus wants SSO integration.",
-      createdAt: "2026-03-18T10:00:00Z",
-    },
-    {
-      id: "a4",
-      dealId: "d2",
-      contactId: "c2",
-      type: "meeting",
-      summary: "Contract review meeting. Legal on both sides reviewing terms.",
-      createdAt: "2026-03-28T14:00:00Z",
-    },
-    {
-      id: "a5",
-      dealId: "d3",
-      contactId: "c3",
-      type: "email",
-      summary: "Elena requested a product demo for her team next week.",
-      createdAt: "2026-03-24T09:00:00Z",
-    },
-  ];
-
-  for (const contact of contacts) {
-    await redis.set(
-      `${userId}:contact:${contact.id}`,
-      JSON.stringify(contact)
-    );
+  for (const contact of SEED_CONTACTS) {
+    p.set(`${userId}:contact:${contact.id}`, JSON.stringify(contact));
+    p.sadd(contactIndexKey(userId), contact.id);
   }
-  for (const deal of deals) {
-    await redis.set(`${userId}:deal:${deal.id}`, JSON.stringify(deal));
+  for (const deal of SEED_DEALS) {
+    p.set(`${userId}:deal:${deal.id}`, JSON.stringify(deal));
+    p.sadd(dealIndexKey(userId), deal.id);
   }
-  for (const activity of activities) {
-    await redis.set(
+  for (const activity of SEED_ACTIVITIES) {
+    p.set(
       `${userId}:activity:${activity.dealId}:${activity.id}`,
       JSON.stringify(activity)
     );
+    p.sadd(activityIndexKey(userId, activity.dealId), activity.id);
   }
+
+  await p.exec();
+
+  return {
+    deals: SEED_DEALS.length,
+    contacts: SEED_CONTACTS.length,
+    activities: SEED_ACTIVITIES.length,
+  };
 }

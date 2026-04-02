@@ -16,12 +16,27 @@ export function TokenVaultInterrupt({
   onDismiss,
 }: TokenVaultInterruptProps) {
   const popupRef = useRef<Window | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handledRef = useRef(false);
 
   const connectionLabel =
     connection === "google-oauth2" ? "Google" : connection;
 
+  // Listen for postMessage from the close page (origin-validated)
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "auth0-connect-success" && !handledRef.current) {
+        handledRef.current = true;
+        popupRef.current = null;
+        onAuthorized();
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [onAuthorized]);
+
   const handleAuthorize = useCallback(() => {
+    handledRef.current = false;
     const params = new URLSearchParams({
       connection,
       returnTo: "/close",
@@ -36,20 +51,10 @@ export function TokenVaultInterrupt({
       "width=500,height=600,scrollbars=yes"
     );
     popupRef.current = popup;
-
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      if (popup?.closed) {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        onAuthorized();
-      }
-    }, 500);
-  }, [connection, scopes, onAuthorized]);
+  }, [connection, scopes]);
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
       popupRef.current?.close();
     };
   }, []);

@@ -12,7 +12,10 @@ export function SeedButton() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/seed", { method: "POST" });
+      const res = await fetch("/api/seed", {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed (${res.status})`);

@@ -2,24 +2,45 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useRef, useEffect, useState, type FormEvent } from "react";
+import { useRef, useEffect, useState, useMemo, type FormEvent } from "react";
 import { ChatMessage } from "./chat-message";
 import { TokenVaultInterrupt } from "./token-vault-interrupt";
 
 const transport = new DefaultChatTransport({
   api: "/api/chat",
+  headers: { "X-Requested-With": "XMLHttpRequest" },
 });
 
+function parseInterrupt(error: Error | undefined): {
+  connection: string;
+  scopes?: string[];
+} | null {
+  if (!error) return null;
+  try {
+    const parsed = JSON.parse(error.message);
+    if (parsed.type === "TokenVaultInterrupt" || parsed.connection) {
+      return {
+        connection: parsed.connection || "google-oauth2",
+        scopes: parsed.scopes,
+      };
+    }
+  } catch {
+    // Not an interrupt error
+  }
+  return null;
+}
+
 export function ChatWindow() {
-  const [interrupt, setInterrupt] = useState<{
-    connection: string;
-    scopes?: string[];
-  } | null>(null);
+  const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status, error, regenerate } = useChat({
     transport,
   });
+
+  const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
+  // Show interrupt unless this specific error was dismissed
+  const interrupt = error && error !== dismissedError ? detectedInterrupt : null;
 
   const isLoading = status === "streaming" || status === "submitted";
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -30,22 +51,6 @@ export function ChatWindow() {
       behavior: "smooth",
     });
   }, [messages]);
-
-  useEffect(() => {
-    if (error) {
-      try {
-        const parsed = JSON.parse(error.message);
-        if (parsed.type === "TokenVaultInterrupt" || parsed.connection) {
-          setInterrupt({
-            connection: parsed.connection || "google-oauth2",
-            scopes: parsed.scopes,
-          });
-        }
-      } catch {
-        // Not an interrupt error
-      }
-    }
-  }, [error]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -100,10 +105,10 @@ export function ChatWindow() {
             connection={interrupt.connection}
             scopes={interrupt.scopes}
             onAuthorized={() => {
-              setInterrupt(null);
+              setDismissedError(error ?? null);
               regenerate();
             }}
-            onDismiss={() => setInterrupt(null)}
+            onDismiss={() => setDismissedError(error ?? null)}
           />
         )}
 
