@@ -3,6 +3,7 @@ import { getDeals } from "@/lib/data/crm";
 import { ChatWindow } from "@/components/chat-window";
 import { DealList } from "@/components/deal-list";
 import { SeedButton } from "@/components/seed-button";
+import { ConnectGoogle } from "@/components/connect-google";
 
 export default async function DashboardPage() {
   const session = await auth0.getSession();
@@ -20,6 +21,16 @@ export default async function DashboardPage() {
       <div className="space-y-4 overflow-y-auto">
         <DealList deals={deals} />
         {deals.length === 0 && <SeedButton />}
+        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-white mb-2">
+            Google Integration
+          </h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Connect your Google account to let the agent check your calendar and
+            draft emails via Auth0 Token Vault.
+          </p>
+          <ConnectGoogle />
+        </div>
       </div>
     </div>
   );

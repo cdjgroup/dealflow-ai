@@ -1,4 +1,5 @@
 import { auth0 } from "@/lib/auth0";
+import { ConnectGoogle } from "@/components/connect-google";
 
 export default async function PermissionsPage() {
   const session = await auth0.getSession();
@@ -52,9 +53,7 @@ export default async function PermissionsPage() {
                   </div>
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                Connected on first use
-              </span>
+              <ConnectGoogle />
             </div>
           </div>
         </div>

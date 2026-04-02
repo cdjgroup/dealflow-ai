@@ -1,25 +1,14 @@
-import { Auth0AI } from "@auth0/ai-vercel";
-import { UpstashStore } from "@/lib/stores/upstash-store";
-import { getRefreshToken } from "@/lib/auth0";
+// Auth0 AI Token Vault configuration
+// Note: We use direct token exchange (RFC 8693) instead of the @auth0/ai-vercel
+// SDK wrapper due to compatibility issues between @auth0/ai-vercel v5 and AI SDK v6.
+// The direct approach calls Auth0's /oauth/token endpoint with the federated
+// connection access token grant type. See src/lib/tools/calendar.ts for the pattern.
 
-const store = new UpstashStore();
-
-export const auth0AI = new Auth0AI({ store });
-
-export const withGoogleCalendar = auth0AI.withTokenVault({
-  refreshToken: getRefreshToken,
+export const TOKEN_VAULT_CONFIG = {
   connection: "google-oauth2",
-  scopes: [
-    "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/calendar.freebusy",
-  ],
-});
-
-export const withGmail = auth0AI.withTokenVault({
-  refreshToken: getRefreshToken,
-  connection: "google-oauth2",
-  scopes: [
-    "https://www.googleapis.com/auth/gmail.compose",
-    "https://www.googleapis.com/auth/gmail.readonly",
-  ],
-});
+  grantType:
+    "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
+  subjectTokenType: "urn:ietf:params:oauth:token-type:refresh_token",
+  requestedTokenType:
+    "http://auth0.com/oauth/token-type/federated-connection-access-token",
+} as const;
