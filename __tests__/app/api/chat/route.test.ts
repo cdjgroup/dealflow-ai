@@ -65,6 +65,26 @@ vi.mock("@/lib/tools/crm", () => ({
   })),
 }));
 
+vi.mock("@/lib/tools/slack", () => ({
+  listSlackChannels: { type: "tool", name: "listSlackChannels" },
+  sendSlackMessage: { type: "tool", name: "sendSlackMessage" },
+}));
+
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn().mockResolvedValue({
+    capabilities: { crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: false },
+    approvalRequired: { crmWrite: false },
+  }),
+}));
+
+vi.mock("@/lib/data/audit", () => ({
+  writeAuditEntry: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("@/lib/tools/capability-filter", () => ({
+  filterToolsByCapabilities: vi.fn((tools: Record<string, unknown>) => tools),
+}));
+
 vi.mock("@/lib/audit-log", () => ({
   logToolExecution: vi.fn(),
 }));

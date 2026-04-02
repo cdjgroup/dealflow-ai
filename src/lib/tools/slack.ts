@@ -1,0 +1,169 @@
+import { tool } from "ai";
+import { z } from "zod";
+import { auth0 } from "@/lib/auth0";
+
+async function getSlackToken(): Promise<{ token: string } | { error: string }> {
+  const session = await auth0.getSession();
+  const refreshToken = session?.tokenSet?.refreshToken;
+  if (!refreshToken) {
+    return {
+      error: "No session refresh token. Please log out and log back in.",
+    };
+  }
+
+  const response = await fetch(
+    `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type:
+          "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
+        client_id: process.env.AUTH0_CLIENT_ID,
+        client_secret: process.env.AUTH0_CLIENT_SECRET,
+        subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token",
+        subject_token: refreshToken,
+        connection: "slack",
+        requested_token_type:
+          "http://auth0.com/oauth/token-type/federated-connection-access-token",
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json();
+    return {
+      error: err.error_description || err.error || "Slack token exchange failed",
+    };
+  }
+
+  const tokenData = await response.json();
+  return { token: tokenData.access_token };
+}
+
+export const listSlackChannels = tool({
+  description:
+    "List Slack channels the user has access to. Use this when the user asks about available Slack channels or wants to know where to post a message.",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const result = await getSlackToken();
+    if ("error" in result) {
+      return {
+        error: "Slack not connected",
+        details: result.error,
+        action:
+          "Connect your Slack account in Permissions, then try again.",
+      };
+    }
+
+    const response = await fetch(
+      "https://slack.com/api/conversations.list?types=public_channel&exclude_archived=true&limit=50",
+      {
+        headers: { Authorization: `Bearer ${result.token}` },
+      }
+    );
+
+    const data = await response.json();
+    if (!data.ok) {
+      return { error: `Slack API error: ${data.error}` };
+    }
+
+    const channels = (data.channels || []).map(
+      (ch: { id: string; name: string; num_members?: number }) => ({
+        id: ch.id,
+        name: ch.name,
+        members: ch.num_members || 0,
+      })
+    );
+
+    return {
+      channelCount: channels.length,
+      channels,
+    };
+  },
+});
+
+export const sendSlackMessage = tool({
+  description:
+    "Send a message to a Slack channel. Use this when the user wants to notify their team about a deal update, share pipeline status, or send a quick message to a channel. Always confirm the channel and message content with the user before sending.",
+  inputSchema: z.object({
+    channel: z
+      .string()
+      .describe(
+        "The Slack channel name (without #) or channel ID to send the message to"
+      ),
+    text: z
+      .string()
+      .describe("The message text to send. Supports Slack markdown formatting."),
+  }),
+  execute: async ({
+    channel,
+    text,
+  }: {
+    channel: string;
+    text: string;
+  }) => {
+    const result = await getSlackToken();
+    if ("error" in result) {
+      return {
+        error: "Slack not connected",
+        details: result.error,
+        action:
+          "Connect your Slack account in Permissions, then try again.",
+      };
+    }
+
+    // If channel doesn't look like an ID (C...), resolve it by name
+    let channelId = channel;
+    if (!channel.startsWith("C")) {
+      const listRes = await fetch(
+        `https://slack.com/api/conversations.list?types=public_channel&limit=200`,
+        {
+          headers: { Authorization: `Bearer ${result.token}` },
+        }
+      );
+      const listData = await listRes.json();
+      if (listData.ok) {
+        const found = (listData.channels || []).find(
+          (ch: { name: string }) =>
+            ch.name === channel || ch.name === channel.replace(/^#/, "")
+        );
+        if (found) {
+          channelId = found.id;
+        } else {
+          return {
+            error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
+          };
+        }
+      }
+    }
+
+    const response = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${result.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ channel: channelId, text }),
+    });
+
+    const data = await response.json();
+    if (!data.ok) {
+      const friendlyErrors: Record<string, string> = {
+        channel_not_found: `Channel "${channel}" not found. Check the channel name and try again.`,
+        not_in_channel: `The bot is not in channel "${channel}". Invite it first with /invite.`,
+        msg_too_long: "Message is too long. Try a shorter message.",
+      };
+      return {
+        error: friendlyErrors[data.error] || `Slack API error: ${data.error}`,
+      };
+    }
+
+    return {
+      success: true,
+      channel: data.channel,
+      timestamp: data.ts,
+      message: `Message sent to #${channel}`,
+    };
+  },
+});

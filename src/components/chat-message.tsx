@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import type { UIMessage } from "ai";
+import { ToolResultCard } from "@/components/tool-result-card";
 
 export function ChatMessage({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
@@ -30,13 +31,33 @@ export function ChatMessage({ message }: { message: UIMessage }) {
             const toolName =
               "toolName" in part ? String(part.toolName) : part.type;
             const state = "state" in part ? String(part.state) : "";
+            const output = "output" in part ? part.output : undefined;
+
+            // Rich tool result cards (D2)
+            if (
+              (state === "result" || state === "output-available") &&
+              output
+            ) {
+              return (
+                <div key={i}>
+                  <div className="text-xs bg-muted/50 rounded px-2 py-1 my-1 text-muted-foreground flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                    <span>{toolName}</span>
+                    <span className="text-muted-foreground/60">completed</span>
+                  </div>
+                  <ToolResultCard toolName={toolName} output={output} />
+                </div>
+              );
+            }
+
+            // Running / pending state
             return (
               <div
                 key={i}
                 className="text-xs bg-muted/50 rounded px-2 py-1 my-1 text-muted-foreground flex items-center gap-1.5"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
-                <span className="text-muted-foreground">{toolName}</span>
+                <span>{toolName}</span>
                 {state === "result" && (
                   <span className="text-muted-foreground/60">completed</span>
                 )}
