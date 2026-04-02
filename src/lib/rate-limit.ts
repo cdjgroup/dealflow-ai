@@ -1,26 +1,16 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { getRedis } from "@/lib/redis";
 
 let rateLimiter: Ratelimit | null = null;
 
-export function getRateLimiter(): Ratelimit | null {
-  if (
-    !process.env.UPSTASH_REDIS_REST_URL ||
-    !process.env.UPSTASH_REDIS_REST_TOKEN
-  ) {
-    return null;
-  }
-
+// 10 requests per minute per user
+export function getRateLimiter(): Ratelimit {
   if (!rateLimiter) {
     rateLimiter = new Ratelimit({
-      redis: new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      }),
+      redis: getRedis(),
       limiter: Ratelimit.slidingWindow(10, "1 m"),
       prefix: "dealflow:ratelimit",
     });
   }
-
   return rateLimiter;
 }

@@ -1,9 +1,13 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { seedDemoData } from "@/lib/data/crm";
 import { getRateLimiter } from "@/lib/rate-limit";
+import { checkCsrf } from "@/lib/api-guard";
 import { NextResponse } from "next/server";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const csrfError = checkCsrf(req);
+  if (csrfError) return csrfError;
+
   const session = await auth0.getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,30 +22,22 @@ export async function POST() {
   }
   const userId = user.sub;
 
-  const limiter = getRateLimiter();
-  if (limiter) {
-    const { success } = await limiter.limit(userId);
-    if (!success) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded" },
-        { status: 429 }
-      );
-    }
-  }
-
-  try {
-    await seedDemoData(userId);
-  } catch (err) {
+  const { success } = await getRateLimiter().limit(userId);
+  if (!success) {
     return NextResponse.json(
-      { error: "Failed to seed data", details: String(err) },
-      { status: 500 }
+      { error: "Rate limit exceeded" },
+      { status: 429 }
     );
   }
 
-  return NextResponse.json({
-    success: true,
-    deals: 4,
-    contacts: 4,
-    activities: 5,
-  });
+  try {
+    const result = await seedDemoData(userId);
+    return NextResponse.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Seed data error:", err);
+    return NextResponse.json(
+      { error: "Failed to seed data" },
+      { status: 500 }
+    );
+  }
 }

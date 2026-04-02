@@ -3,6 +3,45 @@ import { z } from "zod";
 import { getAccessTokenFromTokenVault } from "@auth0/ai-vercel";
 import { withGoogleCalendar } from "@/lib/auth0-ai";
 
+interface CalendarEvent {
+  summary?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+}
+
+interface EventSlot {
+  title: string;
+  start: string | undefined;
+  end: string | undefined;
+}
+
+function computeFreeSlots(events: EventSlot[], date: string): string {
+  if (events.length === 0) return "The entire day appears free.";
+
+  const dayStart = `${date}T09:00:00`;
+  const dayEnd = `${date}T17:00:00`;
+  const slots: string[] = [];
+
+  const sorted = events
+    .filter((e) => e.start && e.end)
+    .sort((a, b) => (a.start! < b.start! ? -1 : 1));
+
+  let cursor = dayStart;
+  for (const event of sorted) {
+    if (event.start! > cursor) {
+      slots.push(`${cursor.substring(11, 16)} - ${event.start!.substring(11, 16)}`);
+    }
+    if (event.end! > cursor) cursor = event.end!;
+  }
+  if (cursor < dayEnd) {
+    slots.push(`${cursor.substring(11, 16)} - ${dayEnd.substring(11, 16)}`);
+  }
+
+  return slots.length > 0
+    ? `Free slots (business hours): ${slots.join(", ")}`
+    : "No free slots during business hours (09:00-17:00).";
+}
+
 // Type cast needed: @auth0/ai-vercel was built for AI SDK v5 types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const checkCalendar = (withGoogleCalendar as any)(
@@ -28,13 +67,16 @@ export const checkCalendar = (withGoogleCalendar as any)(
       );
 
       if (!response.ok) {
-        const err = await response.text();
-        return { error: `Calendar API error: ${response.status}`, details: err };
+        const status = response.status;
+        if (status === 401 || status === 403) {
+          return { error: "Calendar: authorization failed — token may be expired" };
+        }
+        return { error: `Calendar: request failed (status ${status})` };
       }
 
       const data = await response.json();
-      const events = (data.items || []).map(
-        (event: { summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } }) => ({
+      const events: EventSlot[] = (data.items || []).map(
+        (event: CalendarEvent) => ({
           title: event.summary || "Busy",
           start: event.start?.dateTime || event.start?.date,
           end: event.end?.dateTime || event.end?.date,
@@ -45,10 +87,7 @@ export const checkCalendar = (withGoogleCalendar as any)(
         date,
         eventCount: events.length,
         events,
-        freeSlots:
-          events.length === 0
-            ? "The entire day appears free."
-            : `${events.length} event(s) found. Check gaps between events for availability.`,
+        freeSlots: computeFreeSlots(events, date),
       };
     },
   })

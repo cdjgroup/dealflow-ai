@@ -1,21 +1,12 @@
-import { Redis } from "@upstash/redis";
+import { getRedis } from "@/lib/redis";
+import type { Redis } from "@upstash/redis";
 import type { Store } from "@auth0/ai/stores";
 
 export class UpstashStore implements Store {
   private redis: Redis;
 
   constructor(redis?: Redis) {
-    if (redis) {
-      this.redis = redis;
-    } else {
-      if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-        throw new Error("Missing UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN");
-      }
-      this.redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
-    }
+    this.redis = redis ?? getRedis();
   }
 
   private buildKey(namespace: string[], key: string): string {
