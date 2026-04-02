@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",
-    "@ai-sdk/react": "^3.0.144",
+    "@ai-sdk/react": "^3.0.145",
     "@auth0/ai": "^6.0.0",
     "@auth0/ai-vercel": "^5.1.0",
     "@auth0/nextjs-auth0": "^4.16.1",
@@ -35,20 +35,20 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.0",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^20",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.2.2",
     "jsdom": "^29.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "typescript": "^6",
     "vitest": "^4.1.2"
   }
 }
