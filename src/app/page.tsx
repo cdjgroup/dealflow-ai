@@ -20,8 +20,9 @@ export default async function Home() {
             DealFlow AI
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
-            Your AI sales agent that checks calendars, drafts emails, and
-            manages your pipeline — securely authenticated with Auth0.
+            Your AI sales agent that checks calendars, drafts emails, sends
+            Slack updates, and manages your pipeline — with layered security
+            and full user control via Auth0 Token Vault.
           </p>
         </div>
         <Link
@@ -43,7 +44,7 @@ export default async function Home() {
             />
           </svg>
         </Link>
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 text-left">
+        <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 gap-4 text-left">
           {[
             {
               title: "Calendar",
@@ -54,8 +55,20 @@ export default async function Home() {
               desc: "Draft follow-ups in Gmail — never auto-sends",
             },
             {
+              title: "Slack",
+              desc: "Send team updates and list channels",
+            },
+            {
               title: "Pipeline",
               desc: "Manage deals, contacts, and activities",
+            },
+            {
+              title: "Security",
+              desc: "Capability toggles, step-up auth, audit trail",
+            },
+            {
+              title: "Control",
+              desc: "You decide what the agent can do — and revoke anytime",
             },
           ].map((feature) => (
             <div
