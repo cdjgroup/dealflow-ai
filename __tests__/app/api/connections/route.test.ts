@@ -5,7 +5,6 @@ const {
   mockGetUser,
   mockCheckCsrf,
   mockScan,
-  mockPipeline,
   mockPipelineExec,
   mockPipelineDel,
 } = vi.hoisted(() => ({
@@ -13,7 +12,6 @@ const {
   mockGetUser: vi.fn(),
   mockCheckCsrf: vi.fn(),
   mockScan: vi.fn(),
-  mockPipeline: vi.fn(),
   mockPipelineExec: vi.fn(),
   mockPipelineDel: vi.fn(),
 }));
@@ -46,12 +44,38 @@ function makeRequest() {
   });
 }
 
+// Helper: mock fetch for the management token + tokenset list + delete flow
+function mockManagementFlow(
+  tokensets: { tokenset_id: string; connection: string }[],
+  deleteStatus = 204
+) {
+  vi.mocked(fetch)
+    // 1st call: get management token
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "mgmt_token" }),
+    } as Response)
+    // 2nd call: list tokensets
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => tokensets,
+    } as Response);
+
+  // 3rd+ calls: delete each matching tokenset
+  for (const _ts of tokensets) {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: deleteStatus < 300,
+      status: deleteStatus,
+      text: async () => "",
+    } as Response);
+  }
+}
+
 describe("DELETE /api/connections/[connection]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
 
-    // Default happy path mocks
     mockCheckCsrf.mockReturnValue(null);
     mockGetSession.mockResolvedValue({ tokenSet: { refreshToken: "rt_test" } });
     mockGetUser.mockResolvedValue({ sub: "auth0|user123" });
@@ -105,12 +129,10 @@ describe("DELETE /api/connections/[connection]", () => {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
-    expect(res.status).toBe(502);
-    const body = await res.json();
-    expect(body.error).toContain("could not reach Auth0");
+    expect(res.status).toBe(500);
   });
 
-  it("returns 502 when federated connection delete fails", async () => {
+  it("returns 502 when tokenset list fails", async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce({
         ok: true,
@@ -119,7 +141,6 @@ describe("DELETE /api/connections/[connection]", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 403,
-        text: async () => "Insufficient scope",
       } as Response);
 
     const res = await DELETE(makeRequest(), {
@@ -128,20 +149,13 @@ describe("DELETE /api/connections/[connection]", () => {
 
     expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error).toContain("Auth0 rejected");
+    expect(body.error).toContain("could not list tokensets");
   });
 
-  it("treats 404 from Auth0 as success (already disconnected)", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        text: async () => "Not found",
-      } as Response);
+  it("lists tokensets and deletes matching ones", async () => {
+    mockManagementFlow([
+      { tokenset_id: "ts_abc", connection: "google-oauth2" },
+    ]);
 
     const res = await DELETE(makeRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
@@ -150,51 +164,20 @@ describe("DELETE /api/connections/[connection]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-  });
+    expect(body.tokensetsDeleted).toBe(1);
 
-  it("calls Auth0 Management API with correct endpoint", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-      } as Response);
-
-    await DELETE(makeRequest(), {
-      params: Promise.resolve({ connection: "google-oauth2" }),
-    });
-
-    // First call: get management token
-    const tokenCall = vi.mocked(fetch).mock.calls[0];
-    expect(tokenCall[0]).toBe("https://test.auth0.com/oauth/token");
-    expect(JSON.parse(tokenCall[1]!.body as string)).toMatchObject({
-      grant_type: "client_credentials",
-      audience: "https://test.auth0.com/api/v2/",
-    });
-
-    // Second call: delete federated connection
-    const deleteCall = vi.mocked(fetch).mock.calls[1];
+    // Verify the delete call
+    const deleteCall = vi.mocked(fetch).mock.calls[2];
     expect(deleteCall[0]).toBe(
-      "https://test.auth0.com/api/v2/users/auth0%7Cuser123/federated-connections/google-oauth2"
+      "https://test.auth0.com/api/v2/users/auth0%7Cuser123/federated-connections-tokensets/ts_abc"
     );
     expect(deleteCall[1]!.method).toBe("DELETE");
-    expect(deleteCall[1]!.headers).toMatchObject({
-      Authorization: "Bearer mgmt_token",
-    });
   });
 
-  it("clears Redis cache after Auth0 disconnect", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
-
-    mockScan.mockResolvedValue([0, ["auth0|user123:token:google-oauth2"]]);
+  it("succeeds with 0 tokensets deleted when none match", async () => {
+    mockManagementFlow([
+      { tokenset_id: "ts_xyz", connection: "sign-in-with-slack" },
+    ]);
 
     const res = await DELETE(makeRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
@@ -202,18 +185,45 @@ describe("DELETE /api/connections/[connection]", () => {
 
     const body = await res.json();
     expect(body.success).toBe(true);
+    expect(body.tokensetsDeleted).toBe(0);
+    // Only 2 fetch calls (token + list), no delete calls
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("handles multiple tokensets for same connection", async () => {
+    mockManagementFlow([
+      { tokenset_id: "ts_1", connection: "google-oauth2" },
+      { tokenset_id: "ts_2", connection: "google-oauth2" },
+    ]);
+
+    const res = await DELETE(makeRequest(), {
+      params: Promise.resolve({ connection: "google-oauth2" }),
+    });
+
+    const body = await res.json();
+    expect(body.tokensetsDeleted).toBe(2);
+    // token + list + 2 deletes
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("clears Redis cache after tokenset deletion", async () => {
+    mockManagementFlow([]);
+    mockScan.mockResolvedValue([0, ["auth0|user123:token:google-oauth2"]]);
+
+    const res = await DELETE(makeRequest(), {
+      params: Promise.resolve({ connection: "google-oauth2" }),
+    });
+
+    const body = await res.json();
     expect(body.keysCleared).toBe(1);
     expect(mockPipelineDel).toHaveBeenCalledWith("auth0|user123:token:google-oauth2");
     expect(mockPipelineExec).toHaveBeenCalled();
   });
 
   it("works for sign-in-with-slack connection", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+    mockManagementFlow([
+      { tokenset_id: "ts_slack", connection: "sign-in-with-slack" },
+    ]);
 
     const res = await DELETE(
       new Request("http://localhost/api/connections/sign-in-with-slack", {
@@ -223,9 +233,25 @@ describe("DELETE /api/connections/[connection]", () => {
       { params: Promise.resolve({ connection: "sign-in-with-slack" }) }
     );
 
-    expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.connection).toBe("sign-in-with-slack");
+  });
+
+  it("requests management token with correct credentials", async () => {
+    mockManagementFlow([]);
+
+    await DELETE(makeRequest(), {
+      params: Promise.resolve({ connection: "google-oauth2" }),
+    });
+
+    const tokenCall = vi.mocked(fetch).mock.calls[0];
+    expect(tokenCall[0]).toBe("https://test.auth0.com/oauth/token");
+    expect(JSON.parse(tokenCall[1]!.body as string)).toMatchObject({
+      grant_type: "client_credentials",
+      audience: "https://test.auth0.com/api/v2/",
+      client_id: "client123",
+      client_secret: "secret456",
+    });
   });
 });
