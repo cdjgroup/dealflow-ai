@@ -1,6 +1,7 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { redirect } from "next/navigation";
 import { getUserSettings } from "@/lib/data/settings";
+import { getDisabledConnections } from "@/lib/data/connections";
 import { CapabilityToggles } from "@/components/capability-toggles";
 import { RevokeButton } from "@/components/revoke-button";
 import { TokenStatus } from "@/components/token-status";
@@ -15,9 +16,10 @@ export default async function PermissionsPage() {
   const user = await getUser();
   if (!user?.sub) redirect("/auth/login?returnTo=/dashboard/permissions");
 
-  const [settings, recentActivity] = await Promise.all([
+  const [settings, recentActivity, disabledConnections] = await Promise.all([
     getUserSettings(user.sub),
     getAuditLog(user.sub, { limit: 20 }),
+    getDisabledConnections(user.sub),
   ]);
 
   return (
@@ -89,7 +91,7 @@ export default async function PermissionsPage() {
                 </div>
               </div>
             </div>
-            <RevokeButton connection="google-oauth2" label="Google" />
+            <RevokeButton connection="google-oauth2" label="Google" disabled={disabledConnections.includes("google-oauth2")} />
           </div>
 
           <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-4 py-3">
@@ -109,7 +111,7 @@ export default async function PermissionsPage() {
                 </div>
               </div>
             </div>
-            <RevokeButton connection="sign-in-with-slack" label="Slack" />
+            <RevokeButton connection="sign-in-with-slack" label="Slack" disabled={disabledConnections.includes("sign-in-with-slack")} />
           </div>
         </div>
       </div>

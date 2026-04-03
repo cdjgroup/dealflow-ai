@@ -29,3 +29,13 @@ The `autoCompletions` prop on OnboardingProvider is the key extensibility point:
 Teaching judges WHY the security features matter is more impactful than demonstrating all features. The "How It Works" and "Built for Security" sections on the landing page are deliberate UI real estate choices: (1) judges see the security narrative without navigating to settings, (2) "AI agent never stores credentials" differentiates from typical OAuth flows, (3) first-time visitors understand the approval flow before signing in.
 
 The Audit Log was removed from top navigation because: (a) judges don't check logs unless something fails, (b) reducing nav from 3 items to 2 focuses attention on the primary workflow, (c) it remains accessible in context on the Permissions page where users manage connections. Principle: frequently-used features in top nav, reference features in context.
+
+## 007 — Token Vault tokenset deletion is a cache operation, not a revocation (2026-04-03)
+
+Deleting a Token Vault tokenset via the Auth0 Management API (`DELETE /api/v2/users/{id}/federated-connections-tokensets/{tokensetId}`) does NOT prevent future token exchanges. Auth0 logs confirm a successful "seta" (token exchange) event immediately after deletion. This is because the tokenset is a cache layer: the underlying social connection (Google OAuth) and the user's Auth0 refresh token remain valid, so Auth0 silently re-provisions a new tokenset on the next RFC 8693 exchange.
+
+Auth0's official approach is the My Account API (`@auth0/myaccount-js` SDK, `connectedAccounts.delete()` with `delete:me:connected_accounts` scope), which invalidates the connection at the Auth0 level. However, this requires additional Auth0 configuration and a user access token with a specific scope.
+
+Our solution: an app-level Redis flag (`{userId}:disabled-connections` set) checked at three integration points before any Auth0 call is made: (1) `exchangeToken()` blocks all five tools, (2) `/api/token-status` returns "Disconnected by user" without calling Auth0, (3) the permissions page renders a persistent "Reconnect" button from server-side state. The tokenset deletion is kept as best-effort cleanup but is non-fatal.
+
+This pattern demonstrates that real user control over AI agent access requires application-level enforcement, not just token-level operations. Token Vault manages token lifecycle (issuance, refresh, expiry) but revocation semantics must be owned by the application. This is a general principle for any OAuth-based AI agent system: the agent framework manages tokens, but the application must manage permissions.
