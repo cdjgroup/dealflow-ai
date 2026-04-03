@@ -7,7 +7,7 @@ export const listSlackChannels = tool({
     "List Slack channels the user has access to. Use this when the user asks about available Slack channels or wants to know where to post a message.",
   inputSchema: z.object({}),
   execute: async () => {
-    const result = await exchangeToken("slack");
+    const result = await exchangeToken("sign-in-with-slack");
     if ("error" in result) {
       return {
         error: "Slack not connected",
@@ -64,7 +64,7 @@ export const sendSlackMessage = tool({
     channel: string;
     text: string;
   }) => {
-    const result = await exchangeToken("slack");
+    const result = await exchangeToken("sign-in-with-slack");
     if ("error" in result) {
       return {
         error: "Slack not connected",

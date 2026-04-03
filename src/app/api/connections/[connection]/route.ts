@@ -25,7 +25,7 @@ export async function DELETE(
   }
 
   const { connection } = await params;
-  const allowedConnections = ["google-oauth2", "slack"];
+  const allowedConnections = ["google-oauth2", "sign-in-with-slack"];
   if (!allowedConnections.includes(connection)) {
     return NextResponse.json(
       { error: "Unknown connection" },
