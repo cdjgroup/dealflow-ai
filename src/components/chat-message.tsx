@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import { motion } from "framer-motion";
 import type { UIMessage } from "ai";
 import { ToolResultCard } from "@/components/tool-result-card";
 import { ApprovalCard } from "@/components/approval-card";
@@ -8,19 +9,32 @@ import { ToolBadge } from "@/components/tool-badge";
 
 interface Props {
   message: UIMessage;
+  index?: number;
   onApproval?: (id: string, approved: boolean) => void;
 }
 
-export function ChatMessage({ message, onApproval }: Props) {
+export function ChatMessage({ message, index = 0, onApproval }: Props) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3) }}
+      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}
+    >
+      {/* AI avatar */}
+      {!isUser && (
+        <div className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-primary to-accent text-[10px] font-bold text-white mr-2 mt-1 shrink-0">
+          D
+        </div>
+      )}
+
       <div
         className={`max-w-[80%] rounded-lg px-4 py-3 ${
           isUser
             ? "bg-primary/90 text-primary-foreground dark:bg-primary/20 dark:text-foreground"
-            : "bg-card text-card-foreground border border-border"
+            : "bg-card/80 backdrop-blur-sm text-card-foreground border border-border"
         }`}
       >
         {message.parts?.map((part, i) => {
@@ -77,16 +91,21 @@ export function ChatMessage({ message, onApproval }: Props) {
               );
             }
 
-            // Rich tool result cards (D2)
+            // Rich tool result cards
             if (
               (state === "result" || state === "output-available") &&
               output
             ) {
               return (
-                <div key={i}>
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
                   <ToolBadge toolName={toolName} state="completed" />
                   <ToolResultCard toolName={toolName} output={output} />
-                </div>
+                </motion.div>
               );
             }
 
@@ -109,6 +128,13 @@ export function ChatMessage({ message, onApproval }: Props) {
           return null;
         })}
       </div>
-    </div>
+
+      {/* User avatar */}
+      {isUser && (
+        <div className="flex size-7 items-center justify-center rounded-md bg-muted text-[10px] font-bold text-muted-foreground ml-2 mt-1 shrink-0">
+          You
+        </div>
+      )}
+    </motion.div>
   );
 }
