@@ -178,6 +178,45 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
                                 </span>
                               </div>
                             )}
+                            {entry.tokenMeta && (
+                              <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2 space-y-1">
+                                <span className="text-emerald-400 font-medium text-[10px]">
+                                  Token Exchange
+                                </span>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px]">
+                                  <span className="text-muted-foreground">Provider</span>
+                                  <span className="text-foreground">{entry.tokenMeta.provider}</span>
+                                  <span className="text-muted-foreground">Connection</span>
+                                  <span className="text-foreground font-mono">{entry.tokenMeta.connection}</span>
+                                  {entry.tokenMeta.grantedScope && (
+                                    <>
+                                      <span className="text-muted-foreground">Scope</span>
+                                      <span className="text-emerald-400 font-mono">{entry.tokenMeta.grantedScope}</span>
+                                    </>
+                                  )}
+                                  {entry.tokenMeta.expiresIn != null && (
+                                    <>
+                                      <span className="text-muted-foreground">Token TTL</span>
+                                      <span className="text-foreground">{entry.tokenMeta.expiresIn}s</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {entry.consentAction && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="text-muted-foreground">Consent:</span>
+                                <span className={
+                                  entry.consentAction === "approved" || entry.consentAction === "always-allowed"
+                                    ? "text-emerald-400"
+                                    : entry.consentAction === "denied"
+                                      ? "text-red-400"
+                                      : "text-muted-foreground"
+                                }>
+                                  {entry.consentAction}
+                                </span>
+                              </div>
+                            )}
                             <div className="flex gap-4 text-muted-foreground">
                               <span>Thread: {entry.threadId}</span>
                               <span>ID: {entry.id}</span>

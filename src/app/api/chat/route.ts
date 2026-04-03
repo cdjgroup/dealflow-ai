@@ -198,6 +198,18 @@ Some actions require user approval before they execute (drafting emails, sending
           error: event.success ? undefined : String(event.error),
         });
 
+        // Extract _tokenMeta from tool output (F2: token lifecycle data)
+        const output = event.success ? (event.output as Record<string, unknown> | undefined) : undefined;
+        const rawTokenMeta = output?._tokenMeta as Record<string, unknown> | undefined;
+        const tokenMeta = rawTokenMeta ? {
+          connection: String(rawTokenMeta.connection ?? ""),
+          provider: String(rawTokenMeta.connection ?? "").includes("google") ? "Google" : "Slack",
+          requestedScope: rawTokenMeta.minScope ? String(rawTokenMeta.minScope) : null,
+          grantedScope: rawTokenMeta.scope ? String(rawTokenMeta.scope) : null,
+          expiresIn: typeof rawTokenMeta.expiresIn === "number" ? rawTokenMeta.expiresIn : null,
+          apiEndpoint: "",
+        } : undefined;
+
         // Redis audit trail (S2) — fire and forget
         writeAuditEntry(userId, {
           threadId: id as string,
@@ -206,6 +218,7 @@ Some actions require user approval before they execute (drafting emails, sending
           result: event.success ? "success" : "error",
           errorMessage: event.success ? undefined : String(event.error),
           durationMs: event.durationMs,
+          tokenMeta,
         });
       },
     });
