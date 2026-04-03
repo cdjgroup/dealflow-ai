@@ -7,12 +7,14 @@ const {
   mockLimit,
   mockCheckCsrf,
   mockSeedDemoData,
+  mockSeedActions,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockLimit: vi.fn(),
   mockCheckCsrf: vi.fn(),
   mockSeedDemoData: vi.fn(),
+  mockSeedActions: vi.fn(),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -30,6 +32,10 @@ vi.mock("@/lib/api-guard", () => ({
 
 vi.mock("@/lib/data/crm", () => ({
   seedDemoData: (...args: unknown[]) => mockSeedDemoData(...args),
+}));
+
+vi.mock("@/lib/data/actions", () => ({
+  seedActions: (...args: unknown[]) => mockSeedActions(...args),
 }));
 
 import { POST } from "@/app/api/seed/route";
@@ -51,6 +57,7 @@ describe("POST /api/seed", () => {
     mockGetSession.mockResolvedValue({ user: {} });
     mockGetUser.mockResolvedValue({ sub: "auth0|user1" });
     mockLimit.mockResolvedValue({ success: true });
+    mockSeedActions.mockResolvedValue(5);
   });
 
   it("should return 403 when CSRF check fails", async () => {
@@ -111,7 +118,9 @@ describe("POST /api/seed", () => {
     expect(body.deals).toBe(4);
     expect(body.contacts).toBe(4);
     expect(body.activities).toBe(5);
+    expect(body.actions).toBe(5);
     expect(mockSeedDemoData).toHaveBeenCalledWith("auth0|user1");
+    expect(mockSeedActions).toHaveBeenCalledWith("auth0|user1");
   });
 
   it("should return 500 when seedDemoData throws without leaking error details", async () => {
