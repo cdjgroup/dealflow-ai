@@ -49,7 +49,7 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
-  const { messages, setMessages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId ?? undefined,
     onFinish() {
@@ -77,21 +77,6 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
       return hasResponded && !hasPending;
     },
   });
-
-  // Load conversation history when a conversationId is provided
-  useEffect(() => {
-    if (!conversationId) return;
-    fetch(`/api/conversations/${conversationId}`, {
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.messages?.length) {
-          setMessages(data.messages);
-        }
-      })
-      .catch(() => {});
-  }, [conversationId, setMessages]);
 
   const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
   // Show interrupt unless this specific error was dismissed
