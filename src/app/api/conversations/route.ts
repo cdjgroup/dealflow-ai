@@ -12,6 +12,6 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const conversations = await listConversations(user.sub);
+  const conversations = await listConversations(user.sub, 10);
   return NextResponse.json(conversations);
 }
