@@ -1,22 +1,30 @@
-# Release Notes — v0.3.0
+# Release Notes — v0.3.1
 
-## DealFlow AI: Conversation Management & Help-Kit
+## DealFlow AI: Permissions & Audit Log Polish
 
-Fresh chat support, conversation history, onboarding checklist, and resource center.
+Professional, accessible UI overhaul for the permissions page and audit log.
 
 ### What's new
 
-- **New Chat button**: Start a fresh conversation anytime via the collapsible sidebar. Previous conversations are listed with titles, message counts, and timestamps.
-- **Conversation persistence**: Every chat auto-saves to Redis when the AI finishes responding. Conversations persist for 30 days and include full tool call history.
-- **Conversation switching**: Click any previous conversation to reload it. Key-based remount ensures clean state transitions.
-- **Onboarding checklist**: 5-step "Getting Started" guide in the dashboard sidebar — Connect Google, Connect Slack, Try a chat command, Check pipeline, Review permissions. Progress persists in localStorage. Dismissible and collapsible.
-- **Resource center**: Help drawer (?) icon in the nav bar with external doc links (Auth0 Token Vault, RFC 8693, AI SDK), quick actions, and a glossary of 8 DealFlow-specific terms.
-- **Auto-detection ready**: Onboarding provider accepts `autoCompletions` prop for automatically marking steps complete based on token status.
+- **Audit log filters**: Filter entries by tool name, result (success/error), and date range presets (Last 24h / 3 days / 7 days). Filters apply server-side with a smooth client-side UX. "Clear filters" button and empty-state message when no entries match.
+- **Structured audit detail panel**: Expanded audit entries now show a formatted key-value grid (tool, timestamp, status, duration, thread, parameters) instead of raw JSON. Empty parameters show "No parameters" instead of `{}`. Error details rendered in a highlighted box.
+- **Grouped capability toggles**: Toggles organized into collapsible CRM / Google / Slack sections. Each group header shows "X of Y enabled" summary. Groups default to collapsed for a clean overview.
+- **Impact descriptions**: Every toggle now includes a descriptive line explaining what the AI agent can do when that capability is enabled (e.g., "AI agent can access your Google Calendar to check availability and view upcoming meetings via Token Vault").
+- **Connection health badges**: Google and Slack toggle group headers show live Connected/Disconnected badges pulled from the Token Vault status API. Badges refresh on connection changes.
+
+### Accessibility improvements
+
+- Audit table: proper `<td>` cells (was `colSpan` wrapping), `<time datetime>`, `aria-expanded`/`aria-controls`, keyboard navigation (Tab + Enter/Space)
+- Capability matrix: `scope="col"` on headers, sr-only `<caption>`
+- Decorative emojis: `aria-hidden="true"` throughout
+- Error rows: red left-border severity indicator with text labels (not color-only)
+- Loading spinner: `role="status"` with `aria-label`
 
 ### Bug fixes
 
-- Conversation save now includes tool call steps from all reasoning rounds (was only saving final text)
-- Redis conversation keys now have 30-day TTL applied (was defined but never used — unbounded storage growth)
+- Audit filtering fetches larger Redis window when filters active (prevents incomplete results)
+- Date preset dropdown stores state explicitly (prevents visual flicker over time)
+- Fetch errors show visible error banner instead of silent failure
 
 ### Deployment
 - Live at: https://dealflow-ai-seven.vercel.app

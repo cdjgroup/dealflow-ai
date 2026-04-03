@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.3.0 — Conversation Management & Help-Kit (New Chat, Conversation History, Onboarding, Resource Center)
+## Current Version: 0.3.1 — Permissions & Audit Log Polish (Grouped Toggles, Impact Descriptions, Audit Filters, Structured Detail Panel, Accessibility)
 ## Status: DEPLOYED
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-04-03
+
+### Added
+- Audit log filters: filter by tool name, result (success/error), and date range (Last 24h/3d/7d)
+- Structured audit detail panel: key-value layout replaces raw JSON in expanded rows
+- Capability toggles grouped by integration: collapsible CRM/Google/Slack sections
+- Impact descriptions on every toggle explaining what the AI agent can/cannot do
+- Connection health badges (Connected/Disconnected) inline in Google and Slack group headers
+- Shared tool constants module (`src/lib/constants/tools.ts`)
+- `AuditFilters` type and server-side filtering in audit API route
+
+### Changed
+- Audit table uses proper semantic HTML: individual `<td>` cells, `<time datetime>`, `aria-expanded`, `scope="col"`, `<dl>/<dt>/<dd>` detail panel
+- Capability matrix adds `scope="col"` and sr-only `<caption>` for accessibility
+- Error rows in audit log get red left-border severity indicator
+- Audit table rows are keyboard-navigable (tabIndex + Enter/Space)
+- Decorative emojis marked `aria-hidden="true"` for screen readers
+
+### Fixed
+- Audit filtering fetches larger Redis window (4x limit) when filters active to prevent incomplete results
+- Date preset dropdown tracks state explicitly instead of reverse-computing from dates
+- Filter error state shown to user instead of silent failure
+
 ## [0.3.0] - 2026-04-03
 
 ### Added

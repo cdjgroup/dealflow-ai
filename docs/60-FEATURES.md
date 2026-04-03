@@ -1,5 +1,25 @@
 # Features
 
+## v0.3.1 — Permissions & Audit Log Polish
+
+### Audit Log Filters
+Filter bar with three controls: tool name dropdown (populated from log entries), result toggle (Success/Error), and date range presets (Last 24h/3d/7d). Filters apply server-side via extended `/api/audit` query params. Client-side state management with loading indicator and error feedback. Empty state with "Clear filters" action.
+
+### Structured Audit Detail Panel
+Expanded audit rows display a formatted `<dl>` key-value grid: Tool, Timestamp, Status, Duration, Thread ID, Entry ID, plus a Parameters section. Empty inputs show "No parameters". Error messages render in a highlighted box. Replaces raw `JSON.stringify` output.
+
+### Grouped Capability Toggles
+Toggles organized into collapsible integration groups (CRM, Google, Slack) using native `<details>/<summary>`. Each group header shows enabled count ("2 of 2 enabled") and live connection health badge (Connected/Disconnected) for OAuth-backed integrations. Groups default to collapsed.
+
+### Impact Descriptions
+Each capability toggle includes a descriptive line explaining the operational impact when enabled, helping users make informed permission decisions.
+
+### Accessibility
+Semantic HTML throughout: `<table>` with `scope="col"`, `<time datetime>`, `aria-expanded`/`aria-controls`, keyboard-navigable audit rows, `aria-hidden` on decorative emojis, `role="status"` on spinners, sr-only `<caption>` on capability matrix.
+
+### Shared Constants
+Tool icons, Token Vault tool set, and write tool set extracted to `src/lib/constants/tools.ts` — single source of truth used by audit table and activity timeline.
+
 ## v0.3.0 — Conversation Management & Help-Kit
 
 ### Conversation Management
