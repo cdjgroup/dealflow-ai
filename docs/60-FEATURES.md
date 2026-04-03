@@ -1,5 +1,31 @@
 # Features
 
+## v0.4.0 — Action Center
+
+### AI-Suggested Actions Queue
+The Action Center (`/dashboard/actions`) surfaces AI-recommended next steps based on CRM deal context. Each suggestion includes:
+- **Action type**: Email (Gmail draft), Calendar (Google Calendar event), or Slack (channel message)
+- **Justification**: AI-generated explanation of why this action is recommended, with deal context
+- **Draft content**: Pre-written email/meeting/message ready for user review
+
+### Review & Edit Flow
+Users review each suggestion and can:
+- **Approve** — queues the action for execution
+- **Edit** — expand the card to modify draft content inline (type-specific fields: To/Subject/Body for email, Title/Date/Time/Duration/Attendees for calendar, Channel/Message for Slack)
+- **Dismiss** — removes the suggestion from the active queue
+- **Batch approve** — approve all pending actions at once
+
+### Execution via Token Vault
+Approved actions execute through the same Auth0 Token Vault OAuth flow used by the AI chat tools:
+- Email actions create Gmail drafts (user reviews in Gmail before sending)
+- Calendar actions create Google Calendar events with attendees (`sendUpdates=none` to avoid surprising attendees)
+- Slack actions post messages to channels
+
+Status transitions are shown inline on each card: Pending (amber) → Approved (blue) → Executing (animated pulse) → Sent (green) / Failed (red with error message and Retry button).
+
+### Navigation Integration
+Pending action count shown as a badge on the "Actions" link in the nav bar. Badge hidden when count is zero.
+
 ## v0.3.0 — Conversation Management & Help-Kit
 
 ### Conversation Management
