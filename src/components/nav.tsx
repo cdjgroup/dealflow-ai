@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ResourceCenter } from "@/components/helpkit/ResourceCenter";
 
-export function Nav({ userName }: { userName?: string }) {
+export function Nav({ userName, pendingActionCount }: { userName?: string; pendingActionCount?: number }) {
   return (
     <nav className="border-b border-border bg-card/80 backdrop-blur-sm" aria-label="Main navigation">
       <div className="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
@@ -19,6 +19,17 @@ export function Nav({ userName }: { userName?: string }) {
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Chat
+            </Link>
+            <Link
+              href="/dashboard/actions"
+              className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Actions
+              {pendingActionCount != null && pendingActionCount > 0 && (
+                <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[10px] font-medium text-white">
+                  {pendingActionCount}
+                </span>
+              )}
             </Link>
             <Link
               href="/dashboard/permissions"

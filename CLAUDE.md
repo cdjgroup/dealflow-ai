@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.3.1 — Permissions & Audit Log Polish + Boundary-Pushing Auth
+## Current Version: 0.4.0 — Action Center (AI-Suggested Actions Queue with Review, Edit & Execute)
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -61,6 +61,20 @@
 | updateDeal | Upstash Redis | No (needsApproval closed-won) |
 | createContact | Upstash Redis | No |
 | logActivity | Upstash Redis | No |
+
+---
+
+## Action Center (v0.4.0)
+
+AI agent suggests next steps based on CRM deal context. Actions are queued at `/dashboard/actions` for user review.
+
+- **Action Types**: Email (Gmail draft), Calendar (Google Calendar event), Slack (channel message)
+- **User Flow**: AI suggests → user reviews justification → edits draft inline → approves → executes via Token Vault
+- **Batch Approve**: Approve all pending actions at once
+- **Execution**: Direct API calls through Token Vault OAuth exchange (same auth flow as AI tools)
+- **Seeded Data**: 5 demo actions tied to existing deals (created via seed endpoint)
+- **Nav Badge**: Pending action count shown in navigation
+- **Status Progression**: Pending (amber) → Approved (blue) → Executing (pulse) → Sent (green) / Failed (red)
 
 ---
 

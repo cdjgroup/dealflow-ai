@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-04-03
+
+### Added
+- Action Center page (`/dashboard/actions`) for AI-suggested next steps
+- Action card component with inline draft editing (email, calendar, Slack)
+- Action filters with tab-based status filtering and batch approve
+- Action execution via Token Vault OAuth (Gmail drafts, Calendar events, Slack messages)
+- Google Calendar event creation (Events.insert API with `calendar.events` scope)
+- Type-specific Zod draft validation schemas (email, calendar, Slack)
+- Action seeding in demo data endpoint (5 actions tied to existing deals)
+- Nav badge showing pending action count
+- Redis-backed action CRUD with per-user data isolation
+- 14 new data layer unit tests
+
+### Changed
+- Nav component accepts `pendingActionCount` prop for badge display
+- Dashboard layout fetches pending action count in parallel with existing data
+- Seed endpoint returns action count alongside deal/contact/activity counts
+
+### Fixed
+- Execute endpoint returns 502 on downstream API failure (was returning 200)
+- Action creation restricted to "pending" status only (prevents approval bypass)
+
 ## [0.3.1] - 2026-04-03
 
 ### Added
