@@ -33,7 +33,7 @@ export function TokenLifecycle({
   expiresIn,
   connection,
 }: TokenLifecycleProps) {
-  const [expanded, setExpanded] = useState(state === "running");
+  const [expanded, setExpanded] = useState(true);
   const isComplete = state === "completed";
   const activeStage = isComplete ? STAGES.length - 1 : API_CALL_INDEX;
 
