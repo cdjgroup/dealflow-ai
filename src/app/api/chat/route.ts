@@ -12,6 +12,7 @@ import { checkCsrf, validateMessages } from "@/lib/api-guard";
 import { logToolExecution } from "@/lib/audit-log";
 import { getUserSettings } from "@/lib/data/settings";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { saveConversation } from "@/lib/data/conversations";
 import { filterToolsByCapabilities } from "@/lib/tools/capability-filter";
 import { createApprovalCheck } from "@/lib/tools/approval-logic";
 import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
@@ -194,6 +195,28 @@ Some actions require user approval before they execute (drafting emails, sending
       tools,
       stopWhen: stepCountIs(MAX_TOOL_STEPS),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      onFinish({ text, steps }) {
+        // Persist conversation to Redis — fire and forget.
+        // Build assistant response from all steps (includes tool calls/results).
+        const assistantParts: { role: string; content: string; toolCalls?: unknown[] }[] = [];
+        for (const step of steps) {
+          if (step.toolCalls?.length) {
+            assistantParts.push({
+              role: "assistant",
+              content: step.text || "",
+              toolCalls: step.toolCalls,
+            });
+          }
+        }
+        // Final text response
+        if (text) {
+          assistantParts.push({ role: "assistant", content: text });
+        }
+        const allMessages = [...messages, ...assistantParts];
+        saveConversation(userId, id as string, allMessages).catch((err) =>
+          console.error("Conversation save failed:", err)
+        );
+      },
       experimental_onToolCallFinish(event) {
         // Console logging (existing)
         logToolExecution({

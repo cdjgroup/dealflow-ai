@@ -120,6 +120,7 @@ Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.d
 - 12 tools: CRM (7), Calendar (1), Gmail (2), Slack (2)
 - Multi-turn tool chaining (e.g., check calendar -> draft email with availability)
 - Rich tool result cards (calendar events, email drafts, deal pipeline, Slack messages)
+- Conversation management: new chat, history sidebar, auto-save to Redis
 
 ### Security
 - Auth0 Token Vault with RFC 8693 token exchange (Google + Slack)
@@ -129,12 +130,18 @@ Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.d
 - Audit trail logging every agent action with sanitized inputs
 - CSRF protection, rate limiting, Zod input validation
 - Prompt injection defense (tool results treated as data, not instructions)
+- Disconnect/reconnect via Redis-backed revocation (app-level enforcement)
 
 ### User Control
 - Permissions dashboard with live connection status
-- Disconnect/revoke OAuth connections
+- Disconnect/revoke OAuth connections with persistent state
 - Active scope indicator showing which APIs are in use
-- Conversation persistence (save/load chat history)
+- Conversation persistence with auto-save and 30-day TTL
+
+### Onboarding & Help
+- Getting Started checklist (5 steps) with auto-detection of completed steps
+- Resource center with external docs, quick actions, and glossary
+- "How It Works" and "Built for Security" sections on landing page
 
 ## Setup
 
@@ -222,6 +229,7 @@ src/
       permissions/   # Settings, toggles, connections
       audit/         # Audit log table
   components/
+    chat-container.tsx       # Conversation list + chat orchestration
     chat-window.tsx          # Chat interface (useChat)
     chat-message.tsx         # Message renderer with tool cards
     tool-result-card.tsx     # Rich cards (7 tool types)
@@ -231,7 +239,12 @@ src/
     revoke-button.tsx        # Disconnect connection
     conversation-list.tsx    # Chat history sidebar
     token-status.tsx         # Live connection status
-    error-boundary.tsx       # React error boundary
+    dashboard-providers.tsx  # OnboardingProvider + auto-detection
+    helpkit/
+      OnboardingProvider.tsx # Onboarding context (localStorage)
+      OnboardingChecklist.tsx # 5-step getting started guide
+      ResourceCenter.tsx     # Help drawer (docs + glossary)
+    ui/                      # shadcn/ui components (Button, Sheet)
   lib/
     data/
       crm.ts          # Deals, contacts, activities (Redis)
@@ -247,6 +260,9 @@ src/
       approval-logic.ts     # needsApproval for step-up auth
       scope-map.ts          # Tool -> OAuth scope mapping
     types/             # TypeScript interfaces
+  hooks/
+    helpkit/
+      use-local-storage.ts  # SSR-safe localStorage hook
 ```
 
 ## License

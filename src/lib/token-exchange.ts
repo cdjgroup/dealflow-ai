@@ -1,4 +1,5 @@
-import { auth0 } from "@/lib/auth0";
+import { auth0, getUser } from "@/lib/auth0";
+import { isConnectionDisabled } from "@/lib/data/connections";
 
 export type TokenExchangeSuccess = {
   token: string;
@@ -16,12 +17,22 @@ type TokenResult = TokenExchangeSuccess | { error: string };
  *
  * This is the single source of truth for token exchange — used by
  * calendar, gmail, slack tools, and the token-status endpoint.
+ * Respects user-set disabled flags (disconnect).
  */
 export async function exchangeToken(connection: string): Promise<TokenResult> {
   const session = await auth0.getSession();
   const refreshToken = session?.tokenSet?.refreshToken;
   if (!refreshToken) {
     return { error: "No session refresh token. Please log out and log back in." };
+  }
+
+  // Check if user has disconnected this connection
+  const user = await getUser();
+  if (user?.sub) {
+    const disabled = await isConnectionDisabled(user.sub, connection);
+    if (disabled) {
+      return { error: "Connection disconnected by user. Re-enable in Permissions." };
+    }
   }
 
   return exchangeTokenWithRefresh(connection, refreshToken);

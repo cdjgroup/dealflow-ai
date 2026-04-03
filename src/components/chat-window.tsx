@@ -34,16 +34,48 @@ function parseInterrupt(error: Error | undefined): {
 const suggestions = [
   "Show me my deals",
   "What's on my calendar tomorrow?",
-  "Draft an email to Sarah about the proposal",
+  "Draft a follow-up email to Sarah about the proposal",
   "Search contacts at Meridian",
+  "Send a Slack update about the Vantage deal",
+  "What Slack channels can I post to?",
 ];
 
-export function ChatWindow() {
+interface ChatWindowProps {
+  conversationId: string;
+  onConversationCreated?: () => void;
+}
+
+export function ChatWindow({ conversationId, onConversationCreated }: ChatWindowProps) {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
+    id: conversationId,
+    onFinish() {
+      onConversationCreated?.();
+    },
+    sendAutomaticallyWhen({ messages: msgs }) {
+      // After approving/denying a tool call, re-send so the server executes it.
+      // True when the last assistant message has approval-responded parts but no
+      // pending approval-requested parts remaining.
+      const last = msgs[msgs.length - 1];
+      if (!last || last.role !== "assistant") return false;
+      const parts = last.parts ?? [];
+      const hasResponded = parts.some(
+        (p) =>
+          p.type?.startsWith("tool-") &&
+          "state" in p &&
+          p.state === "approval-responded"
+      );
+      const hasPending = parts.some(
+        (p) =>
+          p.type?.startsWith("tool-") &&
+          "state" in p &&
+          p.state === "approval-requested"
+      );
+      return hasResponded && !hasPending;
+    },
   });
 
   const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
@@ -83,7 +115,7 @@ export function ChatWindow() {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-full">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">

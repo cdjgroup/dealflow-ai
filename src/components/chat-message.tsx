@@ -35,8 +35,8 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
       <div
         className={`max-w-[80%] rounded-lg px-4 py-3 ${
           isUser
-            ? "bg-primary/90 text-primary-foreground dark:bg-primary/20 dark:text-foreground"
-            : "bg-card/80 backdrop-blur-sm text-card-foreground border border-border"
+            ? "bg-primary text-primary-foreground"
+            : "bg-card border border-border text-card-foreground"
         }`}
       >
         {message.parts?.map((part, i) => {
@@ -44,7 +44,11 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
             return (
               <div
                 key={i}
-                className="prose prose-sm max-w-none dark:prose-invert prose-table:border-collapse prose-th:border prose-th:border-border prose-th:px-3 prose-th:py-1 prose-th:bg-muted prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-1 prose-p:my-2 prose-ul:my-2 prose-li:my-0.5 prose-headings:text-primary prose-strong:text-foreground prose-a:text-accent"
+                className={`prose prose-sm max-w-none prose-table:border-collapse prose-th:border prose-th:border-border prose-th:px-3 prose-th:py-1 prose-th:bg-muted prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-1 prose-p:my-2 prose-ul:my-2 prose-li:my-0.5 ${
+                  isUser
+                    ? "prose-invert prose-th:bg-white/20 prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-a:text-primary-foreground/80"
+                    : "dark:prose-invert prose-headings:text-primary prose-strong:text-foreground prose-a:text-accent"
+                }`}
               >
                 <ReactMarkdown>{part.text}</ReactMarkdown>
               </div>

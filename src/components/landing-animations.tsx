@@ -70,6 +70,7 @@ export function LandingAnimations() {
         >
           Sign In to Get Started
           <svg
+            aria-hidden="true"
             className="w-5 h-5"
             fill="none"
             stroke="currentColor"
@@ -88,10 +89,10 @@ export function LandingAnimations() {
       {/* Token Vault Architecture Diagram */}
       <FadeIn delay={0.4}>
         <div className="mt-12 mb-10 rounded-xl border border-border bg-card/80 backdrop-blur-sm p-6">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
             How Token Vault Works
-          </h3>
-          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm flex-wrap">
+          </h2>
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm overflow-x-auto pb-2">
             <div className="flex flex-col items-center gap-1">
               <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-lg">
                 👤
@@ -143,7 +144,7 @@ export function LandingAnimations() {
               transition={{ duration: 0.2 }}
               className="bg-card/80 backdrop-blur-sm border border-border rounded-lg p-4 hover:border-primary/30 transition-colors"
             >
-              <div className="text-lg mb-1.5">{feature.icon}</div>
+              <div className="text-lg mb-1.5" aria-hidden="true">{feature.icon}</div>
               <h3 className="text-foreground font-semibold mb-1">
                 {feature.title}
               </h3>
@@ -152,6 +153,92 @@ export function LandingAnimations() {
           </FadeIn>
         ))}
       </div>
+
+      {/* How It Works */}
+      <FadeIn delay={0.9}>
+        <div className="mt-12 rounded-xl border border-border bg-card/80 backdrop-blur-sm p-6 text-left">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            How It Works
+          </h2>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">1</span>
+              <p>
+                When the agent needs to access Google or Slack, it requests a
+                token from Auth0 Token Vault using your refresh token.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">2</span>
+              <p>
+                If you haven&apos;t connected the service yet, a consent popup
+                appears asking you to authorize specific scopes.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">3</span>
+              <p>
+                Auth0 stores the OAuth tokens securely. The agent only receives
+                short-lived access tokens, never your credentials.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs">4</span>
+              <p>
+                External actions (emails, Slack messages) always require your
+                approval. High-value CRM operations trigger step-up
+                authorization. Every action is logged in the audit trail.
+              </p>
+            </div>
+          </div>
+        </div>
+      </FadeIn>
+
+      {/* Security Highlights */}
+      <FadeIn delay={1.0}>
+        <div className="mt-8 mb-4 text-left">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
+            Built for Security
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              {
+                title: "Zero Stored Credentials",
+                desc: "The AI agent never sees or stores your passwords. Auth0 Token Vault issues short-lived tokens that expire automatically.",
+                icon: "🔒",
+              },
+              {
+                title: "Granular Permissions",
+                desc: "Toggle each tool on or off. Disable calendar access, email drafts, or Slack messaging independently — changes take effect instantly.",
+                icon: "🎛️",
+              },
+              {
+                title: "Step-Up Authorization",
+                desc: "High-value actions (deals over $50K, closing deals) require explicit approval before the agent can proceed.",
+                icon: "🛡️",
+              },
+              {
+                title: "Full Audit Trail",
+                desc: "Every tool call is logged with timestamps, parameters, and results. Review the agent's activity at any time.",
+                icon: "📋",
+              },
+            ].map((item) => (
+              <motion.div
+                key={item.title}
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="bg-card/80 backdrop-blur-sm border border-border rounded-lg p-4 hover:border-accent/30 transition-colors"
+              >
+                <div className="text-lg mb-1.5" aria-hidden="true">{item.icon}</div>
+                <h3 className="text-foreground font-semibold mb-1">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
     </>
   );
 }
@@ -159,6 +246,7 @@ export function LandingAnimations() {
 function Arrow() {
   return (
     <svg
+      aria-hidden="true"
       className="w-6 h-4 text-muted-foreground/40 shrink-0"
       viewBox="0 0 24 16"
       fill="none"

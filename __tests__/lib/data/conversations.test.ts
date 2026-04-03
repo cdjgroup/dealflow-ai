@@ -27,6 +27,7 @@ vi.mock("@/lib/redis", () => ({
     pipeline: () => ({
       set: mockPipelineSet,
       zadd: mockPipelineZadd,
+      expire: vi.fn(),
       exec: mockPipelineExec,
     }),
     mget: vi.fn().mockResolvedValue([]),
@@ -62,10 +63,12 @@ describe("conversations data layer", () => {
       await saveConversation(TEST_USER, "conv-2", messages);
 
       // Check that meta was set with a title derived from the first message
+      // pipeline.set(key, value, { ex: TTL })
       const metaCall = mockPipelineSet.mock.calls.find(
         (call: unknown[]) => typeof call[0] === "string" && (call[0] as string).includes(":thread:")
       );
       expect(metaCall).toBeDefined();
+      expect(metaCall![2]).toEqual({ ex: expect.any(Number) }); // TTL applied
       const meta = JSON.parse(metaCall![1] as string);
       expect(meta.title).toContain("Show me my deals");
     });

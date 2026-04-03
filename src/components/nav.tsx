@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ResourceCenter } from "@/components/helpkit/ResourceCenter";
 
 export function Nav({ userName }: { userName?: string }) {
   return (
@@ -25,18 +26,13 @@ export function Nav({ userName }: { userName?: string }) {
             >
               Permissions
             </Link>
-            <Link
-              href="/dashboard/audit"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Audit Log
-            </Link>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <ResourceCenter />
           <ThemeToggle />
           {userName && (
-            <span className="text-sm text-muted-foreground">{userName}</span>
+            <span className="hidden sm:inline text-sm text-muted-foreground">{userName}</span>
           )}
           <a
             href="/auth/logout"

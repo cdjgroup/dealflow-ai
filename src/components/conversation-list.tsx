@@ -7,6 +7,7 @@ interface Props {
   activeId?: string;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onClearAll?: () => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -25,6 +26,7 @@ export function ConversationList({
   activeId,
   onSelect,
   onNew,
+  onClearAll,
 }: Props) {
   return (
     <div className="space-y-2">
@@ -61,6 +63,15 @@ export function ConversationList({
         <p className="px-2 text-xs text-muted-foreground">
           No previous conversations
         </p>
+      )}
+
+      {conversations.length > 0 && onClearAll && (
+        <button
+          onClick={onClearAll}
+          className="w-full text-xs text-muted-foreground hover:text-destructive transition-colors py-1"
+        >
+          Clear all
+        </button>
       )}
     </div>
   );

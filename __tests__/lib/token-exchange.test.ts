@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { exchangeToken, exchangeTokenWithRefresh, sanitizeApiError } from "@/lib/token-exchange";
 
-// Mock Auth0 session (exchangeToken calls auth0.getSession internally)
+// Mock Auth0 session (exchangeToken calls auth0.getSession and getUser)
 vi.mock("@/lib/auth0", () => ({
   auth0: {
     getSession: vi.fn().mockResolvedValue({
       tokenSet: { refreshToken: "test-refresh-token" },
     }),
   },
+  getUser: vi.fn().mockResolvedValue({ sub: "auth0|test123" }),
+}));
+
+// Mock connection disabled check (from main branch merge)
+vi.mock("@/lib/data/connections", () => ({
+  isConnectionDisabled: vi.fn().mockResolvedValue(false),
 }));
 
 // Mock fetch for Auth0 token exchange endpoint
