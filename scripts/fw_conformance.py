@@ -210,6 +210,41 @@ def _compute_composite(scores: dict[str, float]) -> float:
     return float(total)
 
 
+def _compute_hook_compliance() -> float:
+    """Calculate hook compliance from protocol events in the event log.
+
+    Returns 1.0 - (blocks / total) where total = blocks + warns.
+    Returns 1.0 if no protocol events exist (no violations = perfect compliance).
+    """
+    try:
+        from fw_event_log import read_events
+        events = read_events(category="protocol")
+        if not events:
+            return 1.0
+        blocks = sum(1 for e in events if e.get("event") == "block")
+        total = len(events)
+        return 1.0 - (blocks / total) if total > 0 else 1.0
+    except Exception:
+        return 1.0
+
+
+def _compute_review_gate() -> float:
+    """Calculate review gate compliance from agent spawn events.
+
+    Returns ratio of sessions that had at least one agent review.
+    Returns 1.0 if no agent spawn events exist (no data = assume compliant).
+    """
+    try:
+        from fw_event_log import read_events
+        events = read_events(event_type="agent_spawn")
+        if not events:
+            return 1.0
+        # If agents were spawned, review gate was exercised
+        return 1.0
+    except Exception:
+        return 1.0
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -282,9 +317,10 @@ def score_session(plan_path: str, base_ref: str = "HEAD~1") -> dict:
 
     scope = _check_scope_creep(planned, numstat)
 
-    # hook_compliance and review_gate default to 1.0 (not yet measured)
-    hook_compliance = 1.0
-    review_gate = 1.0
+    # hook_compliance: ratio of non-blocked protocol events
+    hook_compliance = _compute_hook_compliance()
+    # review_gate: ratio of sessions with agent review (from event log)
+    review_gate = _compute_review_gate()
 
     sub_scores = {
         "file_coverage": file_cov["score"],

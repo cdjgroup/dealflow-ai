@@ -166,3 +166,15 @@ git commit -m "$COMMIT_MSG"
 echo ""
 echo -e "${FW_GREEN}TDD commit created successfully!${FW_NC}"
 echo "Commit: tdd($PHASE): $MESSAGE"
+
+# Log TDD phase event (fire-and-forget, no error if unavailable)
+# Pass message via env var to avoid shell/Python injection (see ADR-004)
+TDD_PHASE="$PHASE" TDD_MESSAGE="$MESSAGE" FW_ROOT="$FW_PROJECT_ROOT" python3 -c "
+import os, sys
+sys.path.insert(0, os.environ['FW_ROOT'] + '/scripts')
+try:
+    from fw_event_log import append_event
+    append_event('tdd_phase', 'tdd', {'phase': os.environ['TDD_PHASE'], 'message': os.environ['TDD_MESSAGE']}, hook='tdd_commit')
+except Exception:
+    pass
+" 2>/dev/null || true

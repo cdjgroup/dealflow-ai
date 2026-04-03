@@ -56,7 +56,23 @@ git push -u origin <branch-name>
 - NEVER force push (`--force`, `--force-with-lease`)
 - If push fails due to remote changes, suggest `git pull --rebase` first
 
-### Step 5: Generate Release Notes
+### Step 5: Conformance Gate (if Sherlock plan exists)
+
+Check if `.sherlock-plan.md` exists in the project root:
+
+```bash
+test -f .sherlock-plan.md && echo "PLAN_EXISTS" || echo "NO_PLAN"
+```
+
+- If **PLAN_EXISTS**: Run conformance scoring and include results in the PR body:
+  ```bash
+  python3 scripts/fw_conformance.py --plan .sherlock-plan.md --save 2>/dev/null || true
+  ```
+  Show the composite score to the user. If composite < 0.70, warn: "Low conformance score — consider reviewing planned vs actual files."
+
+- If **NO_PLAN**: Skip silently (most branches won't have a Sherlock plan).
+
+### Step 6: Generate Release Notes
 
 Run the `/release-notes` skill to generate PR description content from the git diff.
 
@@ -65,7 +81,7 @@ If the skill is not available, generate a summary manually:
 2. `git diff main...<branch> --stat` for files changed
 3. Format as a PR body with Summary and Test Plan sections
 
-### Step 6: Create Pull Request
+### Step 7: Create Pull Request
 
 Write the PR body to a temp file, then create the PR:
 

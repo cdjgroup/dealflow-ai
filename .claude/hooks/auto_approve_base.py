@@ -39,7 +39,7 @@ except Exception:
 
 def approve(reason: str) -> None:
     """Return JSON to auto-approve the command."""
-    _log_event("approve", "safety", {"reason": reason}, hook="auto_approve_base")
+    _log_event("approve", "safety", {"reason": reason}, hook="auto_approve_base", level="debug")
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -52,7 +52,7 @@ def approve(reason: str) -> None:
 
 def block(reason: str) -> None:
     """Block the command (exit code 2)."""
-    _log_event("block", "safety", {"reason": reason}, hook="auto_approve_base")
+    _log_event("block", "safety", {"reason": reason}, hook="auto_approve_base", level="warn")
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",

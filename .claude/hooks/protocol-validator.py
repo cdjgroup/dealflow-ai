@@ -4,17 +4,21 @@ Claude Code PostToolUse Hook for deployment protocol enforcement.
 
 This hook runs AFTER Bash tool execution and:
 - WARNS on deployment-related actions (push to main, deploy scripts)
-- BLOCKS PR creation when documentation is stale (release_notes.md,
-  CHANGELOG.md not updated for the current version)
+- WARNS on PR creation when documentation is stale (release_notes.md,
+  CHANGELOG.md not updated for the current version or [Unreleased])
+
+Note: PostToolUse hooks cannot block — the tool has already executed.
+Exit code 2 feeds stderr back to Claude as context; Claude should then
+self-correct (e.g., update docs and recreate the PR).
 
 Trigger points:
 - git push to main/master -> Remind about health check
-- gh pr create -> Check doc staleness (BLOCK if stale), remind about approval
+- gh pr create -> Check doc staleness (WARN if stale), remind about approval
 - deploy scripts -> Remind about waiting and health check
 
 Exit codes:
-  0 = Pass (warning issued but not blocking)
-  2 = Block (doc staleness check failed — update docs before creating PR)
+  0 = Pass (no issues or warning issued)
+  2 = Non-blocking error (doc staleness — stderr fed to Claude for correction)
 
 Usage:
   Register in .claude/settings.json:
@@ -95,12 +99,20 @@ def get_version_from_claude_md(project_root: str) -> str:
 
 
 def check_file_has_version(filepath: str, version: str) -> bool:
-    """Check if a file contains a reference to the given version."""
+    """Check if a file contains a reference to the given version or [Unreleased].
+
+    Accepts [Unreleased] as valid because auto-version-bump assigns the version
+    number on merge to main. Pre-merge docs correctly use [Unreleased] per the
+    Keep a Changelog convention.
+    """
     if not os.path.exists(filepath):
         return False
     try:
         with open(filepath) as f:
             content = f.read()
+        # Accept [Unreleased] heading as valid (version assigned on merge)
+        if re.search(r"##\s*\[?Unreleased\]?", content):
+            return True
         # Match version in common patterns: ## vX.Y.Z, ## [X.Y.Z], v0.7.0, etc.
         escaped = re.escape(version)
         return bool(re.search(rf"(?:v?{escaped}|\[{escaped}\])", content))

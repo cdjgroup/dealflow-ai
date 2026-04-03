@@ -28,7 +28,7 @@ source "$SCRIPT_DIR/_framework.sh"
 
 cd "$FW_PROJECT_ROOT"
 
-TOTAL_STEPS=14
+TOTAL_STEPS=17
 
 # Helper: enable/disable a config-driven item (rule file or skill directory)
 # Usage: handle_item <enabled> <type> <path> <label>
@@ -128,7 +128,35 @@ if [ -f "CLAUDE.md" ]; then
     # Replace common placeholders
     sedi "s/my-project/$PROJECT_NAME/g" CLAUDE.md
     sedi "s|myorg/my-project|$PROJECT_REPO|g" CLAUDE.md
-    echo "    CLAUDE.md updated"
+
+    # Replace CUSTOMIZE markers that have config values
+    sedi "s|<!-- CUSTOMIZE: org/repo -->|$PROJECT_REPO|g" CLAUDE.md
+
+    BACKEND_TEST_CMD=$(fw_get_nested "stack.backend.test_command" "")
+    if [ -n "$BACKEND_TEST_CMD" ]; then
+        sedi "s|# <!-- CUSTOMIZE: test runner command, e.g. pytest backend/tests/... -->|# $BACKEND_TEST_CMD|g" CLAUDE.md
+    fi
+
+    HEALTH_URL=$(fw_get_nested "deployment.health_url" "")
+    if [ -n "$HEALTH_URL" ]; then
+        sedi "s|<!-- CUSTOMIZE: health check command -->|curl $HEALTH_URL|g" CLAUDE.md
+    fi
+
+    # Remove Sherlock section if sherlock is disabled (rules files won't exist)
+    SHERLOCK_ENABLED=$(fw_get_nested "rules.sherlock_review_gate" "true")
+    if [ "$SHERLOCK_ENABLED" = "false" ]; then
+        # Remove the PROFILE-CONDITIONAL Sherlock section from CLAUDE.md
+        sedi '/<!-- PROFILE-CONDITIONAL: Remove this section if using minimal profile/,/^\*\*Security & Privacy\*\*/{ /^\*\*Security & Privacy\*\*/!d; }' CLAUDE.md
+    fi
+
+    # Count remaining CUSTOMIZE markers and warn
+    REMAINING=$(grep -c '<!-- CUSTOMIZE:' CLAUDE.md 2>/dev/null || echo 0)
+    if [ "$REMAINING" -gt 0 ]; then
+        echo "    CLAUDE.md updated ($REMAINING <!-- CUSTOMIZE --> markers remain)"
+        echo "    These require project-specific values — run: grep -n 'CUSTOMIZE' CLAUDE.md"
+    else
+        echo "    CLAUDE.md fully customized"
+    fi
 else
     echo "    CLAUDE.md not found (skipping)"
 fi
@@ -359,18 +387,148 @@ else
     echo "    Retro disabled (set retro.enabled: true)"
 fi
 
+# Step 15: Auto-detect project layout
+echo "  [15/$TOTAL_STEPS] Auto-detecting project layout..."
+DETECTED_FRONTEND_ROOT=""
+DETECTED_BACKEND_ROOT=""
+CONFIG_FILE="$FW_PROJECT_ROOT/config/framework.yaml"
+
+# Detect frontend — check existing config first to avoid overwriting user-set values on re-runs
+EXISTING_FE_ROOT=$(fw_get_nested "stack.frontend.root" "")
+if [ -n "$EXISTING_FE_ROOT" ]; then
+    echo "    Frontend root already configured: $EXISTING_FE_ROOT"
+    DETECTED_FRONTEND_ROOT="$EXISTING_FE_ROOT"
+elif [ -f "frontend/package.json" ]; then
+    DETECTED_FRONTEND_ROOT="frontend"
+    echo "    Detected frontend at: frontend/"
+# Root-level package.json WITHOUT a frontend/ dir = single-directory project.
+# If frontend/ exists, the package.json is likely a monorepo root (workspaces).
+elif [ -f "package.json" ] && [ ! -d "frontend" ]; then
+    DETECTED_FRONTEND_ROOT="."
+    echo "    Detected frontend at: . (root-level package.json)"
+elif compgen -G "apps/*/package.json" >/dev/null 2>&1; then
+    echo "    Detected monorepo (apps/*/package.json) — set stack.frontend.root manually"
+else
+    echo "    No frontend detected"
+fi
+
+# Detect backend
+EXISTING_BE_ROOT=$(fw_get_nested "stack.backend.root" "")
+if [ -n "$EXISTING_BE_ROOT" ]; then
+    echo "    Backend root already configured: $EXISTING_BE_ROOT"
+    DETECTED_BACKEND_ROOT="$EXISTING_BE_ROOT"
+elif [ -f "backend/requirements.txt" ] || [ -f "backend/pyproject.toml" ]; then
+    DETECTED_BACKEND_ROOT="backend"
+    echo "    Detected backend at: backend/"
+elif [ -f "requirements.txt" ] || [ -f "pyproject.toml" ]; then
+    if [ "$DETECTED_FRONTEND_ROOT" != "." ]; then
+        DETECTED_BACKEND_ROOT="."
+        echo "    Detected backend at: . (root-level)"
+    else
+        echo "    Skipping root backend detection (frontend already at root)"
+    fi
+else
+    echo "    No backend detected"
+fi
+
+# Write detected values to framework.yaml if not already set
+if [ -n "$DETECTED_FRONTEND_ROOT" ] && [ -z "$EXISTING_FE_ROOT" ]; then
+    if grep -q "^  frontend:" "$CONFIG_FILE" 2>/dev/null; then
+        sedi "/^  frontend:/a\\
+\\    root: \"$DETECTED_FRONTEND_ROOT\"" "$CONFIG_FILE" 2>/dev/null || true
+    elif grep -q "^stack:" "$CONFIG_FILE" 2>/dev/null; then
+        sedi "/^stack:/a\\
+\\  frontend:\\
+\\    root: \"$DETECTED_FRONTEND_ROOT\"" "$CONFIG_FILE" 2>/dev/null || true
+    fi
+    # Verify the write succeeded
+    VERIFY_FE=$(fw_get_nested "stack.frontend.root" "")
+    if [ "$VERIFY_FE" = "$DETECTED_FRONTEND_ROOT" ]; then
+        echo "    Set stack.frontend.root: \"$DETECTED_FRONTEND_ROOT\" in framework.yaml"
+    else
+        echo "    Warning: could not write stack.frontend.root to framework.yaml"
+        echo "    Add manually: stack.frontend.root: \"$DETECTED_FRONTEND_ROOT\""
+    fi
+fi
+
+if [ -n "$DETECTED_BACKEND_ROOT" ] && [ -z "$EXISTING_BE_ROOT" ]; then
+    if grep -q "^  backend:" "$CONFIG_FILE" 2>/dev/null; then
+        sedi "/^  backend:/a\\
+\\    root: \"$DETECTED_BACKEND_ROOT\"" "$CONFIG_FILE" 2>/dev/null || true
+    elif grep -q "^stack:" "$CONFIG_FILE" 2>/dev/null; then
+        sedi "/^stack:/a\\
+\\  backend:\\
+\\    root: \"$DETECTED_BACKEND_ROOT\"" "$CONFIG_FILE" 2>/dev/null || true
+    fi
+    VERIFY_BE=$(fw_get_nested "stack.backend.root" "")
+    if [ "$VERIFY_BE" = "$DETECTED_BACKEND_ROOT" ]; then
+        echo "    Set stack.backend.root: \"$DETECTED_BACKEND_ROOT\" in framework.yaml"
+    else
+        echo "    Warning: could not write stack.backend.root to framework.yaml"
+        echo "    Add manually: stack.backend.root: \"$DETECTED_BACKEND_ROOT\""
+    fi
+fi
+
+# Step 16: Generate .worktreeinclude
+echo "  [16/$TOTAL_STEPS] Generating .worktreeinclude..."
+WORKTREEINCLUDE="$FW_PROJECT_ROOT/.worktreeinclude"
+if [ -f "$WORKTREEINCLUDE" ]; then
+    echo "    .worktreeinclude already exists"
+else
+    INCLUDE_ENTRIES=""
+    # Build candidate list from detected roots
+    ENV_CANDIDATES=".env .env.local"
+    if [ -n "$DETECTED_BACKEND_ROOT" ] && [ "$DETECTED_BACKEND_ROOT" != "." ]; then
+        ENV_CANDIDATES="$ENV_CANDIDATES $DETECTED_BACKEND_ROOT/.env $DETECTED_BACKEND_ROOT/.env.local"
+    fi
+    if [ -n "$DETECTED_FRONTEND_ROOT" ] && [ "$DETECTED_FRONTEND_ROOT" != "." ]; then
+        ENV_CANDIDATES="$ENV_CANDIDATES $DETECTED_FRONTEND_ROOT/.env.local"
+    fi
+    for candidate in $ENV_CANDIDATES; do
+        if [ -f "$FW_PROJECT_ROOT/$candidate" ]; then
+            INCLUDE_ENTRIES="${INCLUDE_ENTRIES}${candidate}\n"
+        fi
+    done
+
+    if [ -n "$INCLUDE_ENTRIES" ]; then
+        printf '%s\n%s\n%b' "# Files to copy into Claude Code worktrees (gitignore syntax)" "# Generated by init-project.sh — edit as needed" "$INCLUDE_ENTRIES" > "$WORKTREEINCLUDE"
+        ENTRY_COUNT=$(printf '%b' "$INCLUDE_ENTRIES" | grep -c . || true)
+        echo "    Created .worktreeinclude with $ENTRY_COUNT file(s)"
+    else
+        echo "    No gitignored env files found — skipping .worktreeinclude"
+    fi
+fi
+
+# Step 17: Shell alias
+echo "  [17/$TOTAL_STEPS] Shell alias setup..."
+WORKTREE_ENABLED=$(fw_get_nested "worktree.enabled" "true")
+if [ "$WORKTREE_ENABLED" = "true" ]; then
+    if [ -t 0 ]; then
+        "$SCRIPT_DIR/generate-shell-alias.sh" --install
+    else
+        echo "    Non-interactive session — run ./scripts/generate-shell-alias.sh --install manually"
+    fi
+else
+    echo "    Worktree sessions disabled — skipping alias"
+fi
+
 echo ""
 echo "================================================================"
 echo "  Your framework is ready!"
 echo "================================================================"
 echo ""
 echo "Next steps:"
-echo "  1. Review CLAUDE.md and update any remaining <!-- CUSTOMIZE --> markers"
+FINAL_REMAINING=$(grep -c '<!-- CUSTOMIZE:' CLAUDE.md 2>/dev/null || echo 0)
+if [ "$FINAL_REMAINING" -gt 0 ]; then
+    echo "  1. Update $FINAL_REMAINING remaining <!-- CUSTOMIZE --> markers in CLAUDE.md"
+    echo "     Run: grep -n 'CUSTOMIZE' CLAUDE.md to see them"
+else
+    echo "  1. CLAUDE.md is fully customized"
+fi
 echo "  2. Review .claude/rules/ and customize for your stack"
 echo "  3. Configure GitHub secrets (see SETUP.md)"
 echo "  4. Make your first commit"
 echo "  5. Start a Claude session: ./scripts/claude-session.sh feature/first-feature"
-echo "  6. Generate shell alias: ./scripts/generate-shell-alias.sh"
 echo ""
 echo "Run ./scripts/preflight.sh to verify everything is set up correctly."
 echo ""
