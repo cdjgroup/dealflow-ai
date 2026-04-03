@@ -41,17 +41,17 @@ const suggestions = [
 ];
 
 interface ChatWindowProps {
-  conversationId?: string | null;
+  conversationId: string;
   onConversationCreated?: () => void;
 }
 
-export function ChatWindow({ conversationId, onConversationCreated }: ChatWindowProps = {}) {
+export function ChatWindow({ conversationId, onConversationCreated }: ChatWindowProps) {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
-    id: conversationId ?? undefined,
+    id: conversationId,
     onFinish() {
       onConversationCreated?.();
     },
