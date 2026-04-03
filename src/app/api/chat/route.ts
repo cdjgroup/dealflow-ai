@@ -7,6 +7,7 @@ import { draftEmail, searchEmails } from "@/lib/tools/gmail";
 import { createCrmTools } from "@/lib/tools/crm";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
 import { createDelegateResearchTool } from "@/lib/tools/delegate";
+import { createAnalyzePipelineTool } from "@/lib/tools/analyze-pipeline";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { checkCsrf, validateMessages } from "@/lib/api-guard";
 import { logToolExecution } from "@/lib/audit-log";
@@ -128,6 +129,7 @@ export async function POST(req: Request) {
 
   const crmTools = createCrmTools(userId);
   const delegateResearch = createDelegateResearchTool(userId);
+  const analyzePipeline = createAnalyzePipelineTool(userId);
   const settings = await getUserSettings(userId);
 
   // Filter tools based on user capability settings (U1)
@@ -138,6 +140,7 @@ export async function POST(req: Request) {
     listSlackChannels,
     sendSlackMessage,
     delegateResearch,
+    analyzePipeline,
     ...crmTools,
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
@@ -162,6 +165,9 @@ export async function POST(req: Request) {
   availableTools.push(
     "Delegation: create scoped, time-limited research delegations that authorize specific tools for multi-step investigations"
   );
+  availableTools.push(
+    "Pipeline Analysis: analyze deals and generate suggested next actions (emails, meetings, Slack messages) in the Action Center for user review"
+  );
 
   try {
     const result = streamText({
@@ -182,6 +188,7 @@ You can chain multiple tools in a single response to complete complex workflows:
 When the user's request implies multiple steps, plan and execute them sequentially. Explain your plan before starting.
 When using Slack, always confirm the channel and message with the user before sending.
 
+When the user asks you to analyze their pipeline, suggest next steps, or review deals, use the analyzePipeline tool to create suggestions in the Action Center. Direct them to /dashboard/actions to review.
 Be concise, professional, and proactive. Suggest next actions when appropriate.
 Format currency values and dates clearly.
 Today's date is ${new Date().toISOString().split("T")[0]}.
