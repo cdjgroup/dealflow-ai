@@ -34,8 +34,10 @@ function parseInterrupt(error: Error | undefined): {
 const suggestions = [
   "Show me my deals",
   "What's on my calendar tomorrow?",
-  "Draft an email to Sarah about the proposal",
+  "Draft a follow-up email to Sarah about the proposal",
   "Search contacts at Meridian",
+  "Send a Slack update about the Vantage deal",
+  "What Slack channels can I post to?",
 ];
 
 interface ChatWindowProps {

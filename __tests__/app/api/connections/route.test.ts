@@ -145,7 +145,6 @@ describe("DELETE /api/connections/[connection]", () => {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
-    // Verify delete call for the tokenset
     const deleteCall = vi.mocked(fetch).mock.calls[2];
     expect(deleteCall[0]).toBe(
       "https://test.auth0.com/api/v2/users/auth0%7Cuser123/federated-connections-tokensets/ts_abc"
@@ -154,14 +153,12 @@ describe("DELETE /api/connections/[connection]", () => {
   });
 
   it("succeeds even if tokenset cleanup fails", async () => {
-    // Management token fetch fails
     vi.mocked(fetch).mockRejectedValueOnce(new Error("network error"));
 
     const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
-    // Should still succeed because the Redis flag is the source of truth
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);

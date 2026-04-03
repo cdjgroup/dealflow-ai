@@ -4,8 +4,10 @@ import * as React from "react"
 import { useTheme } from "next-themes"
 import { Moon, Sun, Monitor } from "lucide-react"
 
+const CYCLE = ["light", "dark", "system"] as const
+
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -14,44 +16,25 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/50 p-0.5" aria-hidden="true">
-        <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground">
-          <Sun className="size-3.5" />
-        </div>
-        <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground">
-          <Moon className="size-3.5" />
-        </div>
-        <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground">
-          <Monitor className="size-3.5" />
-        </div>
-      </div>
+      <button className="flex size-8 items-center justify-center rounded-md text-muted-foreground" aria-hidden="true">
+        <Monitor className="size-4" />
+      </button>
     )
   }
 
-  const options = [
-    { value: "light", icon: Sun, label: "Light" },
-    { value: "dark", icon: Moon, label: "Dark" },
-    { value: "system", icon: Monitor, label: "System" },
-  ] as const
+  const currentIndex = CYCLE.indexOf(theme as typeof CYCLE[number])
+  const nextTheme = CYCLE[(currentIndex + 1) % CYCLE.length]
+
+  const Icon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor
+  const label = theme === "light" ? "Light mode" : theme === "dark" ? "Dark mode" : "System mode"
 
   return (
-    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/50 p-0.5" role="radiogroup" aria-label="Theme selection">
-      {options.map(({ value, icon: Icon, label }) => (
-        <button
-          key={value}
-          onClick={() => setTheme(value)}
-          aria-label={label}
-          aria-checked={theme === value}
-          role="radio"
-          className={`flex size-7 items-center justify-center rounded-md text-xs transition-colors ${
-            theme === value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Icon className="size-3.5" />
-        </button>
-      ))}
-    </div>
+    <button
+      onClick={() => setTheme(nextTheme)}
+      aria-label={`${label} — click to switch`}
+      className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
+    >
+      <Icon className="size-4" />
+    </button>
   )
 }

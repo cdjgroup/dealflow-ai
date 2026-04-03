@@ -5,28 +5,29 @@ import { useState } from "react";
 interface Props {
   connection: string;
   label: string;
+  disabled?: boolean;
 }
 
-export function RevokeButton({ connection, label }: Props) {
+export function RevokeButton({ connection, label, disabled = false }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<"success" | "error" | null>(null);
+  const [disconnected, setDisconnected] = useState(disabled);
+  const [error, setError] = useState(false);
 
   async function handleRevoke() {
     setLoading(true);
-    setResult(null);
+    setError(false);
     try {
       const res = await fetch(`/api/connections/${connection}`, {
         method: "DELETE",
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
       if (!res.ok) throw new Error("Failed");
-      setResult("success");
+      setDisconnected(true);
       setConfirming(false);
-      // Trigger a custom event so TokenStatus can refresh
       window.dispatchEvent(new Event("connection-changed"));
     } catch {
-      setResult("error");
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -34,27 +35,26 @@ export function RevokeButton({ connection, label }: Props) {
 
   async function handleReconnect() {
     setLoading(true);
+    setError(false);
     try {
       const res = await fetch(`/api/connections/${connection}`, {
         method: "POST",
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
       if (!res.ok) throw new Error("Failed");
-      setResult(null);
+      setDisconnected(false);
       window.dispatchEvent(new Event("connection-changed"));
     } catch {
-      // Stay in disconnected state
+      setError(true);
     } finally {
       setLoading(false);
     }
   }
 
-  if (result === "success") {
+  if (disconnected) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          Disconnected.
-        </span>
+        <span className="text-xs text-muted-foreground">Disconnected.</span>
         <button
           onClick={handleReconnect}
           disabled={loading}
@@ -62,6 +62,9 @@ export function RevokeButton({ connection, label }: Props) {
         >
           {loading ? "..." : "Reconnect"}
         </button>
+        {error && (
+          <span className="text-xs text-red-400">Failed. Try again.</span>
+        )}
       </div>
     );
   }
@@ -83,7 +86,7 @@ export function RevokeButton({ connection, label }: Props) {
         >
           No
         </button>
-        {result === "error" && (
+        {error && (
           <span className="text-xs text-red-400">Failed. Try again.</span>
         )}
       </div>
