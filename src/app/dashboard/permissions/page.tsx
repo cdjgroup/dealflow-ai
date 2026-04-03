@@ -66,19 +66,18 @@ export default async function PermissionsPage() {
               Last 20 agent actions
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <a
-              href="/dashboard/audit"
-              className="text-xs text-primary hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Full audit log
-            </a>
-            <span className="text-xs text-muted-foreground" aria-hidden="true">▼</span>
-          </div>
+          <span className="text-xs text-muted-foreground" aria-hidden="true">▼</span>
         </summary>
         <div className="px-4 pb-4">
           <ActivityTimeline entries={recentActivity} />
+          <div className="mt-3 text-right">
+            <a
+              href="/dashboard/audit"
+              className="text-xs text-primary hover:underline"
+            >
+              View full audit log &rarr;
+            </a>
+          </div>
         </div>
       </details>
     </div>
