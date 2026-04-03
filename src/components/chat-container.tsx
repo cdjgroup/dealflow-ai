@@ -6,14 +6,18 @@ import { ConversationList } from "./conversation-list";
 import type { ConversationMeta } from "@/lib/types/conversation";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
 
+function newId(): string {
+  return crypto.randomUUID();
+}
+
 interface ChatContainerProps {
   userId: string;
 }
 
 export function ChatContainer({ userId }: ChatContainerProps) {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeId, setActiveId] = useState<string>(newId);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -34,7 +38,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
   }, [fetchConversations]);
 
   const handleNew = () => {
-    setActiveId(null);
+    setActiveId(newId());
   };
 
   const handleSelect = (id: string) => {
@@ -42,7 +46,6 @@ export function ChatContainer({ userId }: ChatContainerProps) {
   };
 
   const handleConversationCreated = useCallback(() => {
-    // Refresh conversation list when a new conversation is saved
     fetchConversations();
   }, [fetchConversations]);
 
@@ -50,7 +53,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
     <div className="flex h-[calc(100vh-8rem)]">
       {/* Collapsible conversation sidebar */}
       {sidebarOpen && (
-        <div className="w-56 shrink-0 border-r border-border overflow-y-auto pr-3">
+        <div className="w-48 shrink-0 border-r border-border overflow-y-auto pr-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Chats
@@ -65,7 +68,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
           </div>
           <ConversationList
             conversations={conversations}
-            activeId={activeId ?? undefined}
+            activeId={activeId}
             onSelect={handleSelect}
             onNew={handleNew}
           />
@@ -73,18 +76,18 @@ export function ChatContainer({ userId }: ChatContainerProps) {
       )}
 
       {/* Chat area */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative">
         {!sidebarOpen && (
           <button
             onClick={() => setSidebarOpen(true)}
-            className="absolute left-5 top-20 z-10 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute left-2 top-2 z-10 text-muted-foreground hover:text-foreground transition-colors p-1"
             aria-label="Open chat sidebar"
           >
             <PanelLeft className="size-4" />
           </button>
         )}
         <ChatWindow
-          key={activeId ?? "new"}
+          key={activeId}
           conversationId={activeId}
           onConversationCreated={handleConversationCreated}
         />
