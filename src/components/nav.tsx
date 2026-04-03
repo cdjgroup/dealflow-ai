@@ -37,6 +37,12 @@ export function Nav({ userName, pendingActionCount }: { userName?: string; pendi
             >
               Permissions
             </Link>
+            <Link
+              href="/dashboard/mcp"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              MCP
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
