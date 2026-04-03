@@ -4,8 +4,8 @@
 
 ---
 
-## Current Version: 0.3.0 — Conversation Management & Help-Kit (New Chat, Conversation History, Onboarding, Resource Center)
-## Status: DEPLOYED
+## Current Version: 0.3.0 — Boundary-Pushing Auth (Scope Narrowing, Consent, Visualization, MCP, Delegation)
+## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
 ---

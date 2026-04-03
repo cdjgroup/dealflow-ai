@@ -1,14 +1,75 @@
 /**
+ * Detailed scope configuration for Token Vault tools.
+ */
+export interface ToolScopeConfig {
+  connection: string;
+  provider: string;
+  scopes: string[];
+  minScope: string;
+  accessLevel: "read" | "write";
+  dataDescription: string;
+}
+
+export type TokenVaultToolName =
+  | "checkCalendar"
+  | "searchEmails"
+  | "draftEmail"
+  | "listSlackChannels"
+  | "sendSlackMessage";
+
+export const TOOL_SCOPE_CONFIG: Record<TokenVaultToolName, ToolScopeConfig> = {
+  checkCalendar: {
+    connection: "google-oauth2",
+    provider: "Google",
+    scopes: ["calendar.readonly"],
+    minScope: "calendar.readonly",
+    accessLevel: "read",
+    dataDescription: "Google Calendar events and availability",
+  },
+  searchEmails: {
+    connection: "google-oauth2",
+    provider: "Google",
+    scopes: ["gmail.readonly"],
+    minScope: "gmail.readonly",
+    accessLevel: "read",
+    dataDescription: "Gmail messages and metadata",
+  },
+  draftEmail: {
+    connection: "google-oauth2",
+    provider: "Google",
+    scopes: ["gmail.compose", "gmail.readonly"],
+    minScope: "gmail.compose",
+    accessLevel: "write",
+    dataDescription: "Gmail draft creation",
+  },
+  listSlackChannels: {
+    connection: "sign-in-with-slack",
+    provider: "Slack",
+    scopes: ["channels:read"],
+    minScope: "channels:read",
+    accessLevel: "read",
+    dataDescription: "Slack public channels list",
+  },
+  sendSlackMessage: {
+    connection: "sign-in-with-slack",
+    provider: "Slack",
+    scopes: ["chat:write"],
+    minScope: "chat:write",
+    accessLevel: "write",
+    dataDescription: "Slack message posting",
+  },
+};
+
+/**
  * Static mapping of tool names to their required OAuth scopes.
+ * Derived from TOOL_SCOPE_CONFIG for Token Vault tools (single source of truth).
  * Used by the ScopeIndicator component to show which scopes
  * are actively being used during tool execution.
  */
 export const TOOL_SCOPES: Record<string, string[]> = {
-  checkCalendar: ["calendar.readonly"],
-  searchEmails: ["gmail.readonly"],
-  draftEmail: ["gmail.compose", "gmail.readonly"],
-  listSlackChannels: ["channels:read"],
-  sendSlackMessage: ["chat:write"],
+  ...Object.fromEntries(
+    Object.entries(TOOL_SCOPE_CONFIG).map(([k, v]) => [k, v.scopes])
+  ),
   // CRM tools have no external OAuth scopes
   listDeals: [],
   getDealDetails: [],

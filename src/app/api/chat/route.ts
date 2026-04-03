@@ -6,6 +6,7 @@ import { checkCalendar } from "@/lib/tools/calendar";
 import { draftEmail, searchEmails } from "@/lib/tools/gmail";
 import { createCrmTools } from "@/lib/tools/crm";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
+import { createDelegateResearchTool } from "@/lib/tools/delegate";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { checkCsrf, validateMessages } from "@/lib/api-guard";
 import { logToolExecution } from "@/lib/audit-log";
@@ -14,6 +15,7 @@ import { writeAuditEntry } from "@/lib/data/audit";
 import { saveConversation } from "@/lib/data/conversations";
 import { filterToolsByCapabilities } from "@/lib/tools/capability-filter";
 import { createApprovalCheck } from "@/lib/tools/approval-logic";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 import { NextResponse } from "next/server";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
@@ -125,6 +127,7 @@ export async function POST(req: Request) {
 
 
   const crmTools = createCrmTools(userId);
+  const delegateResearch = createDelegateResearchTool(userId);
   const settings = await getUserSettings(userId);
 
   // Filter tools based on user capability settings (U1)
@@ -134,6 +137,7 @@ export async function POST(req: Request) {
     searchEmails,
     listSlackChannels,
     sendSlackMessage,
+    delegateResearch,
     ...crmTools,
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
@@ -155,6 +159,9 @@ export async function POST(req: Request) {
     availableTools.push(
       "Slack to send messages and list channels for team communication"
     );
+  availableTools.push(
+    "Delegation: create scoped, time-limited research delegations that authorize specific tools for multi-step investigations"
+  );
 
   try {
     const result = streamText({
@@ -221,6 +228,19 @@ Some actions require user approval before they execute (drafting emails, sending
           error: event.success ? undefined : String(event.error),
         });
 
+        // Extract _tokenMeta from tool output (F2: token lifecycle data)
+        const output = event.success ? (event.output as Record<string, unknown> | undefined) : undefined;
+        const rawTokenMeta = output?._tokenMeta as Record<string, unknown> | undefined;
+        const scopeConfig = TOOL_SCOPE_CONFIG[event.toolCall.toolName as keyof typeof TOOL_SCOPE_CONFIG];
+        const tokenMeta = rawTokenMeta ? {
+          connection: String(rawTokenMeta.connection ?? ""),
+          provider: scopeConfig?.provider ?? "Unknown",
+          requestedScope: rawTokenMeta.minScope ? String(rawTokenMeta.minScope) : null,
+          grantedScope: rawTokenMeta.scope ? String(rawTokenMeta.scope) : null,
+          expiresIn: typeof rawTokenMeta.expiresIn === "number" ? rawTokenMeta.expiresIn : null,
+          apiEndpoint: "",
+        } : undefined;
+
         // Redis audit trail (S2) — fire and forget
         writeAuditEntry(userId, {
           threadId: id as string,
@@ -229,6 +249,7 @@ Some actions require user approval before they execute (drafting emails, sending
           result: event.success ? "success" : "error",
           errorMessage: event.success ? undefined : String(event.error),
           durationMs: event.durationMs,
+          tokenMeta,
         });
       },
     });

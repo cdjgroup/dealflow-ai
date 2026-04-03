@@ -22,9 +22,9 @@ const TOOL_CATEGORIES: Record<string, keyof UserSettings["capabilities"]> = {
 };
 
 /**
- * Filters a tools record by user capability settings.
- * Tools whose category is disabled are removed entirely —
- * the LLM never sees them, producing cleaner agent behavior.
+ * Filters a tools record by user capability settings and trust levels.
+ * Tools whose category is disabled OR whose trust level is "never" are
+ * removed entirely — the LLM never sees them.
  */
 export function filterToolsByCapabilities(
   tools: Record<string, Tool>,
@@ -32,6 +32,9 @@ export function filterToolsByCapabilities(
 ): Record<string, Tool> {
   const filtered: Record<string, Tool> = {};
   for (const [name, tool] of Object.entries(tools)) {
+    // Hard-block: trust level "never" removes the tool entirely
+    if (settings.toolTrust?.[name] === "never") continue;
+
     const category = TOOL_CATEGORIES[name];
     if (!category || settings.capabilities[category]) {
       filtered[name] = tool;

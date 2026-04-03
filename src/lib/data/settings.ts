@@ -9,7 +9,7 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
   const redis = getRedis();
   const raw = await redis.get<UserSettings>(settingsKey(userId));
   if (!raw) return { ...DEFAULT_SETTINGS };
-  return raw;
+  return { ...DEFAULT_SETTINGS, ...raw, toolTrust: { ...raw.toolTrust } };
 }
 
 export async function updateUserSettings(
@@ -20,6 +20,7 @@ export async function updateUserSettings(
   const merged: UserSettings = {
     capabilities: patch.capabilities ?? current.capabilities,
     approvalRequired: patch.approvalRequired ?? current.approvalRequired,
+    toolTrust: { ...current.toolTrust, ...(patch.toolTrust ?? {}) },
   };
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);

@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
+import { exchangeToken, buildTokenMeta } from "@/lib/token-exchange";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 
 export const listSlackChannels = tool({
   description:
@@ -24,10 +25,6 @@ export const listSlackChannels = tool({
       }
     );
 
-    if (!response.ok) {
-      return { error: sanitizeApiError(response.status, "Slack channels") };
-    }
-
     const data = await response.json();
     if (!data.ok) {
       return { error: `Slack API error: ${data.error}` };
@@ -44,6 +41,7 @@ export const listSlackChannels = tool({
     return {
       channelCount: channels.length,
       channels,
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["listSlackChannels"].minScope),
     };
   },
 });
@@ -87,12 +85,11 @@ export const sendSlackMessage = tool({
           headers: { Authorization: `Bearer ${result.token}` },
         }
       );
-      if (!listRes.ok) {
-        return { error: sanitizeApiError(listRes.status, "Slack channel lookup") };
-      }
       const listData = await listRes.json();
       if (!listData.ok) {
-        return { error: `Slack API error during channel lookup: ${listData.error}` };
+        return {
+          error: `Could not resolve Slack channel "${channel}": ${listData.error ?? "channel lookup failed"}`,
+        };
       }
       const found = (listData.channels || []).find(
         (ch: { name: string }) =>
@@ -116,10 +113,6 @@ export const sendSlackMessage = tool({
       body: JSON.stringify({ channel: channelId, text }),
     });
 
-    if (!response.ok) {
-      return { error: sanitizeApiError(response.status, "Slack message") };
-    }
-
     const data = await response.json();
     if (!data.ok) {
       const friendlyErrors: Record<string, string> = {
@@ -137,6 +130,7 @@ export const sendSlackMessage = tool({
       channel: data.channel,
       timestamp: data.ts,
       message: `Message sent to #${channel}`,
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["sendSlackMessage"].minScope),
     };
   },
 });
