@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import type { UserSettings } from "@/lib/types/settings";
 
 interface Props {
@@ -18,7 +18,14 @@ interface IntegrationGroup {
   id: string;
   label: string;
   icon: string;
+  connectionId?: string; // maps to token-status API connection field
   capabilities: CapabilityItem[];
+}
+
+interface ConnectionStatus {
+  connection: string;
+  connected: boolean;
+  error?: string;
 }
 
 const INTEGRATION_GROUPS: IntegrationGroup[] = [
@@ -45,6 +52,7 @@ const INTEGRATION_GROUPS: IntegrationGroup[] = [
     id: "google",
     label: "Google",
     icon: "🔗",
+    connectionId: "google-oauth2",
     capabilities: [
       {
         key: "calendar",
@@ -64,6 +72,7 @@ const INTEGRATION_GROUPS: IntegrationGroup[] = [
     id: "slack",
     label: "Slack",
     icon: "💬",
+    connectionId: "sign-in-with-slack",
     capabilities: [
       {
         key: "slack",
@@ -74,6 +83,30 @@ const INTEGRATION_GROUPS: IntegrationGroup[] = [
     ],
   },
 ];
+
+function ConnectionBadge({ status }: { status?: ConnectionStatus }) {
+  if (!status) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+        Unknown
+      </span>
+    );
+  }
+  if (status.connected) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        Connected
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+      Disconnected
+    </span>
+  );
+}
 
 function ToggleSwitch({
   checked,
@@ -111,6 +144,27 @@ function ToggleSwitch({
 export function CapabilityToggles({ initialSettings }: Props) {
   const [settings, setSettings] = useState(initialSettings);
   const [isPending, startTransition] = useTransition();
+  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+
+  const fetchConnectionStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/token-status");
+      if (!res.ok) throw new Error("fetch failed");
+      const data: ConnectionStatus[] = await res.json();
+      const map: Record<string, ConnectionStatus> = {};
+      for (const s of data) map[s.connection] = s;
+      setConnectionStatuses(map);
+    } catch {
+      // Show "Unknown" badges on failure — handled in render
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchConnectionStatus();
+    const handler = () => fetchConnectionStatus();
+    window.addEventListener("connection-changed", handler);
+    return () => window.removeEventListener("connection-changed", handler);
+  }, [fetchConnectionStatus]);
 
   async function handleToggle(key: keyof UserSettings["capabilities"]) {
     const updated = {
@@ -166,6 +220,11 @@ export function CapabilityToggles({ initialSettings }: Props) {
                 <span className="text-xs text-muted-foreground">
                   {enabledCount} of {totalCount} enabled
                 </span>
+                {group.connectionId && (
+                  <ConnectionBadge
+                    status={connectionStatuses[group.connectionId]}
+                  />
+                )}
               </div>
               <span className="text-xs text-muted-foreground transition-transform group-open:rotate-180">
                 ▼
