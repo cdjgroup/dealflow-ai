@@ -16,6 +16,7 @@ const toolLabels: Record<string, string> = {
   logActivity: "Log Activity",
   draftEmail: "Draft Email",
   sendSlackMessage: "Send Slack Message",
+  delegateResearch: "Delegate Research",
 };
 
 function formatValue(key: string, value: unknown): string {

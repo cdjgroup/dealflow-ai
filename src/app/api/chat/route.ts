@@ -6,6 +6,7 @@ import { checkCalendar } from "@/lib/tools/calendar";
 import { draftEmail, searchEmails } from "@/lib/tools/gmail";
 import { createCrmTools } from "@/lib/tools/crm";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
+import { createDelegateResearchTool } from "@/lib/tools/delegate";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { checkCsrf, validateMessages } from "@/lib/api-guard";
 import { logToolExecution } from "@/lib/audit-log";
@@ -125,6 +126,7 @@ export async function POST(req: Request) {
 
 
   const crmTools = createCrmTools(userId);
+  const delegateResearch = createDelegateResearchTool(userId);
   const settings = await getUserSettings(userId);
 
   // Filter tools based on user capability settings (U1)
@@ -134,6 +136,7 @@ export async function POST(req: Request) {
     searchEmails,
     listSlackChannels,
     sendSlackMessage,
+    delegateResearch,
     ...crmTools,
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
@@ -155,6 +158,9 @@ export async function POST(req: Request) {
     availableTools.push(
       "Slack to send messages and list channels for team communication"
     );
+  availableTools.push(
+    "Delegation: create scoped, time-limited research delegations that authorize specific tools for multi-step investigations"
+  );
 
   try {
     const result = streamText({

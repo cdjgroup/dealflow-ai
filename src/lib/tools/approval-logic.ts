@@ -14,6 +14,7 @@ const CRM_WRITE_TOOLS = new Set([
 const EXTERNAL_ACTION_TOOLS = new Set([
   "draftEmail",
   "sendSlackMessage",
+  "delegateResearch",
 ]);
 
 /**
