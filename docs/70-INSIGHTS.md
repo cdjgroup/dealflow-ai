@@ -29,3 +29,7 @@ When adding a new entry point (MCP endpoint alongside the existing chat API), ev
 ## 007 — AI SDK tool objects use `inputSchema` not `parameters` (2026-04-03)
 
 In AI SDK v6, the `tool()` helper returns an object with `{ description, inputSchema, execute }`. The property is `inputSchema` (matching the v6 naming), not `parameters` (which was the v5 name). When building adapters that convert AI SDK tools to other formats (like MCP), inspect the actual runtime shape rather than guessing from memory or type casts.
+
+## 008 — In-memory audit filtering is acceptable at hackathon scale (2026-04-03)
+
+Redis lists (`LRANGE`) do not support field-level filtering — there's no `WHERE toolName = 'x'` equivalent. For a production audit log, you'd use a secondary index (Redis Search, Sorted Sets by timestamp, or a proper database). For a hackathon with a 7-day TTL and max ~500 entries per user, fetching a larger slice from Redis and filtering in-memory is pragmatic: the data fits in a single response, latency is negligible, and it avoids adding a search dependency. The key insight: when filters are active, fetch 4x the requested limit (min 500) to ensure enough candidates survive filtering, then slice the result to the caller's limit.

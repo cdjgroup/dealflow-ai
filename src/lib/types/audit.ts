@@ -20,3 +20,10 @@ export interface AuditEntry {
   tokenMeta?: TokenMeta;
   consentAction?: "auto" | "approved" | "denied" | "always-allowed";
 }
+
+export interface AuditFilters {
+  toolName?: string;
+  result?: "success" | "error";
+  startDate?: string; // ISO 8601
+  endDate?: string; // ISO 8601
+}

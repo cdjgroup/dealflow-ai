@@ -1,5 +1,5 @@
 import { getRedis } from "@/lib/redis";
-import type { AuditEntry } from "@/lib/types/audit";
+import type { AuditEntry, AuditFilters } from "@/lib/types/audit";
 
 const AUDIT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
 
@@ -61,13 +61,16 @@ export async function writeAuditEntry(
 
 export async function getAuditLog(
   userId: string,
-  options?: { limit?: number }
+  options?: { limit?: number } & AuditFilters
 ): Promise<AuditEntry[]> {
   const limit = options?.limit ?? 50;
+  const hasFilters = !!(options?.toolName || options?.result || options?.startDate || options?.endDate);
+  // When filters are active, fetch more entries so in-memory filtering has enough candidates
+  const fetchLimit = hasFilters ? Math.max(limit * 4, 500) : limit;
   const redis = getRedis();
-  const raw = await redis.lrange<string>(auditKey(userId), 0, limit - 1);
+  const raw = await redis.lrange<string>(auditKey(userId), 0, fetchLimit - 1);
 
-  return raw
+  const entries = raw
     .map((item) => {
       if (typeof item === "object") return item as unknown as AuditEntry;
       try {
@@ -77,4 +80,18 @@ export async function getAuditLog(
       }
     })
     .filter((e): e is AuditEntry => e !== null);
+
+  if (!hasFilters) {
+    return entries;
+  }
+
+  return entries
+    .filter((entry) => {
+      if (options!.toolName && entry.toolName !== options!.toolName) return false;
+      if (options!.result && entry.result !== options!.result) return false;
+      if (options!.startDate && entry.timestamp < options!.startDate) return false;
+      if (options!.endDate && entry.timestamp > options!.endDate + "T23:59:59.999Z") return false;
+      return true;
+    })
+    .slice(0, limit);
 }

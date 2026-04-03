@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.3.0 — Boundary-Pushing Auth (Scope Narrowing, Consent, Visualization, MCP, Delegation)
+## Current Version: 0.3.1 — Permissions & Audit Log Polish + Boundary-Pushing Auth
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

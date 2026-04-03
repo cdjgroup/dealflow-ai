@@ -153,13 +153,16 @@ export function CapabilityMatrix({ settings }: Props) {
       {/* Tool Matrix */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm" aria-label="Agent capability matrix">
+          <caption className="sr-only">
+            Overview of all AI agent tools, their access levels, data sources, and guardrails
+          </caption>
           <thead>
             <tr className="border-b border-border text-left">
-              <th className="pb-2 font-medium text-muted-foreground">Tool</th>
-              <th className="pb-2 font-medium text-muted-foreground">Access</th>
-              <th className="pb-2 font-medium text-muted-foreground">Source</th>
-              <th className="pb-2 font-medium text-muted-foreground">Status</th>
-              <th className="pb-2 font-medium text-muted-foreground">Guardrails</th>
+              <th scope="col" className="pb-2 font-medium text-muted-foreground">Tool</th>
+              <th scope="col" className="pb-2 font-medium text-muted-foreground">Access</th>
+              <th scope="col" className="pb-2 font-medium text-muted-foreground">Source</th>
+              <th scope="col" className="pb-2 font-medium text-muted-foreground">Status</th>
+              <th scope="col" className="pb-2 font-medium text-muted-foreground">Guardrails</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
