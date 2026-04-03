@@ -6,10 +6,40 @@ import { getRedis } from "@/lib/redis";
 const ALLOWED_CONNECTIONS = ["google-oauth2", "sign-in-with-slack"];
 
 /**
+ * Fetches a short-lived Auth0 Management API token via client_credentials grant.
+ */
+async function getManagementToken(): Promise<string> {
+  const res = await fetch(
+    `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "client_credentials",
+        client_id: process.env.AUTH0_CLIENT_ID,
+        client_secret: process.env.AUTH0_CLIENT_SECRET,
+        audience: `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+      }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`Management API token request failed: ${res.status}`);
+  }
+  const data = await res.json();
+  return data.access_token;
+}
+
+interface Tokenset {
+  tokenset_id: string;
+  connection: string;
+}
+
+/**
  * DELETE /api/connections/:connection
  * Revokes a federated connection by:
- * 1. Calling Auth0 Management API to delete the user's federated connection
- * 2. Clearing any cached Token Vault tokens from Redis
+ * 1. Listing the user's Token Vault tokensets via Management API
+ * 2. Deleting matching tokensets so the stored provider tokens are removed
+ * 3. Clearing any cached tokens from Redis
  * On next tool invocation, Token Vault will re-request authorization.
  */
 export async function DELETE(
@@ -37,52 +67,52 @@ export async function DELETE(
   }
 
   try {
-    // Step 1: Get a Management API token
-    const mgmtTokenRes = await fetch(
-      `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grant_type: "client_credentials",
-          client_id: process.env.AUTH0_CLIENT_ID,
-          client_secret: process.env.AUTH0_CLIENT_SECRET,
-          audience: `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
-        }),
-      }
-    );
-
-    if (!mgmtTokenRes.ok) {
-      console.error("Failed to get Management API token:", mgmtTokenRes.status);
-      return NextResponse.json(
-        { error: "Failed to disconnect — could not reach Auth0" },
-        { status: 502 }
-      );
-    }
-
-    const { access_token: mgmtToken } = await mgmtTokenRes.json();
-
-    // Step 2: Delete the user's federated connection via Management API
+    const mgmtToken = await getManagementToken();
     const userId = encodeURIComponent(user.sub);
-    const deleteRes = await fetch(
-      `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${userId}/federated-connections/${connection}`,
+
+    // Step 1: List the user's Token Vault tokensets
+    const listRes = await fetch(
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${userId}/federated-connections-tokensets`,
       {
-        method: "DELETE",
         headers: { Authorization: `Bearer ${mgmtToken}` },
       }
     );
 
-    // 204 = success, 404 = already disconnected (treat as success)
-    if (!deleteRes.ok && deleteRes.status !== 404) {
-      const errBody = await deleteRes.text();
-      console.error("Auth0 federated connection delete failed:", deleteRes.status, errBody);
+    if (!listRes.ok) {
+      console.error("Failed to list tokensets:", listRes.status);
       return NextResponse.json(
-        { error: "Failed to disconnect — Auth0 rejected the request" },
+        { error: "Failed to disconnect — could not list tokensets" },
         { status: 502 }
       );
     }
 
-    // Step 3: Also clear any cached tokens from Redis (belt and suspenders)
+    const tokensets: Tokenset[] = await listRes.json();
+
+    // Step 2: Delete tokensets matching the target connection
+    const matching = tokensets.filter((ts) => ts.connection === connection);
+    let deletedCount = 0;
+
+    for (const ts of matching) {
+      const delRes = await fetch(
+        `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${userId}/federated-connections-tokensets/${ts.tokenset_id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${mgmtToken}` },
+        }
+      );
+      // 204 = success, 404 = already gone
+      if (delRes.ok || delRes.status === 404) {
+        deletedCount++;
+      } else {
+        console.error(
+          `Failed to delete tokenset ${ts.tokenset_id}:`,
+          delRes.status,
+          await delRes.text()
+        );
+      }
+    }
+
+    // Step 3: Clear any cached tokens from Redis
     const redis = getRedis();
     const pattern = `${user.sub}:*${connection}*`;
     const keysToDelete: string[] = [];
@@ -111,6 +141,7 @@ export async function DELETE(
     return NextResponse.json({
       success: true,
       connection,
+      tokensetsDeleted: deletedCount,
       keysCleared: keysToDelete.length,
     });
   } catch (err) {
