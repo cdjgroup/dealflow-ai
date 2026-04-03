@@ -26,27 +26,6 @@ export default async function PermissionsPage() {
         Permissions & Connected Accounts
       </h1>
 
-      {/* Profile */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">
-          Your Profile
-        </h2>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Name</span>
-            <span className="text-foreground">
-              {session.user?.name || "\u2014"}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Email</span>
-            <span className="text-foreground">
-              {session.user?.email || "\u2014"}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Agent Capabilities (U1) */}
       <div className="bg-card border border-border rounded-lg p-6">
         <h2 className="text-lg font-semibold text-foreground mb-2">
@@ -59,18 +38,21 @@ export default async function PermissionsPage() {
         <CapabilityToggles initialSettings={settings} />
       </div>
 
-      {/* Capability Matrix (Item 4) */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-2">
-          Tool Capability Matrix
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          All 12 agent tools with their access levels, data sources, and
-          security guardrails. Token Vault tools use short-lived OAuth tokens
-          from Auth0 — your credentials are never exposed.
-        </p>
-        <CapabilityMatrix settings={settings} />
-      </div>
+      {/* Capability Matrix (Item 4) — collapsible reference */}
+      <details className="bg-card border border-border rounded-lg">
+        <summary className="p-6 cursor-pointer select-none flex flex-col gap-1 [&::-webkit-details-marker]:hidden">
+          <h2 className="text-lg font-semibold text-foreground">
+            Tool Capability Matrix
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            All 12 agent tools with their access levels, data sources, and
+            security guardrails. Click to expand.
+          </span>
+        </summary>
+        <div className="px-6 pb-6">
+          <CapabilityMatrix settings={settings} />
+        </div>
+      </details>
 
       {/* Connection Status + Disconnect (Items 6 & 7) */}
       <div className="bg-card border border-border rounded-lg p-6">
@@ -102,7 +84,7 @@ export default async function PermissionsPage() {
                 <div className="text-xs text-muted-foreground">
                   Scopes: calendar.readonly, gmail.compose, gmail.readonly
                 </div>
-                <div className="text-[10px] text-muted-foreground/60 mt-0.5">
+                <div className="text-xs text-muted-foreground/60 mt-0.5">
                   Token type: short-lived access token via RFC 8693 exchange
                 </div>
               </div>
@@ -122,7 +104,7 @@ export default async function PermissionsPage() {
                 <div className="text-xs text-muted-foreground">
                   Scopes: channels:read, chat:write
                 </div>
-                <div className="text-[10px] text-muted-foreground/60 mt-0.5">
+                <div className="text-xs text-muted-foreground/60 mt-0.5">
                   Token type: short-lived access token via RFC 8693 exchange
                 </div>
               </div>
@@ -140,7 +122,7 @@ export default async function PermissionsPage() {
           </h2>
           <a
             href="/dashboard/audit"
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-primary hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
           >
             View full audit log &rarr;
           </a>
@@ -151,43 +133,6 @@ export default async function PermissionsPage() {
         <ActivityTimeline entries={recentActivity} />
       </div>
 
-      {/* How It Works */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">
-          How It Works
-        </h2>
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <div className="flex gap-3">
-            <span className="text-primary font-bold">1.</span>
-            <p>
-              When the agent needs to access Google or Slack, it requests a
-              token from Auth0 Token Vault using your refresh token.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <span className="text-primary font-bold">2.</span>
-            <p>
-              If you haven&apos;t connected the service yet, a consent popup
-              appears asking you to authorize specific scopes.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <span className="text-primary font-bold">3.</span>
-            <p>
-              Auth0 stores the OAuth tokens securely. The agent only receives
-              short-lived access tokens, never your credentials.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <span className="text-primary font-bold">4.</span>
-            <p>
-              External actions (emails, Slack messages) always require your
-              approval. High-value CRM operations trigger step-up
-              authorization. Every action is logged in the audit trail.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

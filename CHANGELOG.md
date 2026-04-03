@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-04-03
+
+### Added
+- "How It Works" section on landing page with 4-step Token Vault flow explanation
+- "Built for Security" landing section with 4 security highlights (Zero Credentials, Granular Permissions, Step-Up Auth, Audit Trail)
+- Collapsible Tool Capability Matrix on Permissions page (`<details>` element)
+- Accessibility: aria-hidden on decorative SVGs/emoji, semantic heading hierarchy (h1->h2->h3), focus-visible on audit link
+
+### Changed
+- Simplified top navigation: removed "Audit Log" link (accessible via Permissions page)
+- Decluttered Permissions page: removed redundant Profile section, removed How It Works (moved to landing)
+- Fixed chat bubble text readability in light mode (prose-invert for user bubbles)
+- Fixed table header contrast in user bubble markdown (prose-th:bg-white/20)
+- Widened landing page container from max-w-3xl to max-w-4xl
+
 ## [0.2.1] - 2026-04-03
 
 ### Added

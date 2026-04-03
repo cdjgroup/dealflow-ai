@@ -10,8 +10,8 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center max-w-3xl px-6">
+    <div className="min-h-screen bg-background flex items-center justify-center py-16">
+      <div className="text-center max-w-4xl px-6">
         <LandingAnimations />
       </div>
     </div>
