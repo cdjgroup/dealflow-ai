@@ -1,19 +1,17 @@
-# Release Notes — v0.2.1
+# Release Notes — v0.2.2
 
-## DealFlow AI: UI Polish & Visual Storytelling
+## DealFlow AI: Landing Page & Permissions Refinement
 
-Animations, glassmorphism, metrics, and visual security storytelling for hackathon judges.
+Enhanced user education, simplified information architecture, and fixed chat readability.
 
 ### What's new
 
-- **Animated landing page**: Gradient "DealFlow AI" title (text-7xl), staggered card animations, Token Vault architecture diagram (User → Auth0 → Vault → AI → APIs), glow CTA button
-- **Chat polish**: Staggered fade-in on messages/tool cards, AI avatar (gradient "D") and user avatar badges, glassmorphism on chat bubbles, animated suggestion chips
-- **"Token Vault Active" scope card**: Signature animated indicator showing live OAuth scopes during tool execution — the security story made visual
-- **Pipeline metrics + funnel**: Summary cards (Active Deals, Pipeline Value, Won) and horizontal bar funnel in dashboard sidebar
-- **Expandable audit log**: Click rows to see full I/O JSON, risk-level badges (OAuth amber, Write yellow, Read green)
-- **Animated ApprovalCard**: Slide-up entrance for step-up auth prompts
-- **Glassmorphism throughout**: backdrop-blur-sm on cards, inputs, sidebar — modern 2025-2026 design trend
-- **Removed redundant Connect Services card**: Connection handled by Token Vault interrupt + Permissions page
+- **"How It Works" on landing page**: Four-step walkthrough explaining Token Vault flow — from requesting tokens, to consent popups, to short-lived access, to approval requirements. Makes the security story clear for first-time visitors.
+- **"Built for Security" landing section**: Four security highlights: Zero Stored Credentials, Granular Permissions, Step-Up Authorization, Full Audit Trail. Directly addresses hackathon judging criteria.
+- **Simplified navigation**: Removed "Audit Log" from top nav (still accessible via Permissions > Recent Activity). Reduces cognitive load.
+- **Decluttered Permissions page**: Removed redundant Profile section. Made Capability Matrix collapsible. Focused layout on core actions: toggle tools, check connections, disconnect accounts.
+- **Chat bubble readability fix**: Fixed prose colors in light mode — user bubbles now use prose-invert for white text on indigo background. Fixed table header contrast.
+- **Accessibility improvements**: aria-hidden on decorative icons/arrows, heading hierarchy (h1->h2->h3), focus-visible styles on interactive elements, Safari VoiceOver-safe details/summary.
 
 ### Deployment
 - Live at: https://dealflow-ai-seven.vercel.app

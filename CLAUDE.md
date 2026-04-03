@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.2.1 — UI Polish & Visual Storytelling (Animations, Glassmorphism, Metrics, Funnel)
+## Current Version: 0.2.2 — Landing Page & Permissions Refinement (How It Works, Built for Security, Nav Declutter, Chat Readability)
 ## Status: DEPLOYED
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

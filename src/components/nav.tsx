@@ -25,12 +25,6 @@ export function Nav({ userName }: { userName?: string }) {
             >
               Permissions
             </Link>
-            <Link
-              href="/dashboard/audit"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Audit Log
-            </Link>
           </div>
         </div>
         <div className="flex items-center gap-4">

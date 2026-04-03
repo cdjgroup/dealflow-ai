@@ -1,5 +1,29 @@
 # Features
 
+## v0.2.2 — Landing Page & Permissions Refinement
+
+### Landing Page Education
+Two new sections explain the Token Vault security story to first-time visitors:
+
+**How It Works (4 steps):** Token request from Auth0 Token Vault, consent popup for new connections, short-lived token delivery, and approval requirements for external actions.
+
+**Built for Security (4 highlights):** Zero Stored Credentials, Granular Permissions, Step-Up Authorization, Full Audit Trail — each with description targeting hackathon judging criteria.
+
+### Simplified Navigation & Permissions
+- Removed "Audit Log" from top nav (accessible via Permissions > Recent Activity "View full audit log" link)
+- Removed redundant Profile section from Permissions page
+- Made Tool Capability Matrix collapsible (`<details>` element, collapsed by default)
+
+### Chat Readability
+- Fixed light mode text contrast in user chat bubbles (prose-invert for white-on-indigo)
+- Fixed table header visibility in user bubble markdown
+
+### Accessibility
+- aria-hidden on decorative emoji icons and SVG arrows
+- Semantic heading hierarchy (h1 > h2 > h3) on landing page
+- focus-visible styles on interactive links
+- Safari VoiceOver-safe details/summary pattern
+
 ## v0.2.1 — UI Polish & Visual Storytelling
 
 ### Animated Landing Page
