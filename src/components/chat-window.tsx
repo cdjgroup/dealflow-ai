@@ -32,6 +32,7 @@ function parseInterrupt(error: Error | undefined): {
 }
 
 const suggestions = [
+  "Analyze my pipeline and suggest next steps",
   "Show me my deals",
   "What's on my calendar tomorrow?",
   "Draft a follow-up email to Sarah about the proposal",
