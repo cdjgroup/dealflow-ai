@@ -56,7 +56,7 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
           }
           if (part.type.startsWith("tool-")) {
             const toolName =
-              "toolName" in part ? String(part.toolName) : part.type;
+              "toolName" in part ? String(part.toolName) : part.type.replace(/^tool-/, "");
             const state = "state" in part ? String(part.state) : "";
             const output = "output" in part ? part.output : undefined;
             const approval =
