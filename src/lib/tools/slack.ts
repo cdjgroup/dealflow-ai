@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { exchangeToken } from "@/lib/token-exchange";
+import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
 
 export const listSlackChannels = tool({
   description:
@@ -23,6 +23,10 @@ export const listSlackChannels = tool({
         headers: { Authorization: `Bearer ${result.token}` },
       }
     );
+
+    if (!response.ok) {
+      return { error: sanitizeApiError(response.status, "Slack channels") };
+    }
 
     const data = await response.json();
     if (!data.ok) {
@@ -83,19 +87,23 @@ export const sendSlackMessage = tool({
           headers: { Authorization: `Bearer ${result.token}` },
         }
       );
+      if (!listRes.ok) {
+        return { error: sanitizeApiError(listRes.status, "Slack channel lookup") };
+      }
       const listData = await listRes.json();
-      if (listData.ok) {
-        const found = (listData.channels || []).find(
-          (ch: { name: string }) =>
-            ch.name === channel || ch.name === channel.replace(/^#/, "")
-        );
-        if (found) {
-          channelId = found.id;
-        } else {
-          return {
-            error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
-          };
-        }
+      if (!listData.ok) {
+        return { error: `Slack API error during channel lookup: ${listData.error}` };
+      }
+      const found = (listData.channels || []).find(
+        (ch: { name: string }) =>
+          ch.name === channel || ch.name === channel.replace(/^#/, "")
+      );
+      if (found) {
+        channelId = found.id;
+      } else {
+        return {
+          error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
+        };
       }
     }
 
@@ -107,6 +115,10 @@ export const sendSlackMessage = tool({
       },
       body: JSON.stringify({ channel: channelId, text }),
     });
+
+    if (!response.ok) {
+      return { error: sanitizeApiError(response.status, "Slack message") };
+    }
 
     const data = await response.json();
     if (!data.ok) {

@@ -3,9 +3,13 @@ import { auth0, getUser } from "@/lib/auth0";
 import { checkCsrf } from "@/lib/api-guard";
 import { getRedis } from "@/lib/redis";
 
+const ALLOWED_CONNECTIONS = ["google-oauth2", "sign-in-with-slack"];
+
 /**
  * DELETE /api/connections/:connection
- * Revokes a connection by clearing cached Token Vault tokens from UpstashStore.
+ * Revokes a federated connection by:
+ * 1. Calling Auth0 Management API to delete the user's federated connection
+ * 2. Clearing any cached Token Vault tokens from Redis
  * On next tool invocation, Token Vault will re-request authorization.
  */
 export async function DELETE(
@@ -25,8 +29,7 @@ export async function DELETE(
   }
 
   const { connection } = await params;
-  const allowedConnections = ["google-oauth2", "sign-in-with-slack"];
-  if (!allowedConnections.includes(connection)) {
+  if (!ALLOWED_CONNECTIONS.includes(connection)) {
     return NextResponse.json(
       { error: "Unknown connection" },
       { status: 404 }
@@ -34,18 +37,57 @@ export async function DELETE(
   }
 
   try {
-    const redis = getRedis();
-    // Clear any cached tokens for this connection
-    // Token Vault stores tokens with namespace pattern including the connection name
-    const userId = user.sub;
-    const pattern = `${userId}:*${connection}*`;
+    // Step 1: Get a Management API token
+    const mgmtTokenRes = await fetch(
+      `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "client_credentials",
+          client_id: process.env.AUTH0_CLIENT_ID,
+          client_secret: process.env.AUTH0_CLIENT_SECRET,
+          audience: `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+        }),
+      }
+    );
 
-    // Use scan to find matching keys (safer than KEYS in production)
-    // Find and delete cached Token Vault tokens for this connection
-    // Use scan with explicit typing for Upstash Redis
+    if (!mgmtTokenRes.ok) {
+      console.error("Failed to get Management API token:", mgmtTokenRes.status);
+      return NextResponse.json(
+        { error: "Failed to disconnect — could not reach Auth0" },
+        { status: 502 }
+      );
+    }
+
+    const { access_token: mgmtToken } = await mgmtTokenRes.json();
+
+    // Step 2: Delete the user's federated connection via Management API
+    const userId = encodeURIComponent(user.sub);
+    const deleteRes = await fetch(
+      `https://${process.env.AUTH0_DOMAIN}/api/v2/users/${userId}/federated-connections/${connection}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${mgmtToken}` },
+      }
+    );
+
+    // 204 = success, 404 = already disconnected (treat as success)
+    if (!deleteRes.ok && deleteRes.status !== 404) {
+      const errBody = await deleteRes.text();
+      console.error("Auth0 federated connection delete failed:", deleteRes.status, errBody);
+      return NextResponse.json(
+        { error: "Failed to disconnect — Auth0 rejected the request" },
+        { status: 502 }
+      );
+    }
+
+    // Step 3: Also clear any cached tokens from Redis (belt and suspenders)
+    const redis = getRedis();
+    const pattern = `${user.sub}:*${connection}*`;
     const keysToDelete: string[] = [];
-    let done = false;
     let scanCursor = 0;
+    let done = false;
     while (!done) {
       const result = await redis.scan(scanCursor, {
         match: pattern,
