@@ -16,7 +16,7 @@ export function DealList({ deals }: { deals: Deal[] }) {
   );
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
+    <div className="bg-card/80 backdrop-blur-sm border border-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">Pipeline</h2>
         <div className="text-sm text-muted-foreground">

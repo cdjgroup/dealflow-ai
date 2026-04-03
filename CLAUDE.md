@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.1.0 — Core Agent MVP + Token Vault Integration
+## Current Version: 0.2.1 — UI Polish & Visual Storytelling (Animations, Glassmorphism, Metrics, Funnel)
 ## Status: DEPLOYED
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -52,11 +52,27 @@
 | checkCalendar | Google Calendar API | Yes — direct exchange |
 | draftEmail | Gmail API | Yes — direct exchange |
 | searchEmails | Gmail API | Yes — direct exchange |
+| listSlackChannels | Slack API | Yes — direct exchange |
+| sendSlackMessage | Slack API | Yes — direct exchange |
 | listDeals | Upstash Redis | No |
 | getDealDetails | Upstash Redis | No |
 | searchContacts | Upstash Redis | No |
-| createDeal | Upstash Redis | No |
+| createDeal | Upstash Redis | No (needsApproval >$50K) |
+| updateDeal | Upstash Redis | No (needsApproval closed-won) |
+| createContact | Upstash Redis | No |
 | logActivity | Upstash Redis | No |
+
+---
+
+## Security & User Control (v0.2.0)
+
+- **Capability Toggles:** Per-tool ON/OFF at `/dashboard/permissions` (stored in Redis)
+- **Step-Up Auth:** AI SDK `needsApproval` for deals >$50K and closed-won stage changes
+- **Audit Trail:** Every tool call logged to Redis + viewable at `/dashboard/audit`
+- **CSRF:** All mutation endpoints require `X-Requested-With: XMLHttpRequest`
+- **Scope Indicator:** Live display of active OAuth scopes during tool execution
+- **Disconnect:** Revoke OAuth connections via UpstashStore token deletion
+- **Conversation Persistence:** Chat threads saved/loaded from Redis
 
 ---
 

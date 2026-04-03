@@ -1,18 +1,19 @@
-# Release Notes — v0.1.0
+# Release Notes — v0.2.1
 
-## DealFlow AI: AI Sales Agent with Auth0 Token Vault
+## DealFlow AI: UI Polish & Visual Storytelling
 
-First release of DealFlow AI — a hackathon entry for "Authorized to Act: Auth0 for AI Agents."
+Animations, glassmorphism, metrics, and visual security storytelling for hackathon judges.
 
-### What it does
-An AI-powered sales assistant that manages your deal pipeline, checks your Google Calendar, and drafts Gmail follow-ups — all with secure, delegated access through Auth0 Token Vault.
+### What's new
 
-### Key features
-- **Auth0 Token Vault** for secure Google Calendar + Gmail access (RFC 8693 federated token exchange)
-- **Claude Sonnet 4.6** as the AI agent with multi-step tool calling
-- **8 AI tools** spanning CRM operations and Google API integrations
-- **Connected Accounts flow** with explicit user consent via Auth0
-- **Security**: rate limiting, CSRF protection, input validation, prompt injection defense
+- **Animated landing page**: Gradient "DealFlow AI" title (text-7xl), staggered card animations, Token Vault architecture diagram (User → Auth0 → Vault → AI → APIs), glow CTA button
+- **Chat polish**: Staggered fade-in on messages/tool cards, AI avatar (gradient "D") and user avatar badges, glassmorphism on chat bubbles, animated suggestion chips
+- **"Token Vault Active" scope card**: Signature animated indicator showing live OAuth scopes during tool execution — the security story made visual
+- **Pipeline metrics + funnel**: Summary cards (Active Deals, Pipeline Value, Won) and horizontal bar funnel in dashboard sidebar
+- **Expandable audit log**: Click rows to see full I/O JSON, risk-level badges (OAuth amber, Write yellow, Read green)
+- **Animated ApprovalCard**: Slide-up entrance for step-up auth prompts
+- **Glassmorphism throughout**: backdrop-blur-sm on cards, inputs, sidebar — modern 2025-2026 design trend
+- **Removed redundant Connect Services card**: Connection handled by Token Vault interrupt + Permissions page
 
 ### Deployment
 - Live at: https://dealflow-ai-seven.vercel.app
