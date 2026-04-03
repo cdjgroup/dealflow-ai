@@ -55,31 +55,31 @@ export default async function PermissionsPage() {
         </div>
       </details>
 
-      {/* Recent activity — collapsed */}
-      <details className="bg-card border border-border rounded-lg">
-        <summary className="p-4 cursor-pointer select-none flex items-center justify-between [&::-webkit-details-marker]:hidden">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Recent Activity
-            </h2>
-            <span className="text-xs text-muted-foreground">
-              Last 20 agent actions
-            </span>
+      {/* Recent activity — collapsed, with audit log link always visible */}
+      <div className="relative bg-card border border-border rounded-lg">
+        <a
+          href="/dashboard/audit"
+          className="absolute top-4 right-10 text-xs text-primary hover:underline z-10"
+        >
+          Full audit log &rarr;
+        </a>
+        <details>
+          <summary className="p-4 cursor-pointer select-none flex items-center justify-between [&::-webkit-details-marker]:hidden">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Recent Activity
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                Last 20 agent actions
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground" aria-hidden="true">▼</span>
+          </summary>
+          <div className="px-4 pb-4">
+            <ActivityTimeline entries={recentActivity} />
           </div>
-          <span className="text-xs text-muted-foreground" aria-hidden="true">▼</span>
-        </summary>
-        <div className="px-4 pb-4">
-          <ActivityTimeline entries={recentActivity} />
-          <div className="mt-3 text-right">
-            <a
-              href="/dashboard/audit"
-              className="text-xs text-primary hover:underline"
-            >
-              View full audit log &rarr;
-            </a>
-          </div>
-        </div>
-      </details>
+        </details>
+      </div>
     </div>
   );
 }
