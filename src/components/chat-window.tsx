@@ -44,6 +44,27 @@ export function ChatWindow() {
 
   const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
+    sendAutomaticallyWhen({ messages: msgs }) {
+      // After approving/denying a tool call, re-send so the server executes it.
+      // True when the last assistant message has approval-responded parts but no
+      // pending approval-requested parts remaining.
+      const last = msgs[msgs.length - 1];
+      if (!last || last.role !== "assistant") return false;
+      const parts = last.parts ?? [];
+      const hasResponded = parts.some(
+        (p) =>
+          p.type?.startsWith("tool-") &&
+          "state" in p &&
+          p.state === "approval-responded"
+      );
+      const hasPending = parts.some(
+        (p) =>
+          p.type?.startsWith("tool-") &&
+          "state" in p &&
+          p.state === "approval-requested"
+      );
+      return hasResponded && !hasPending;
+    },
   });
 
   const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
