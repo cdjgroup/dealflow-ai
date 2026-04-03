@@ -3,10 +3,11 @@ import { auth0, getUser } from "@/lib/auth0";
 import { getAction, updateAction } from "@/lib/data/actions";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
+import { draftSchema } from "@/lib/schemas/action-draft";
 
 const updateSchema = z.object({
   status: z.enum(["approved", "dismissed"]).optional(),
-  draft: z.record(z.string(), z.unknown()).optional(),
+  draft: draftSchema.optional(),
 }).refine((data) => data.status !== undefined || data.draft !== undefined, {
   message: "At least one of status or draft must be provided",
 });

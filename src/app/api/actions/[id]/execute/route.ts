@@ -27,7 +27,7 @@ export async function POST(
     return NextResponse.json({ error: "Action not found" }, { status: 404 });
   }
 
-  if (action.status !== "approved") {
+  if (action.status !== "approved" && action.status !== "failed") {
     return NextResponse.json(
       { error: "Action must be approved before execution" },
       { status: 400 }
@@ -73,6 +73,9 @@ export async function POST(
       durationMs: Date.now() - startTime,
     }).catch(() => {});
 
-    return NextResponse.json({ action: updated, error: errorMessage });
+    return NextResponse.json(
+      { action: updated, error: errorMessage },
+      { status: 502 }
+    );
   }
 }

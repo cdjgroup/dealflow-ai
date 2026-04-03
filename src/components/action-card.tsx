@@ -38,7 +38,7 @@ const priorityStyles: Record<string, string> = {
 
 const statusStyles: Record<string, { border: string; badge: string; label: string }> = {
   pending: { border: "border-amber-500/30", badge: "bg-amber-500/10 text-amber-400", label: "Pending" },
-  approved: { border: "border-emerald-500/30", badge: "bg-emerald-500/10 text-emerald-400", label: "Approved" },
+  approved: { border: "border-blue-500/30", badge: "bg-blue-500/10 text-blue-400", label: "Approved" },
   dismissed: { border: "border-border", badge: "bg-muted text-muted-foreground", label: "Dismissed" },
   executing: { border: "border-primary/30", badge: "bg-primary/10 text-primary", label: "Executing..." },
   sent: { border: "border-emerald-500/30", badge: "bg-emerald-500/10 text-emerald-400", label: "Sent" },
@@ -120,8 +120,9 @@ function EmailEditor({
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs text-muted-foreground">To</label>
+        <label htmlFor="email-to" className="text-xs text-muted-foreground">To</label>
         <input
+          id="email-to"
           type="email"
           value={draft.to}
           onChange={(e) => onChange({ ...draft, to: e.target.value })}
@@ -130,8 +131,9 @@ function EmailEditor({
         />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Subject</label>
+        <label htmlFor="email-subject" className="text-xs text-muted-foreground">Subject</label>
         <input
+          id="email-subject"
           type="text"
           value={draft.subject}
           onChange={(e) => onChange({ ...draft, subject: e.target.value })}
@@ -139,8 +141,9 @@ function EmailEditor({
         />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Body</label>
+        <label htmlFor="email-body" className="text-xs text-muted-foreground">Body</label>
         <textarea
+          id="email-body"
           value={draft.body}
           onChange={(e) => onChange({ ...draft, body: e.target.value })}
           rows={5}
@@ -161,8 +164,9 @@ function CalendarEditor({
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs text-muted-foreground">Title</label>
+        <label htmlFor="cal-title" className="text-xs text-muted-foreground">Title</label>
         <input
+          id="cal-title"
           type="text"
           value={draft.title}
           onChange={(e) => onChange({ ...draft, title: e.target.value })}
@@ -171,8 +175,9 @@ function CalendarEditor({
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
-          <label className="text-xs text-muted-foreground">Date</label>
+          <label htmlFor="cal-date" className="text-xs text-muted-foreground">Date</label>
           <input
+            id="cal-date"
             type="date"
             value={draft.date}
             onChange={(e) => onChange({ ...draft, date: e.target.value })}
@@ -180,8 +185,9 @@ function CalendarEditor({
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Time</label>
+          <label htmlFor="cal-time" className="text-xs text-muted-foreground">Time</label>
           <input
+            id="cal-time"
             type="time"
             value={draft.time}
             onChange={(e) => onChange({ ...draft, time: e.target.value })}
@@ -189,8 +195,9 @@ function CalendarEditor({
           />
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Duration (min)</label>
+          <label htmlFor="cal-duration" className="text-xs text-muted-foreground">Duration (min)</label>
           <input
+            id="cal-duration"
             type="number"
             value={draft.duration}
             onChange={(e) => onChange({ ...draft, duration: parseInt(e.target.value) || 30 })}
@@ -199,8 +206,9 @@ function CalendarEditor({
         </div>
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Notes</label>
+        <label htmlFor="cal-notes" className="text-xs text-muted-foreground">Notes</label>
         <textarea
+          id="cal-notes"
           value={draft.notes || ""}
           onChange={(e) => onChange({ ...draft, notes: e.target.value })}
           rows={2}
@@ -221,8 +229,9 @@ function SlackEditor({
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs text-muted-foreground">Channel</label>
+        <label htmlFor="slack-channel" className="text-xs text-muted-foreground">Channel</label>
         <input
+          id="slack-channel"
           type="text"
           value={draft.channel}
           onChange={(e) => onChange({ ...draft, channel: e.target.value })}
@@ -230,8 +239,9 @@ function SlackEditor({
         />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Message</label>
+        <label htmlFor="slack-message" className="text-xs text-muted-foreground">Message</label>
         <textarea
+          id="slack-message"
           value={draft.message}
           onChange={(e) => onChange({ ...draft, message: e.target.value })}
           rows={4}
@@ -310,7 +320,7 @@ export function ActionCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{typeIcons[action.type]}</span>
+          <span className="text-lg" aria-hidden="true">{typeIcons[action.type]}</span>
           <div>
             <span className="text-sm font-medium text-foreground">
               {typeLabels[action.type]}: {action.contactName}

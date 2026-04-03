@@ -13,7 +13,7 @@ const filters: { label: string; value: ActionStatus | "all" }[] = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Approved", value: "approved" },
-  { label: "Executed", value: "sent" },
+  { label: "Sent", value: "sent" },
   { label: "Dismissed", value: "dismissed" },
 ];
 
@@ -47,7 +47,7 @@ export function ActionFilters({
 
       {/* Filter Tabs + Batch Action */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1">
+        <div role="tablist" aria-label="Filter actions" className="flex gap-1">
           {filters.map((f) => {
             const count =
               f.value === "all"
@@ -56,6 +56,8 @@ export function ActionFilters({
             return (
               <button
                 key={f.value}
+                role="tab"
+                aria-selected={activeFilter === f.value}
                 onClick={() => onFilterChange(f.value)}
                 className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
                   activeFilter === f.value

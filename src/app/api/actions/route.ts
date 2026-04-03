@@ -3,7 +3,13 @@ import { auth0, getUser } from "@/lib/auth0";
 import { getActions, createAction } from "@/lib/data/actions";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
-import type { ActionDraft, ActionStatus } from "@/lib/types/actions";
+import type { ActionStatus } from "@/lib/types/actions";
+import { draftSchema } from "@/lib/schemas/action-draft";
+
+const statusValues = [
+  "pending", "approved", "dismissed", "executing", "sent", "failed",
+] as const;
+const statusFilterSchema = z.enum(statusValues).optional();
 
 export async function GET(req: Request) {
   const session = await auth0.getSession();
@@ -16,8 +22,14 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status") as ActionStatus | null;
-  const filter = status ? { status } : undefined;
+  const rawStatus = searchParams.get("status") ?? undefined;
+  const statusResult = statusFilterSchema.safeParse(rawStatus);
+  if (!statusResult.success) {
+    return NextResponse.json({ error: "Invalid status filter" }, { status: 400 });
+  }
+  const filter = statusResult.data
+    ? { status: statusResult.data as ActionStatus }
+    : undefined;
 
   const actions = await getActions(user.sub, filter);
   return NextResponse.json({ actions });
@@ -25,13 +37,12 @@ export async function GET(req: Request) {
 
 const createSchema = z.object({
   type: z.enum(["email", "calendar", "slack"]),
-  status: z.enum(["pending", "approved", "dismissed", "executing", "sent", "failed"]),
   priority: z.enum(["high", "medium", "low"]),
   dealId: z.string(),
   dealName: z.string(),
   contactName: z.string(),
-  justification: z.string(),
-  draft: z.record(z.string(), z.unknown()).transform((v) => v as unknown as ActionDraft),
+  justification: z.string().max(2000),
+  draft: draftSchema,
 });
 
 export async function POST(req: Request) {
@@ -62,6 +73,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const action = await createAction(user.sub, parsed.data);
+  const action = await createAction(user.sub, { ...parsed.data, status: "pending" });
   return NextResponse.json({ action }, { status: 201 });
 }
