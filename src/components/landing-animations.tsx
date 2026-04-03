@@ -92,7 +92,7 @@ export function LandingAnimations() {
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
             How Token Vault Works
           </h2>
-          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm flex-wrap">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs sm:text-sm overflow-x-auto pb-2">
             <div className="flex flex-col items-center gap-1">
               <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-lg">
                 👤

@@ -28,11 +28,11 @@ export function Nav({ userName }: { userName?: string }) {
             </Link>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <ResourceCenter />
           <ThemeToggle />
           {userName && (
-            <span className="text-sm text-muted-foreground">{userName}</span>
+            <span className="hidden sm:inline text-sm text-muted-foreground">{userName}</span>
           )}
           <a
             href="/auth/logout"
