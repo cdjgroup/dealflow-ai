@@ -1,92 +1,85 @@
 # DealFlow AI — Demo Script
 
-> 5-minute walkthrough for hackathon judges. Hit the strongest moments.
+> 3-minute max. Every second counts. No filler, no fumbling.
 
-## Setup (before demo)
+## Setup (before recording)
 
 1. Log in at https://dealflow-ai-seven.vercel.app
-2. Ensure Google and Slack are connected (Permissions page, green badges)
-3. Seed demo data if needed (browser console: `fetch('/api/seed', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })`)
-4. Clear any existing conversations (sidebar > Clear All)
-5. Dismiss/reset any existing actions if needed
+2. Google and Slack connected (green badges on Permissions)
+3. Seed data: `fetch('/api/seed', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })`
+4. Clear conversations (sidebar > Clear All)
+5. Clear/dismiss existing actions so Action Center starts fresh
+6. Have Permissions page open in a second tab (for fast switch)
 
 ---
 
-## Act 1: AI Chat with Token Vault (1 min)
+## Act 1: The AI Acts Through Token Vault (45 sec)
 
-**Talking point**: "DealFlow AI is a sales assistant that acts on behalf of the user through Auth0 Token Vault — never storing credentials."
+> "DealFlow AI is a sales assistant that acts on the user's behalf through Auth0 Token Vault. The AI never stores credentials."
 
-1. Type: **"Show me my deals"**
-   - AI uses CRM tools, shows 4 deals with values and stages
-   - Point out: "This is internal data — no OAuth needed"
+1. Type: **"What's on my calendar tomorrow?"**
+   - Token lifecycle animation appears (6 stages: AI Decides → Token Exchange → Scoped Token → API Call → Response → Token Expires)
+   - "Auth0 exchanges a refresh token for a short-lived Google access token. The AI gets a scoped token, never credentials."
 
-2. Type: **"What's on my calendar tomorrow?"**
-   - Watch the **token lifecycle animation** appear in chat (6 stages)
-   - Point out: "Auth0 Token Vault exchanges a refresh token for a short-lived Google access token. The AI never sees credentials."
+2. Type: **"Analyze my pipeline and suggest next steps"**
+   - AI calls `analyzePipeline`, creates suggestions
+   - "The AI read 4 deals, analyzed activity history, and generated prioritized action items."
 
-## Act 2: AI Generates Action Center Suggestions (1 min)
+## Act 2: Action Center — Review Before Execution (1 min)
 
-**Talking point**: "The AI doesn't just answer questions — it proactively suggests next steps."
+> "Authorized to Act means the user sees what the AI wants to do, why, and decides whether it happens."
 
-3. Type: **"Analyze my pipeline and suggest next steps"**
-   - AI calls `analyzePipeline` tool
-   - Returns: "Created X suggested actions in your Action Center"
-   - Point out: "The AI analyzed deal stages, activity dates, and contact history to generate these"
+3. **Click Actions** in nav — show the Action Center
+   - Point at a card: "Each suggestion has a justification — the AI explains its reasoning."
+   - Point at priorities: "High priority for stale high-value deals, medium for routine follow-ups."
 
-4. **Click "Actions" in nav** — show the Action Center
-   - Point out the badge count, filter tabs, justifications on each card
-   - "Each suggestion explains WHY — judges and users see the AI's reasoning"
+4. **Click Edit** on an email action → change the subject → Save
+   - "The user can customize every draft. This isn't rubber-stamping — it's informed consent."
 
-## Act 3: Human-in-the-Loop Review (1.5 min)
+5. **Click Approve → Execute** on one email action
+   - Watch: Approved (blue) → Executing (pulse) → Completed (green)
+   - "That draft just landed in Gmail through Token Vault. Same OAuth flow as chat, different surface."
 
-**Talking point**: "Authorized to Act means the user curates what the AI does — not just rubber-stamps it."
+## Act 3: Trust Controls & Security (45 sec)
 
-5. **Click Edit on an email action** — modify the subject line
-   - "Users can customize every draft before it goes out"
-   - Click Save
+> "The same authorization model governs every surface — chat, Action Center, and external agents."
 
-6. **Click Approve** on one action — card turns blue
-   - "Approved doesn't mean executed. There's a deliberate two-step: approve, then execute."
+6. **Switch to Permissions tab** → disable Gmail (toggle off or trust to "never")
 
-7. **Click Execute** on the approved email
-   - Watch status transition: Approved → Executing (pulse) → Completed (green)
-   - "That email draft just landed in Gmail via Token Vault — same OAuth flow, different surface."
+7. **Switch back to Actions** → try to Approve another email action
+   - **Blocked**: "Cannot approve: gmail is disabled"
+   - "Same control, consistent everywhere. The user's decision propagates to every surface."
 
-8. **Batch Approve** remaining actions
-   - "For efficiency, approve multiple actions at once. Each still requires individual execution."
+8. **Quick hits** (say while navigating, don't pause):
+   - Re-enable Gmail
+   - Click "Full audit log →": "Every action — chat and Action Center — logged with parameters, duration, status"
+   - Click "MCP" in nav: "External AI agents like OpenClaw can discover and use these same tools through MCP. Same Token Vault pipeline, same audit trail. This isn't just one app's security — it's a reusable pattern for the AI agent ecosystem."
 
-## Act 4: Trust Controls (1 min)
+## Act 4: Closing (30 sec)
 
-**Talking point**: "The same authorization model governs both chat and the Action Center."
+> Deliver standing at the Permissions page or MCP Explorer.
 
-9. **Go to Permissions** → set Gmail to disabled (or trust to "never")
+"DealFlow AI demonstrates three levels of 'Authorized to Act':
+1. **Per-tool** — capability toggles, trust levels, step-up approval
+2. **Per-action** — the Action Center queues AI suggestions for human review
+3. **Per-agent** — MCP gives external agents the same secure, audited access
 
-10. **Go back to Actions** → try to Approve an email action
-    - **Blocked** with error: "Cannot approve: gmail is disabled"
-    - "Same control, different surface. The user's permissions are consistent everywhere."
-
-11. **Re-enable Gmail** → Approve now works
-    - "Granular control. The user decides what the AI can do."
-
-## Act 5: Security Story (30 sec)
-
-**Talking points** (say while navigating):
-- **Permissions page**: "Every tool has capability toggles, trust levels, and connection status in one place"
-- **Disconnect button**: "One click revokes the AI's access to Google or Slack — instantly"
-- **Audit log** (click "Full audit log →"): "Every action the AI takes is logged — tool name, parameters, duration, success/failure"
-- **Action Center**: "Even the Action Center execution writes to the audit trail"
+All through Auth0 Token Vault. The AI never stores credentials. Every action is auditable. The user is always in control."
 
 ---
 
-## Key phrases for judges
+## Timing guide
 
-- "The AI never stores credentials — Token Vault provides short-lived tokens via RFC 8693"
-- "Authorized to Act means human-in-the-loop at every level: per-tool trust, approval flow, and Action Center review"
-- "Same authorization pipeline whether the AI acts through chat or the Action Center"
-- "The user sees WHY the AI suggests each action — full justification, not a black box"
+| Act | Content | Target |
+|-----|---------|--------|
+| 1 | Chat + pipeline analysis | 0:00–0:45 |
+| 2 | Action Center review + execute | 0:45–1:45 |
+| 3 | Trust controls + audit + MCP | 1:45–2:30 |
+| 4 | Closing statement | 2:30–3:00 |
 
-## Fallback talking points (if something fails)
+## If something breaks
 
-- If Google isn't connected: "This is by design — the AI can't act without the user connecting their account first"
-- If execution fails: "The error is surfaced to the user with a Retry button — no silent failures"
-- If no suggestions generated: "The AI only suggests actions when deals need attention — no spam"
+- Google not connected: "By design — the AI can't act without the user connecting first"
+- Execution fails: "Errors surface to the user with Retry — no silent failures"
+- No suggestions: "The AI only suggests when deals need attention — no spam"
+- Slow API: Keep talking through the wait, the animations cover the latency
