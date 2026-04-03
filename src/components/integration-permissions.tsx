@@ -187,7 +187,7 @@ function ConnectionActions({
   return (
     <button
       onClick={() => setConfirming(true)}
-      className="rounded border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-red-500/50 hover:text-red-400 transition-colors"
+      className="rounded bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-500 transition-colors"
     >
       Disconnect
     </button>
