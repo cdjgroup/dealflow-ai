@@ -41,7 +41,7 @@ const statusStyles: Record<string, { border: string; badge: string; label: strin
   approved: { border: "border-blue-500/30", badge: "bg-blue-500/10 text-blue-400", label: "Approved" },
   dismissed: { border: "border-border", badge: "bg-muted text-muted-foreground", label: "Dismissed" },
   executing: { border: "border-primary/30", badge: "bg-primary/10 text-primary", label: "Executing..." },
-  sent: { border: "border-emerald-500/30", badge: "bg-emerald-500/10 text-emerald-400", label: "Sent" },
+  sent: { border: "border-emerald-500/30", badge: "bg-emerald-500/10 text-emerald-400", label: "Completed" },
   failed: { border: "border-destructive/30", badge: "bg-destructive/10 text-destructive", label: "Failed" },
 };
 

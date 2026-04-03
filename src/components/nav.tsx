@@ -15,12 +15,6 @@ export function Nav({ userName, pendingActionCount }: { userName?: string; pendi
           </Link>
           <div className="flex items-center gap-4 text-sm">
             <Link
-              href="/dashboard"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Chat
-            </Link>
-            <Link
               href="/dashboard/actions"
               className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
             >
@@ -30,6 +24,12 @@ export function Nav({ userName, pendingActionCount }: { userName?: string; pendi
                   {pendingActionCount}
                 </span>
               )}
+            </Link>
+            <Link
+              href="/dashboard"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Chat
             </Link>
             <Link
               href="/dashboard/permissions"

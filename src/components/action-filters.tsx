@@ -13,7 +13,7 @@ const filters: { label: string; value: ActionStatus | "all" }[] = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Approved", value: "approved" },
-  { label: "Sent", value: "sent" },
+  { label: "Completed", value: "sent" },
   { label: "Dismissed", value: "dismissed" },
 ];
 
@@ -41,7 +41,7 @@ export function ActionFilters({
           <span className="text-emerald-400">{approvedCount} ready to execute</span>
         )}
         {sentCount > 0 && (
-          <span className="text-emerald-400">{sentCount} sent</span>
+          <span className="text-emerald-400">{sentCount} completed</span>
         )}
       </div>
 
