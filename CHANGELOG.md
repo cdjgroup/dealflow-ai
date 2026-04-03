@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-04-03
+
+### Added
+- Conversation management: collapsible sidebar with conversation list, "New Chat" button, conversation switching
+- Auto-save: conversations persist to Redis via `onFinish` callback with 30-day TTL
+- Help-Kit onboarding checklist: 5-step getting started guide (Connect Google, Connect Slack, Try Chat, Check Pipeline, Review Permissions)
+- Help-Kit resource center: help drawer with external doc links, quick actions, and DealFlow glossary (8 terms)
+- DashboardProviders wrapper for OnboardingProvider context
+- ChatContainer component orchestrating conversation list + chat window
+- shadcn/ui Button and Sheet components
+
+### Changed
+- Dashboard layout: ChatWindow replaced with ChatContainer (includes conversation sidebar)
+- ChatWindow accepts `conversationId` prop, uses key-based remount for clean state reset
+- Nav includes ResourceCenter help button
+- Redis conversation keys now have 30-day TTL (was missing)
+
+### Fixed
+- Conversation save now includes tool call steps (was only saving final text)
+
 ## [0.2.2] - 2026-04-03
 
 ### Added

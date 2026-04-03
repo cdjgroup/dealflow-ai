@@ -14,6 +14,11 @@ vi.mock("@/components/theme-toggle", () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }));
 
+// Mock ResourceCenter (requires OnboardingProvider context)
+vi.mock("@/components/helpkit/ResourceCenter", () => ({
+  ResourceCenter: () => <div data-testid="resource-center" />,
+}));
+
 describe("Nav", () => {
   it("renders Chat and Permissions links", () => {
     render(<Nav />);
@@ -21,7 +26,7 @@ describe("Nav", () => {
     expect(screen.getByRole("link", { name: /permissions/i })).toHaveAttribute("href", "/dashboard/permissions");
   });
 
-  it("does not render Audit Log link (AC-1)", () => {
+  it("does not render Audit Log link", () => {
     render(<Nav />);
     expect(screen.queryByRole("link", { name: /audit/i })).toBeNull();
     expect(screen.queryByText(/audit log/i)).toBeNull();

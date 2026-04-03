@@ -38,12 +38,21 @@ const suggestions = [
   "Search contacts at Meridian",
 ];
 
-export function ChatWindow() {
+interface ChatWindowProps {
+  conversationId?: string | null;
+  onConversationCreated?: () => void;
+}
+
+export function ChatWindow({ conversationId, onConversationCreated }: ChatWindowProps = {}) {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
   const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
+    id: conversationId ?? undefined,
+    onFinish() {
+      onConversationCreated?.();
+    },
     sendAutomaticallyWhen({ messages: msgs }) {
       // After approving/denying a tool call, re-send so the server executes it.
       // True when the last assistant message has approval-responded parts but no
@@ -104,7 +113,7 @@ export function ChatWindow() {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-full">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">

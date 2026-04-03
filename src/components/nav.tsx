@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ResourceCenter } from "@/components/helpkit/ResourceCenter";
 
 export function Nav({ userName }: { userName?: string }) {
   return (
@@ -28,6 +29,7 @@ export function Nav({ userName }: { userName?: string }) {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <ResourceCenter />
           <ThemeToggle />
           {userName && (
             <span className="text-sm text-muted-foreground">{userName}</span>
