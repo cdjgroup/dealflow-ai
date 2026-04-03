@@ -1,18 +1,18 @@
-# Release Notes — v0.1.0
+# Release Notes — v0.2.0
 
-## DealFlow AI: AI Sales Agent with Auth0 Token Vault
+## DealFlow AI: Hackathon Feature Expansion
 
-First release of DealFlow AI — a hackathon entry for "Authorized to Act: Auth0 for AI Agents."
+Security, user control, and rich UI improvements for the "Authorized to Act" hackathon.
 
-### What it does
-An AI-powered sales assistant that manages your deal pipeline, checks your Google Calendar, and drafts Gmail follow-ups — all with secure, delegated access through Auth0 Token Vault.
+### What's new
 
-### Key features
-- **Auth0 Token Vault** for secure Google Calendar + Gmail access (RFC 8693 federated token exchange)
-- **Claude Sonnet 4.6** as the AI agent with multi-step tool calling
-- **8 AI tools** spanning CRM operations and Google API integrations
-- **Connected Accounts flow** with explicit user consent via Auth0
-- **Security**: rate limiting, CSRF protection, input validation, prompt injection defense
+- **needsApproval tool confirmations**: External actions (draftEmail, sendSlackMessage) always require user approval. Terminal deal stages (closed-won/closed-lost) and high-value deals (>$50K) also trigger step-up authorization. Three-layer approval: value-based, external action, user settings.
+- **Capability matrix**: All 12 agent tools displayed on permissions page with READ/WRITE badges, Token Vault vs Local CRM source indicators, enabled/disabled status, guardrail tags, and "agent cannot" boundary list.
+- **Rich tool badges in chat**: Every tool call shows icon, scope badge (READ/WRITE), and Token Vault lock icon vs Local CRM indicator during execution.
+- **Enhanced connection status**: Green/red colored status cards with inline scope badges, auto-refresh every 30s, manual refresh button, and token type info.
+- **Activity timeline**: Visual timeline on permissions page with usage stats (total actions, Token Vault calls, success rate, avg execution time), colored dots, and time-ago timestamps.
+- **Code cleanup**: Extracted shared token exchange into `src/lib/token-exchange.ts`, removed unused `@auth0/ai-vercel` dependency, consolidated error handling.
+- **Slack integration**: listSlackChannels + sendSlackMessage tools with Token Vault auth via RFC 8693.
 
 ### Deployment
 - Live at: https://dealflow-ai-seven.vercel.app
