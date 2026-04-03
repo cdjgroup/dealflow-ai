@@ -99,6 +99,7 @@ def append_event(
     category: str,
     data: dict,
     hook: str | None = None,
+    level: str = "info",
 ) -> None:
     """Append a single event record to the monthly JSONL file.
 
@@ -121,6 +122,7 @@ def append_event(
             "category": category,
             "data": data,
             "hook": hook,
+            "level": level,
         }
 
         line = json.dumps(record) + "\n"
@@ -131,14 +133,29 @@ def append_event(
             fcntl.flock(fh, fcntl.LOCK_UN)
 
         _rotate_if_needed(metrics_dir, _DEFAULT_MAX_BYTES)
-    except Exception:
-        return
+    except Exception as exc:
+        try:
+            metrics_dir = Path.cwd() / _METRICS_SUBDIR
+            metrics_dir.mkdir(parents=True, exist_ok=True)
+            error_path = metrics_dir / "errors.jsonl"
+            error_record = {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "error": str(exc),
+            }
+            with open(error_path, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(error_record) + "\n")
+        except Exception:
+            pass
+
+
+_LEVEL_ORDER = {"debug": 0, "info": 1, "warn": 2, "error": 3}
 
 
 def read_events(
     since: str | None = None,
     event_type: str | None = None,
     category: str | None = None,
+    level: str | None = None,
 ) -> list[dict]:
     """Read events from all monthly JSONL files, with optional filters.
 
@@ -146,6 +163,8 @@ def read_events(
         since: ISO date string (YYYY-MM-DD). Skip files/records before this date.
         event_type: Only return records where event == event_type.
         category: Only return records where category matches.
+        level: Minimum level threshold (debug < info < warn < error).
+            Records without a level field are treated as "info".
 
     Returns:
         List of event dicts. Malformed JSON lines are silently skipped.
@@ -189,6 +208,12 @@ def read_events(
                 continue
             if category and record.get("category") != category:
                 continue
+            if level is not None:
+                min_order = _LEVEL_ORDER.get(level, 1)
+                record_level = record.get("level", "info")
+                record_order = _LEVEL_ORDER.get(record_level, 1)
+                if record_order < min_order:
+                    continue
 
             results.append(record)
 

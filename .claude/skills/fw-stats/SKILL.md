@@ -1,5 +1,5 @@
 ---
-name: stats
+name: fw-stats
 description: Framework metrics summary. Aggregates safety events, cost routing decisions, conformance scores, and TDD health over a time window.
 allowed-tools: Bash, Read, Grep, Glob
 argument-hint: "[7d|30d|all] [--detail]"
