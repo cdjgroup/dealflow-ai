@@ -1,5 +1,22 @@
 # Features
 
+## v0.3.0 — Boundary-Pushing Auth
+
+### Dynamic Scope Narrowing
+Application-layer scope awareness for Token Vault tools. Each tool declares its minimum required scope via `TOOL_SCOPE_CONFIG`. The token exchange captures the full granted scope from Auth0, and the UI shows which subset the tool actually uses ("Using calendar.readonly of 3 granted scopes"). This demonstrates defense-in-depth: the agent voluntarily restricts itself beyond what the token enforces.
+
+### Consent-Aware Tool Selection
+Per-tool trust levels ("always" / "ask each time" / "never") that override the default approval behavior. Users can require consent on every calendar check or permanently block email access. The "never" level hard-blocks tools at registration — the AI never sees them. Trust settings persist per-user in Redis and are managed at `/dashboard/permissions`.
+
+### Token Vault Audit Visualization
+Animated 6-stage token lifecycle pipeline that appears in the chat during Token Vault tool execution: AI Decides, Token Exchange, Scoped Token, API Call, Response, Token Expires. Shows scope, TTL, provider, and connection in a collapsible panel. Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
+
+### MCP Server for External AI Agents
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.
+
+### Cross-Agent Delegation
+The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.
+
 ## v0.2.1 — UI Polish & Visual Storytelling
 
 ### Animated Landing Page

@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-04-03
+
+### Added
+- Dynamic scope narrowing: enriched token exchange with scope/expiresIn/connection metadata, TOOL_SCOPE_CONFIG as single source of truth, buildTokenMeta helper
+- Per-tool trust levels (always/ask/never) with T1 priority layer in approval logic
+- "never" trust hard-blocks tools at registration (LLM never sees them)
+- Token lifecycle animation in chat showing 6-stage pipeline during Token Vault tool execution
+- TokenMeta in audit entries (connection, provider, scope, expiresIn)
+- MCP server endpoint at /api/mcp for external AI agents (Streamable HTTP transport)
+- Cross-agent delegation with scoped, time-limited tokens (delegateResearch tool)
+- Delegation validates tool names and cross-checks user capabilities
+
+### Changed
+- Token exchange return type enriched from { token } to { token, scope, expiresIn, connection, exchangedAt }
+- TOOL_SCOPES derived from TOOL_SCOPE_CONFIG (single source of truth, prevents drift)
+- Approval logic restructured: T1 trust > S3 external > S1 value > U2 settings
+- Settings API accepts toolTrust with zod validation (enum + size cap)
+
+### Fixed
+- branch-check.py hook: auto-sync no longer stashes uncommitted changes (was causing silent data loss on merge conflicts)
+- Slack channel-lookup failure now returns explicit error instead of silently falling through
+- Network errors in token exchange return generic message (no infrastructure details leaked)
+
+### Security
+- MCP endpoint requires auth (bearer token validated against Auth0 /userinfo)
+- MCP exposes only read-only tools (approval-required tools excluded)
+- toolTrust keys capped at 64 chars, max 20 entries per request
+- delegateResearch validates tool names against known set
+
+### Dependencies
+- Added mcp-handler, @modelcontextprotocol/sdk
+
 ## [0.2.1] - 2026-04-03
 
 ### Added
