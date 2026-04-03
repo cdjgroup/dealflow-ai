@@ -22,12 +22,23 @@ function titleFromMessages(messages: unknown[]): string {
       typeof msg === "object" &&
       msg !== null &&
       "role" in msg &&
-      (msg as { role: string }).role === "user" &&
-      "content" in msg
+      (msg as { role: string }).role === "user"
     ) {
-      const content = (msg as { content: unknown }).content;
-      if (typeof content === "string") {
-        return content.length > 50 ? content.slice(0, 50) + "…" : content;
+      const m = msg as Record<string, unknown>;
+      // AI SDK UIMessage format: parts: [{ type: "text", text: "..." }]
+      if (Array.isArray(m.parts)) {
+        for (const part of m.parts) {
+          if (typeof part === "object" && part !== null && (part as Record<string, unknown>).type === "text") {
+            const text = (part as Record<string, unknown>).text;
+            if (typeof text === "string" && text.trim()) {
+              return text.length > 50 ? text.slice(0, 50) + "…" : text;
+            }
+          }
+        }
+      }
+      // Standard format: content: "..."
+      if (typeof m.content === "string" && m.content.trim()) {
+        return m.content.length > 50 ? m.content.slice(0, 50) + "…" : m.content;
       }
     }
   }

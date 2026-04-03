@@ -34,8 +34,10 @@ function parseInterrupt(error: Error | undefined): {
 const suggestions = [
   "Show me my deals",
   "What's on my calendar tomorrow?",
-  "Draft an email to Sarah about the proposal",
+  "Draft a follow-up email to Sarah about the proposal",
   "Search contacts at Meridian",
+  "Send a Slack update about the Vantage deal",
+  "What Slack channels can I post to?",
 ];
 
 interface ChatWindowProps {
@@ -47,7 +49,7 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
+  const { messages, setMessages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId ?? undefined,
     onFinish() {
@@ -75,6 +77,21 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
       return hasResponded && !hasPending;
     },
   });
+
+  // Load conversation history when a conversationId is provided
+  useEffect(() => {
+    if (!conversationId) return;
+    fetch(`/api/conversations/${conversationId}`, {
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.messages?.length) {
+          setMessages(data.messages);
+        }
+      })
+      .catch(() => {});
+  }, [conversationId, setMessages]);
 
   const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
   // Show interrupt unless this specific error was dismissed

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -14,53 +14,44 @@ vi.mock("next-themes", () => ({
   }),
 }));
 
-function getToggleGroup() {
-  const groups = screen.getAllByRole("radiogroup", { name: "Theme selection" });
-  return groups[groups.length - 1];
-}
-
 describe("ThemeToggle", () => {
   beforeEach(() => {
     mockTheme = "system";
     mockSetTheme.mockClear();
   });
 
-  it("renders three theme options", () => {
+  it("renders a single button", () => {
     render(<ThemeToggle />);
-    const group = getToggleGroup();
-    const radios = within(group).getAllByRole("radio");
-    expect(radios).toHaveLength(3);
-    expect(within(group).getByRole("radio", { name: "Light" })).toBeInTheDocument();
-    expect(within(group).getByRole("radio", { name: "Dark" })).toBeInTheDocument();
-    expect(within(group).getByRole("radio", { name: "System" })).toBeInTheDocument();
+    const button = screen.getByRole("button");
+    expect(button).toBeInTheDocument();
   });
 
-  it("calls setTheme when clicking a theme option", async () => {
+  it("cycles from system to light on click", async () => {
     const user = userEvent.setup();
     render(<ThemeToggle />);
-    const group = getToggleGroup();
-
-    await user.click(within(group).getByRole("radio", { name: "Dark" }));
-    expect(mockSetTheme).toHaveBeenCalledWith("dark");
-
-    await user.click(within(group).getByRole("radio", { name: "Light" }));
+    await user.click(screen.getByRole("button"));
     expect(mockSetTheme).toHaveBeenCalledWith("light");
+  });
 
-    await user.click(within(group).getByRole("radio", { name: "System" }));
+  it("cycles from light to dark on click", async () => {
+    mockTheme = "light";
+    const user = userEvent.setup();
+    render(<ThemeToggle />);
+    await user.click(screen.getByRole("button"));
+    expect(mockSetTheme).toHaveBeenCalledWith("dark");
+  });
+
+  it("cycles from dark to system on click", async () => {
+    mockTheme = "dark";
+    const user = userEvent.setup();
+    render(<ThemeToggle />);
+    await user.click(screen.getByRole("button"));
     expect(mockSetTheme).toHaveBeenCalledWith("system");
   });
 
-  it("marks the active theme as checked", () => {
+  it("shows appropriate label", () => {
     mockTheme = "dark";
     render(<ThemeToggle />);
-    const group = getToggleGroup();
-
-    expect(within(group).getByRole("radio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
-    expect(within(group).getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "false");
-  });
-
-  it("has radiogroup role for accessibility", () => {
-    render(<ThemeToggle />);
-    expect(screen.getAllByRole("radiogroup", { name: "Theme selection" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("button")).toHaveAttribute("aria-label", "Dark mode — click to switch");
   });
 });
