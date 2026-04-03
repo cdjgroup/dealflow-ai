@@ -1,18 +1,19 @@
-# Release Notes — v0.2.0
+# Release Notes — v0.2.1
 
-## DealFlow AI: Hackathon Feature Expansion
+## DealFlow AI: UI Polish & Visual Storytelling
 
-Security, user control, and rich UI improvements for the "Authorized to Act" hackathon.
+Animations, glassmorphism, metrics, and visual security storytelling for hackathon judges.
 
 ### What's new
 
-- **needsApproval tool confirmations**: External actions (draftEmail, sendSlackMessage) always require user approval. Terminal deal stages (closed-won/closed-lost) and high-value deals (>$50K) also trigger step-up authorization. Three-layer approval: value-based, external action, user settings.
-- **Capability matrix**: All 12 agent tools displayed on permissions page with READ/WRITE badges, Token Vault vs Local CRM source indicators, enabled/disabled status, guardrail tags, and "agent cannot" boundary list.
-- **Rich tool badges in chat**: Every tool call shows icon, scope badge (READ/WRITE), and Token Vault lock icon vs Local CRM indicator during execution.
-- **Enhanced connection status**: Green/red colored status cards with inline scope badges, auto-refresh every 30s, manual refresh button, and token type info.
-- **Activity timeline**: Visual timeline on permissions page with usage stats (total actions, Token Vault calls, success rate, avg execution time), colored dots, and time-ago timestamps.
-- **Code cleanup**: Extracted shared token exchange into `src/lib/token-exchange.ts`, removed unused `@auth0/ai-vercel` dependency, consolidated error handling.
-- **Slack integration**: listSlackChannels + sendSlackMessage tools with Token Vault auth via RFC 8693.
+- **Animated landing page**: Gradient "DealFlow AI" title (text-7xl), staggered card animations, Token Vault architecture diagram (User → Auth0 → Vault → AI → APIs), glow CTA button
+- **Chat polish**: Staggered fade-in on messages/tool cards, AI avatar (gradient "D") and user avatar badges, glassmorphism on chat bubbles, animated suggestion chips
+- **"Token Vault Active" scope card**: Signature animated indicator showing live OAuth scopes during tool execution — the security story made visual
+- **Pipeline metrics + funnel**: Summary cards (Active Deals, Pipeline Value, Won) and horizontal bar funnel in dashboard sidebar
+- **Expandable audit log**: Click rows to see full I/O JSON, risk-level badges (OAuth amber, Write yellow, Read green)
+- **Animated ApprovalCard**: Slide-up entrance for step-up auth prompts
+- **Glassmorphism throughout**: backdrop-blur-sm on cards, inputs, sidebar — modern 2025-2026 design trend
+- **Removed redundant Connect Services card**: Connection handled by Token Vault interrupt + Permissions page
 
 ### Deployment
 - Live at: https://dealflow-ai-seven.vercel.app

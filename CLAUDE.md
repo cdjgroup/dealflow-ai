@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.2.0 — Hackathon Feature Expansion (Security, User Control, Slack, Rich UI)
+## Current Version: 0.2.1 — UI Polish & Visual Storytelling (Animations, Glassmorphism, Metrics, Funnel)
 ## Status: DEPLOYED
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

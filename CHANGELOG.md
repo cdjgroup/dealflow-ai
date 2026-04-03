@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-04-03
+
+### Added
+- Gradient text branding on hero (text-7xl) and nav with indigo-to-cyan gradient
+- Staggered fade-in animations on chat messages, suggestions, and tool cards (framer-motion)
+- "Token Vault Active" scope card with animated badges during tool execution
+- Pipeline metrics cards (Active Deals, Pipeline Value, Won) in dashboard sidebar
+- Deal stage funnel visualization in dashboard sidebar
+- Expandable audit log rows with full I/O JSON and risk-level badges (OAuth/Write/Read)
+- Glassmorphism (backdrop-blur-sm) on chat bubbles, tool cards, sidebar, and landing cards
+- Glow shadow on CTA buttons with hover intensification
+- Animated ApprovalCard entrance (slide-up + scale)
+- Avatar badges on chat messages (gradient "D" for AI, "You" for user)
+- Token Vault architecture diagram on landing page
+
+### Removed
+- Redundant Connect Services card from dashboard sidebar (handled by Token Vault interrupt + Permissions page)
+
+### Dependencies
+- Added framer-motion for animation system
+
 ## [0.2.0] - 2026-04-02
 
 ### Added
