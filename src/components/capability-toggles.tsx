@@ -84,8 +84,9 @@ const INTEGRATION_GROUPS: IntegrationGroup[] = [
   },
 ];
 
-function ConnectionBadge({ status }: { status?: ConnectionStatus }) {
-  if (!status) {
+function ConnectionBadge({ status, loading }: { status?: ConnectionStatus; loading?: boolean }) {
+  if (loading || !status) {
+    if (loading) return null; // Don't show badge while loading
     return (
       <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
         Unknown
@@ -145,6 +146,7 @@ export function CapabilityToggles({ initialSettings }: Props) {
   const [settings, setSettings] = useState(initialSettings);
   const [isPending, startTransition] = useTransition();
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+  const [statusLoading, setStatusLoading] = useState(true);
 
   const fetchConnectionStatus = useCallback(async () => {
     try {
@@ -156,6 +158,8 @@ export function CapabilityToggles({ initialSettings }: Props) {
       setConnectionStatuses(map);
     } catch {
       // Show "Unknown" badges on failure — handled in render
+    } finally {
+      setStatusLoading(false);
     }
   }, []);
 
@@ -215,7 +219,7 @@ export function CapabilityToggles({ initialSettings }: Props) {
           <details key={group.id} className="group rounded-lg border border-border overflow-hidden">
             <summary className="flex items-center justify-between cursor-pointer px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors select-none list-none [&::-webkit-details-marker]:hidden">
               <div className="flex items-center gap-2">
-                <span className="text-base">{group.icon}</span>
+                <span className="text-base" aria-hidden="true">{group.icon}</span>
                 <span className="text-sm font-semibold">{group.label}</span>
                 <span className="text-xs text-muted-foreground">
                   {enabledCount} of {totalCount} enabled
@@ -223,10 +227,11 @@ export function CapabilityToggles({ initialSettings }: Props) {
                 {group.connectionId && (
                   <ConnectionBadge
                     status={connectionStatuses[group.connectionId]}
+                    loading={statusLoading}
                   />
                 )}
               </div>
-              <span className="text-xs text-muted-foreground transition-transform group-open:rotate-180">
+              <span className="text-xs text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true">
                 ▼
               </span>
             </summary>

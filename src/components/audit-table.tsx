@@ -151,8 +151,15 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
             return (
               <Fragment key={entry.id}>
                 <tr
-                  className={`group cursor-pointer hover:bg-muted/30 transition-colors ${rowSeverityClass(entry.result)}`}
+                  tabIndex={0}
+                  className={`group cursor-pointer hover:bg-muted/30 transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${rowSeverityClass(entry.result)}`}
                   onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpandedId(isExpanded ? null : entry.id);
+                    }
+                  }}
                   aria-expanded={isExpanded}
                   aria-controls={`audit-detail-${entry.id}`}
                 >
@@ -162,7 +169,7 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
                     </time>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="mr-1">
+                    <span className="mr-1" aria-hidden="true">
                       {toolIcons[entry.toolName] || "🔧"}
                     </span>
                     {entry.toolName}

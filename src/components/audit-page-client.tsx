@@ -12,7 +12,9 @@ export function AuditPageClient({
 }) {
   const [log, setLog] = useState<AuditEntry[]>(initialLog);
   const [filters, setFilters] = useState<AuditFilters>({});
+  const [datePreset, setDatePreset] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const hasActiveFilters = Boolean(
     filters.toolName || filters.result || filters.startDate
@@ -25,6 +27,7 @@ export function AuditPageClient({
 
   const fetchFiltered = useCallback(async (f: AuditFilters) => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       params.set("limit", "100");
@@ -37,9 +40,12 @@ export function AuditPageClient({
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
       if (res.ok) {
-        const data = await res.json();
-        setLog(data);
+        setLog(await res.json());
+      } else {
+        setError("Failed to load filtered results.");
       }
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,32 +56,44 @@ export function AuditPageClient({
       fetchFiltered(filters);
     } else {
       setLog(initialLog);
+      setError(null);
     }
   }, [filters, hasActiveFilters, fetchFiltered, initialLog]);
-
-  const handleFilterChange = (newFilters: AuditFilters) => {
-    setFilters(newFilters);
-  };
 
   return (
     <div className="space-y-4">
       <AuditFilterBar
         filters={filters}
-        onFilterChange={handleFilterChange}
+        datePreset={datePreset}
+        onFilterChange={setFilters}
+        onDatePresetChange={setDatePreset}
         availableTools={availableTools}
       />
 
-      {loading && (
-        <div className="flex justify-center py-4">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+          {error}
         </div>
       )}
 
-      {!loading && log.length === 0 && hasActiveFilters && (
+      {loading && (
+        <div className="flex justify-center py-4">
+          <div
+            role="status"
+            aria-label="Loading audit entries"
+            className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
+          />
+        </div>
+      )}
+
+      {!loading && !error && log.length === 0 && hasActiveFilters && (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
           <p>No matching entries found.</p>
           <button
-            onClick={() => setFilters({})}
+            onClick={() => {
+              setFilters({});
+              setDatePreset("");
+            }}
             className="mt-2 text-sm text-primary hover:underline"
           >
             Clear filters
@@ -83,13 +101,13 @@ export function AuditPageClient({
         </div>
       )}
 
-      {!loading && log.length === 0 && !hasActiveFilters && (
+      {!loading && !error && log.length === 0 && !hasActiveFilters && (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
           No agent actions recorded yet. Start a conversation to see activity here.
         </div>
       )}
 
-      {!loading && log.length > 0 && <AuditTable log={log} />}
+      {!loading && !error && log.length > 0 && <AuditTable log={log} />}
     </div>
   );
 }

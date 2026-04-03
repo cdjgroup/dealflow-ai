@@ -9,7 +9,7 @@ const DATE_PRESETS: { label: string; value: string }[] = [
   { label: "Last 7 days", value: "7d" },
 ];
 
-function getDateRange(preset: string): { startDate?: string; endDate?: string } {
+export function getDateRange(preset: string): { startDate?: string; endDate?: string } {
   if (!preset) return {};
   const now = new Date();
   const end = now.toISOString().split("T")[0];
@@ -20,19 +20,23 @@ function getDateRange(preset: string): { startDate?: string; endDate?: string } 
 
 interface AuditFilterBarProps {
   filters: AuditFilters;
+  datePreset: string;
   onFilterChange: (filters: AuditFilters) => void;
+  onDatePresetChange: (preset: string) => void;
   availableTools: string[];
 }
 
 export function AuditFilterBar({
   filters,
+  datePreset,
   onFilterChange,
+  onDatePresetChange,
   availableTools,
 }: AuditFilterBarProps) {
   const activeCount = [
     filters.toolName,
     filters.result,
-    filters.startDate,
+    filters.startDate || filters.endDate,
   ].filter(Boolean).length;
 
   return (
@@ -54,7 +58,7 @@ export function AuditFilterBar({
               toolName: e.target.value || undefined,
             })
           }
-          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">All tools</option>
           {availableTools.map((tool) => (
@@ -82,7 +86,7 @@ export function AuditFilterBar({
               result: (e.target.value as "success" | "error") || undefined,
             })
           }
-          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="">All results</option>
           <option value="success">Success</option>
@@ -100,30 +104,18 @@ export function AuditFilterBar({
         </label>
         <select
           id="filter-date"
-          value={
-            !filters.startDate
-              ? ""
-              : filters.startDate ===
-                  new Date(Date.now() - 24 * 60 * 60 * 1000)
-                    .toISOString()
-                    .split("T")[0]
-                ? "24h"
-                : filters.startDate ===
-                    new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .split("T")[0]
-                  ? "3d"
-                  : "7d"
-          }
+          value={datePreset}
           onChange={(e) => {
-            const range = getDateRange(e.target.value);
+            const preset = e.target.value;
+            onDatePresetChange(preset);
+            const range = getDateRange(preset);
             onFilterChange({
               ...filters,
               startDate: range.startDate,
               endDate: range.endDate,
             });
           }}
-          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
         >
           {DATE_PRESETS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -136,7 +128,10 @@ export function AuditFilterBar({
       {/* Clear filters */}
       {activeCount > 0 && (
         <button
-          onClick={() => onFilterChange({})}
+          onClick={() => {
+            onDatePresetChange("");
+            onFilterChange({});
+          }}
           className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Clear filters ({activeCount})
