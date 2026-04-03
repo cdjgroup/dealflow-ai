@@ -392,8 +392,8 @@ export function ActionCard({
         </AnimatePresence>
       </div>
 
-      {/* Error message for failed actions */}
-      {action.status === "failed" && action.errorMessage && (
+      {/* Error message */}
+      {action.errorMessage && (
         <div className="rounded-md bg-destructive/10 border border-destructive/30 p-2 mb-3">
           <p className="text-xs text-destructive">{action.errorMessage}</p>
         </div>

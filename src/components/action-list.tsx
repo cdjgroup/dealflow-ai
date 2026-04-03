@@ -38,7 +38,11 @@ export function ActionList({ initialActions }: Props) {
           body: JSON.stringify({ status: "approved" }),
         });
         if (!res.ok) {
-          updateLocal(id, { status: "pending" });
+          const data = await res.json().catch(() => ({}));
+          updateLocal(id, {
+            status: "pending",
+            errorMessage: data.error || undefined,
+          });
         }
       } catch {
         updateLocal(id, { status: "pending" });
@@ -81,7 +85,10 @@ export function ActionList({ initialActions }: Props) {
             errorMessage: data.action.errorMessage,
           });
         } else {
-          updateLocal(id, { status: "failed", errorMessage: "Unexpected response" });
+          updateLocal(id, {
+            status: "failed",
+            errorMessage: data.error || "Unexpected response",
+          });
         }
       } catch {
         updateLocal(id, { status: "failed", errorMessage: "Network error" });
