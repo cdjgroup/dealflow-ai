@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-04-03
+
+### Changed
+- Permissions page redesigned: merged Agent Capabilities + Connected Accounts into unified integration cards (Google, Slack, CRM)
+- Google multicolor G SVG icon per official branding guidelines
+- Slack S on brand purple #4A154B (octothorpe logo prohibited in third-party UI per Slack brand terms)
+- OAuth scopes shown as human-readable labels (calendar.readonly → "View your calendar")
+- Tool names shown as human-readable labels throughout (checkCalendar → "View Calendar")
+- Tool Reference and Recent Activity sections start collapsed
+- Disconnected integrations gray out capability toggles
+- Eliminated redundant TokenStatus component and separate account cards (3 places showing connection status → 1)
+
 ## [0.4.0] - 2026-04-03
 
 ### Added

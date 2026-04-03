@@ -26,6 +26,20 @@ Status transitions are shown inline on each card: Pending (amber) → Approved (
 ### Navigation Integration
 Pending action count shown as a badge on the "Actions" link in the nav bar. Badge hidden when count is zero.
 
+## v0.4.1 — Permissions Page Redesign
+
+### Unified Integration Cards
+Permissions page consolidated from 4 separate sections into a unified view. Each integration (Google, Slack, CRM) is a single card showing connection status, capability toggles, and per-tool trust levels in one place. Disconnected integrations gray out their toggles.
+
+### Provider Branding
+Google: official multicolor G SVG per Google Identity branding guidelines. Slack: S on brand purple #4A154B (Slack prohibits using the octothorpe logo in third-party UI per their brand terms of service).
+
+### Human-Readable Labels
+OAuth scopes translated to plain English per Google's own consent screen patterns: `calendar.readonly` → "View your calendar", `gmail.compose` → "Draft emails", `channels:read` → "List channels". Tool names also translated: `checkCalendar` → "View Calendar" etc. Technical scope shown in tooltip for transparency.
+
+### Collapsed Reference Sections
+Tool Reference matrix and Recent Activity timeline start collapsed to keep the page focused on the primary controls.
+
 ## v0.3.1 — Permissions & Audit Log Polish
 
 ### Audit Log Filters

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AuditFilters } from "@/lib/types/audit";
+import { TOOL_DISPLAY_NAMES } from "@/lib/constants/tools";
 
 const DATE_PRESETS: { label: string; value: string }[] = [
   { label: "All time", value: "" },
@@ -63,7 +64,7 @@ export function AuditFilterBar({
           <option value="">All tools</option>
           {availableTools.map((tool) => (
             <option key={tool} value={tool}>
-              {tool}
+              {TOOL_DISPLAY_NAMES[tool] || tool}
             </option>
           ))}
         </select>

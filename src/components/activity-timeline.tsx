@@ -1,7 +1,7 @@
 "use client";
 
 import type { AuditEntry } from "@/lib/types/audit";
-import { toolIcons, TOKEN_VAULT_TOOLS } from "@/lib/constants/tools";
+import { toolIcons, TOKEN_VAULT_TOOLS, TOOL_DISPLAY_NAMES } from "@/lib/constants/tools";
 
 function timeAgo(timestamp: string): string {
   const diff = Date.now() - new Date(timestamp).getTime();
@@ -87,7 +87,7 @@ export function ActivityTimeline({ entries }: Props) {
                     {toolIcons[entry.toolName] || "\uD83D\uDD27"}
                   </span>
                   <span className="text-xs font-medium text-foreground">
-                    {entry.toolName}
+                    {TOOL_DISPLAY_NAMES[entry.toolName] || entry.toolName}
                   </span>
                   {TOKEN_VAULT_TOOLS.has(entry.toolName) && (
                     <span className="text-[10px] text-primary/70">

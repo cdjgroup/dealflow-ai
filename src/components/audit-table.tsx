@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AuditEntry } from "@/lib/types/audit";
-import { toolIcons, TOKEN_VAULT_TOOLS, WRITE_TOOLS } from "@/lib/constants/tools";
+import { toolIcons, TOKEN_VAULT_TOOLS, WRITE_TOOLS, TOOL_DISPLAY_NAMES, SCOPE_LABELS } from "@/lib/constants/tools";
 
 const statusColors: Record<string, string> = {
   success: "text-emerald-400",
@@ -61,7 +61,7 @@ function DetailPanel({ entry }: { entry: AuditEntry }) {
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
             <div className="contents">
               <dt className="text-muted-foreground font-medium">Tool</dt>
-              <dd>{entry.toolName}</dd>
+              <dd>{TOOL_DISPLAY_NAMES[entry.toolName] || entry.toolName}</dd>
             </div>
             <div className="contents">
               <dt className="text-muted-foreground font-medium">Timestamp</dt>
@@ -146,7 +146,9 @@ function DetailPanel({ entry }: { entry: AuditEntry }) {
                 {entry.tokenMeta.grantedScope && (
                   <div className="contents">
                     <dt className="text-muted-foreground">Scope</dt>
-                    <dd className="text-emerald-400 font-mono">{entry.tokenMeta.grantedScope}</dd>
+                    <dd className="text-emerald-400">
+                      {entry.tokenMeta.grantedScope.split(" ").map((s) => SCOPE_LABELS[s] || s).join(", ")}
+                    </dd>
                   </div>
                 )}
                 {entry.tokenMeta.expiresIn != null && (
@@ -216,7 +218,7 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
                     <span className="mr-1" aria-hidden="true">
                       {toolIcons[entry.toolName] || "🔧"}
                     </span>
-                    {entry.toolName}
+                    {TOOL_DISPLAY_NAMES[entry.toolName] || entry.toolName}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span
