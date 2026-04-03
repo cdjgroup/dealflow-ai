@@ -49,6 +49,19 @@ export function ChatContainer({ userId }: ChatContainerProps) {
     fetchConversations();
   }, [fetchConversations]);
 
+  const handleClearAll = useCallback(async () => {
+    try {
+      await fetch("/api/conversations", {
+        method: "DELETE",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      setConversations([]);
+      setActiveId(newId());
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
   return (
     <div className="flex h-[calc(100vh-8rem)]">
       {/* Collapsible conversation sidebar */}
@@ -71,6 +84,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
             activeId={activeId}
             onSelect={handleSelect}
             onNew={handleNew}
+            onClearAll={handleClearAll}
           />
         </div>
       )}
