@@ -8,7 +8,7 @@ export function ConnectSlack() {
   const handleConnect = () => {
     setConnecting(true);
     window.location.href =
-      "/auth/connect?connection=slack&returnTo=/dashboard";
+      "/auth/connect?connection=sign-in-with-slack&returnTo=/dashboard";
   };
 
   return (
