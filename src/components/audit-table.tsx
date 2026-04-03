@@ -3,59 +3,26 @@
 import { Fragment, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AuditEntry } from "@/lib/types/audit";
+import { toolIcons, TOKEN_VAULT_TOOLS, WRITE_TOOLS } from "@/lib/constants/tools";
 
 const statusColors: Record<string, string> = {
   success: "text-emerald-400",
   error: "text-red-400",
 };
 
-const toolIcons: Record<string, string> = {
-  checkCalendar: "📅",
-  draftEmail: "✉️",
-  searchEmails: "🔍",
-  listDeals: "📊",
-  getDealDetails: "📋",
-  searchContacts: "👤",
-  createDeal: "➕",
-  updateDeal: "✏️",
-  createContact: "👥",
-  logActivity: "📝",
-  listSlackChannels: "💬",
-  sendSlackMessage: "💬",
-};
-
-// Token Vault tools use external OAuth — higher risk tier
-const tokenVaultTools = new Set([
-  "checkCalendar",
-  "draftEmail",
-  "searchEmails",
-  "listSlackChannels",
-  "sendSlackMessage",
-]);
-
-// Write operations are medium risk
-const writeTools = new Set([
-  "createDeal",
-  "updateDeal",
-  "createContact",
-  "logActivity",
-  "draftEmail",
-  "sendSlackMessage",
-]);
-
 function riskLevel(toolName: string): {
   label: string;
   color: string;
   bg: string;
 } {
-  if (tokenVaultTools.has(toolName)) {
+  if (TOKEN_VAULT_TOOLS.has(toolName)) {
     return {
       label: "OAuth",
       color: "text-amber-400",
       bg: "bg-amber-500/10 border-amber-500/20",
     };
   }
-  if (writeTools.has(toolName)) {
+  if (WRITE_TOOLS.has(toolName)) {
     return {
       label: "Write",
       color: "text-chart-4",
