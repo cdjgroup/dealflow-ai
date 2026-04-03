@@ -4,18 +4,14 @@ const {
   mockGetSession,
   mockGetUser,
   mockCheckCsrf,
-  mockScan,
-  mockPipeline,
-  mockPipelineExec,
-  mockPipelineDel,
+  mockSadd,
+  mockSrem,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockCheckCsrf: vi.fn(),
-  mockScan: vi.fn(),
-  mockPipeline: vi.fn(),
-  mockPipelineExec: vi.fn(),
-  mockPipelineDel: vi.fn(),
+  mockSadd: vi.fn(),
+  mockSrem: vi.fn(),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -29,33 +25,63 @@ vi.mock("@/lib/api-guard", () => ({
 
 vi.mock("@/lib/redis", () => ({
   getRedis: () => ({
-    scan: mockScan,
-    pipeline: () => ({
-      del: mockPipelineDel,
-      exec: mockPipelineExec,
-    }),
+    sadd: mockSadd,
+    srem: mockSrem,
+    sismember: vi.fn().mockResolvedValue(0),
+    smembers: vi.fn().mockResolvedValue([]),
   }),
 }));
 
-import { DELETE } from "@/app/api/connections/[connection]/route";
+import { DELETE, POST } from "@/app/api/connections/[connection]/route";
 
-function makeRequest() {
+function makeDeleteRequest() {
   return new Request("http://localhost/api/connections/google-oauth2", {
     method: "DELETE",
     headers: { "X-Requested-With": "XMLHttpRequest" },
   });
 }
 
+function makePostRequest(connection: string) {
+  return new Request(`http://localhost/api/connections/${connection}`, {
+    method: "POST",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
+  });
+}
+
+// Helper: mock fetch for management token + tokenset list + delete flow
+function mockManagementFlow(
+  tokensets: { tokenset_id: string; connection: string }[],
+  deleteStatus = 204
+) {
+  vi.mocked(fetch)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "mgmt_token" }),
+    } as Response)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => tokensets,
+    } as Response);
+
+  for (const _ts of tokensets.filter((t) => t.connection === "google-oauth2")) {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: deleteStatus < 300,
+      status: deleteStatus,
+      text: async () => "",
+    } as Response);
+  }
+}
+
 describe("DELETE /api/connections/[connection]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
+    mockSadd.mockResolvedValue(1);
+    mockSrem.mockResolvedValue(1);
 
-    // Default happy path mocks
     mockCheckCsrf.mockReturnValue(null);
     mockGetSession.mockResolvedValue({ tokenSet: { refreshToken: "rt_test" } });
     mockGetUser.mockResolvedValue({ sub: "auth0|user123" });
-    mockScan.mockResolvedValue([0, []]);
 
     process.env.AUTH0_DOMAIN = "test.auth0.com";
     process.env.AUTH0_CLIENT_ID = "client123";
@@ -68,7 +94,7 @@ describe("DELETE /api/connections/[connection]", () => {
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
 
-    const res = await DELETE(makeRequest(), {
+    const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
@@ -78,7 +104,7 @@ describe("DELETE /api/connections/[connection]", () => {
   it("returns 401 when no session", async () => {
     mockGetSession.mockResolvedValue(null);
 
-    const res = await DELETE(makeRequest(), {
+    const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
@@ -86,64 +112,50 @@ describe("DELETE /api/connections/[connection]", () => {
   });
 
   it("returns 404 for unknown connection", async () => {
-    const res = await DELETE(makeRequest(), {
+    const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "facebook" }),
     });
 
     expect(res.status).toBe(404);
-    const body = await res.json();
-    expect(body.error).toBe("Unknown connection");
   });
 
-  it("returns 502 when Management API token request fails", async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: false,
-      status: 401,
-    } as Response);
+  it("sets disabled flag in Redis", async () => {
+    mockManagementFlow([]);
 
-    const res = await DELETE(makeRequest(), {
+    const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.error).toContain("could not reach Auth0");
+    expect(body.success).toBe(true);
+    expect(body.connection).toBe("google-oauth2");
+    expect(mockSadd).toHaveBeenCalledWith(
+      "auth0|user123:disabled-connections",
+      "google-oauth2"
+    );
   });
 
-  it("returns 502 when federated connection delete fails", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-        text: async () => "Insufficient scope",
-      } as Response);
+  it("attempts tokenset cleanup via Management API", async () => {
+    mockManagementFlow([
+      { tokenset_id: "ts_abc", connection: "google-oauth2" },
+    ]);
 
-    const res = await DELETE(makeRequest(), {
+    await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
-    expect(res.status).toBe(502);
-    const body = await res.json();
-    expect(body.error).toContain("Auth0 rejected");
+    const deleteCall = vi.mocked(fetch).mock.calls[2];
+    expect(deleteCall[0]).toBe(
+      "https://test.auth0.com/api/v2/users/auth0%7Cuser123/federated-connections-tokensets/ts_abc"
+    );
+    expect(deleteCall[1]!.method).toBe("DELETE");
   });
 
-  it("treats 404 from Auth0 as success (already disconnected)", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        text: async () => "Not found",
-      } as Response);
+  it("succeeds even if tokenset cleanup fails", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("network error"));
 
-    const res = await DELETE(makeRequest(), {
+    const res = await DELETE(makeDeleteRequest(), {
       params: Promise.resolve({ connection: "google-oauth2" }),
     });
 
@@ -152,68 +164,8 @@ describe("DELETE /api/connections/[connection]", () => {
     expect(body.success).toBe(true);
   });
 
-  it("calls Auth0 Management API with correct endpoint", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-      } as Response);
-
-    await DELETE(makeRequest(), {
-      params: Promise.resolve({ connection: "google-oauth2" }),
-    });
-
-    // First call: get management token
-    const tokenCall = vi.mocked(fetch).mock.calls[0];
-    expect(tokenCall[0]).toBe("https://test.auth0.com/oauth/token");
-    expect(JSON.parse(tokenCall[1]!.body as string)).toMatchObject({
-      grant_type: "client_credentials",
-      audience: "https://test.auth0.com/api/v2/",
-    });
-
-    // Second call: delete federated connection
-    const deleteCall = vi.mocked(fetch).mock.calls[1];
-    expect(deleteCall[0]).toBe(
-      "https://test.auth0.com/api/v2/users/auth0%7Cuser123/federated-connections/google-oauth2"
-    );
-    expect(deleteCall[1]!.method).toBe("DELETE");
-    expect(deleteCall[1]!.headers).toMatchObject({
-      Authorization: "Bearer mgmt_token",
-    });
-  });
-
-  it("clears Redis cache after Auth0 disconnect", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
-
-    mockScan.mockResolvedValue([0, ["auth0|user123:token:google-oauth2"]]);
-
-    const res = await DELETE(makeRequest(), {
-      params: Promise.resolve({ connection: "google-oauth2" }),
-    });
-
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.keysCleared).toBe(1);
-    expect(mockPipelineDel).toHaveBeenCalledWith("auth0|user123:token:google-oauth2");
-    expect(mockPipelineExec).toHaveBeenCalled();
-  });
-
   it("works for sign-in-with-slack connection", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "mgmt_token" }),
-      } as Response)
-      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+    mockManagementFlow([]);
 
     const res = await DELETE(
       new Request("http://localhost/api/connections/sign-in-with-slack", {
@@ -223,9 +175,53 @@ describe("DELETE /api/connections/[connection]", () => {
       { params: Promise.resolve({ connection: "sign-in-with-slack" }) }
     );
 
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(mockSadd).toHaveBeenCalledWith(
+      "auth0|user123:disabled-connections",
+      "sign-in-with-slack"
+    );
+  });
+});
+
+describe("POST /api/connections/[connection]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCheckCsrf.mockReturnValue(null);
+    mockGetSession.mockResolvedValue({ tokenSet: { refreshToken: "rt_test" } });
+    mockGetUser.mockResolvedValue({ sub: "auth0|user123" });
+    mockSrem.mockResolvedValue(1);
+  });
+
+  it("clears disabled flag in Redis", async () => {
+    const res = await POST(makePostRequest("google-oauth2"), {
+      params: Promise.resolve({ connection: "google-oauth2" }),
+    });
+
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
-    expect(body.connection).toBe("sign-in-with-slack");
+    expect(mockSrem).toHaveBeenCalledWith(
+      "auth0|user123:disabled-connections",
+      "google-oauth2"
+    );
+  });
+
+  it("returns 404 for unknown connection", async () => {
+    const res = await POST(makePostRequest("facebook"), {
+      params: Promise.resolve({ connection: "facebook" }),
+    });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 401 when no session", async () => {
+    mockGetSession.mockResolvedValue(null);
+
+    const res = await POST(makePostRequest("google-oauth2"), {
+      params: Promise.resolve({ connection: "google-oauth2" }),
+    });
+
+    expect(res.status).toBe(401);
   });
 });

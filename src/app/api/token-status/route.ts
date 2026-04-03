@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
+import { isConnectionDisabled } from "@/lib/data/connections";
 
 interface TokenStatus {
   connection: string;
@@ -14,7 +15,7 @@ interface TokenStatus {
  * GET /api/token-status
  * Checks the Token Vault status for each configured connection
  * by attempting a token exchange. Returns connection status without
- * exposing the actual tokens.
+ * exposing the actual tokens. Respects user-set disabled flags.
  */
 export async function GET() {
   const session = await auth0.getSession();
@@ -61,6 +62,18 @@ export async function GET() {
 
   const results: TokenStatus[] = await Promise.all(
     connections.map(async ({ connection, provider, scopes }) => {
+      // Check disabled flag first — skip token exchange if user disconnected
+      const disabled = await isConnectionDisabled(user.sub!, connection);
+      if (disabled) {
+        return {
+          connection,
+          provider,
+          connected: false,
+          scopes,
+          error: "Disconnected by user.",
+        };
+      }
+
       const result = await exchangeTokenWithRefresh(connection, refreshToken);
 
       if ("token" in result) {

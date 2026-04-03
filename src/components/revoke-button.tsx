@@ -5,36 +5,67 @@ import { useState } from "react";
 interface Props {
   connection: string;
   label: string;
+  disabled?: boolean;
 }
 
-export function RevokeButton({ connection, label }: Props) {
+export function RevokeButton({ connection, label, disabled = false }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<"success" | "error" | null>(null);
+  const [disconnected, setDisconnected] = useState(disabled);
+  const [error, setError] = useState(false);
 
   async function handleRevoke() {
     setLoading(true);
-    setResult(null);
+    setError(false);
     try {
       const res = await fetch(`/api/connections/${connection}`, {
         method: "DELETE",
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
       if (!res.ok) throw new Error("Failed");
-      setResult("success");
+      setDisconnected(true);
       setConfirming(false);
+      window.dispatchEvent(new Event("connection-changed"));
     } catch {
-      setResult("error");
+      setError(true);
     } finally {
       setLoading(false);
     }
   }
 
-  if (result === "success") {
+  async function handleReconnect() {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/connections/${connection}`, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!res.ok) throw new Error("Failed");
+      setDisconnected(false);
+      window.dispatchEvent(new Event("connection-changed"));
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (disconnected) {
     return (
-      <span className="text-xs text-muted-foreground">
-        Disconnected. Re-authorize on next use.
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Disconnected.</span>
+        <button
+          onClick={handleReconnect}
+          disabled={loading}
+          className="rounded border border-primary/30 px-2 py-0.5 text-xs text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+        >
+          {loading ? "..." : "Reconnect"}
+        </button>
+        {error && (
+          <span className="text-xs text-red-400">Failed. Try again.</span>
+        )}
+      </div>
     );
   }
 
@@ -55,7 +86,7 @@ export function RevokeButton({ connection, label }: Props) {
         >
           No
         </button>
-        {result === "error" && (
+        {error && (
           <span className="text-xs text-red-400">Failed. Try again.</span>
         )}
       </div>
