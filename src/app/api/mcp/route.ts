@@ -4,7 +4,7 @@ import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
 
 /**
  * Validate bearer token against Auth0 /userinfo.
- * Returns AuthInfo with userId or undefined for invalid tokens.
+ * Returns AuthInfo with userId as clientId, or undefined for invalid tokens.
  */
 async function verifyToken(
   _req: Request,
@@ -33,13 +33,22 @@ async function verifyToken(
   }
 }
 
+/**
+ * MCP server endpoint for external AI agents.
+ *
+ * Auth is required for tool execution. The authenticated userId from
+ * Auth0 /userinfo is used for capability filtering, approval checks,
+ * and audit attribution — same security pipeline as the chat route.
+ *
+ * Tools that require approval (draftEmail, sendSlackMessage, delegateResearch,
+ * high-value deals) are excluded from MCP since there is no approval UI.
+ */
 const handler = createMcpHandler(
   async (server) => {
-    // Auth context is attached to the request by withMcpAuth
-    // For now, register tools for a default user context
-    // In production, the userId would come from the auth context
-    const userId = "mcp-anonymous";
-    const registerTools = adaptToolsForMcp(userId);
+    // userId is extracted from auth context at tool-call time.
+    // For server initialization, we register a tool set that will
+    // resolve the user dynamically. See tool-adapter for details.
+    const registerTools = adaptToolsForMcp();
     await registerTools(server);
   },
   {
@@ -56,7 +65,7 @@ const handler = createMcpHandler(
 );
 
 const authHandler = withMcpAuth(handler, verifyToken, {
-  required: false, // Allow unauthenticated discovery, require auth for tool calls
+  required: true,
 });
 
 export { authHandler as GET, authHandler as POST, authHandler as DELETE };

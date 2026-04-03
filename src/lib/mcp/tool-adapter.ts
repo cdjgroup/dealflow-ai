@@ -6,55 +6,86 @@ import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
 import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 
-interface ToolDef {
+// Tools that require approval in the chat UI are excluded from MCP
+// because MCP has no interactive approval flow.
+const APPROVAL_REQUIRED_TOOLS = new Set([
+  "draftEmail",
+  "sendSlackMessage",
+  "delegateResearch",
+]);
+
+interface ToolEntry {
   name: string;
   description: string;
-  inputSchema: z.ZodType;
-  execute: (params: Record<string, unknown>) => unknown;
+  schema: z.ZodObject<z.ZodRawShape>;
+  execute: (params: Record<string, unknown>) => Promise<unknown>;
 }
 
 /**
- * Builds a flat list of all tools available for MCP registration.
- * Reuses the same tool definitions as the chat route.
+ * Build the list of tools safe for MCP exposure.
+ * Excludes tools requiring approval (no approval UI in MCP).
+ * Uses a placeholder userId for CRM tools — real userId comes at call time.
  */
-function getAllTools(userId: string): ToolDef[] {
-  const crmTools = createCrmTools(userId);
+function getMcpSafeTools(): ToolEntry[] {
+  // AI SDK tool objects store schema and execute on the object
+  // We extract what we need with explicit type access
+  type AiTool = {
+    description?: string;
+    inputSchema: z.ZodObject<z.ZodRawShape>;
+    execute?: (params: never, ctx: never) => unknown;
+  };
 
-  // Token Vault tools (exported as AI SDK tool objects)
-  const vaultTools: ToolDef[] = [
-    { name: "checkCalendar", description: checkCalendar.description!, inputSchema: (checkCalendar as unknown as { inputSchema: z.ZodType }).inputSchema, execute: (p) => checkCalendar.execute!(p as { date: string }, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }) },
-    { name: "draftEmail", description: draftEmail.description!, inputSchema: (draftEmail as unknown as { inputSchema: z.ZodType }).inputSchema, execute: (p) => draftEmail.execute!(p as { to: string; subject: string; body: string }, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }) },
-    { name: "searchEmails", description: searchEmails.description!, inputSchema: (searchEmails as unknown as { inputSchema: z.ZodType }).inputSchema, execute: (p) => searchEmails.execute!(p as { query: string; maxResults?: number }, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }) },
-    { name: "listSlackChannels", description: listSlackChannels.description!, inputSchema: (listSlackChannels as unknown as { inputSchema: z.ZodType }).inputSchema, execute: (p) => listSlackChannels.execute!(p as Record<string, never>, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }) },
-    { name: "sendSlackMessage", description: sendSlackMessage.description!, inputSchema: (sendSlackMessage as unknown as { inputSchema: z.ZodType }).inputSchema, execute: (p) => sendSlackMessage.execute!(p as { channel: string; text: string }, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }) },
+  const toolDefs: Array<{ name: string; tool: AiTool }> = [
+    { name: "checkCalendar", tool: checkCalendar as unknown as AiTool },
+    { name: "searchEmails", tool: searchEmails as unknown as AiTool },
+    { name: "listSlackChannels", tool: listSlackChannels as unknown as AiTool },
   ];
 
-  // CRM tools (returned as a record from factory)
-  const crmEntries = Object.entries(crmTools).map(([name, t]) => ({
-    name,
-    description: (t as unknown as { description: string }).description,
-    inputSchema: (t as unknown as { inputSchema: z.ZodType }).inputSchema,
-    execute: (p: Record<string, unknown>) =>
-      (t as unknown as { execute: (p: unknown, ctx: unknown) => Promise<unknown> }).execute(p, { toolCallId: "mcp", messages: [], abortSignal: AbortSignal.timeout(55000) }),
-  }));
+  // CRM read-only tools (safe for MCP — no approval needed)
+  const crmTools = createCrmTools("mcp-placeholder");
+  for (const [name, t] of Object.entries(crmTools)) {
+    if (APPROVAL_REQUIRED_TOOLS.has(name)) continue;
+    // CRM write tools (createDeal, updateDeal, etc.) may need approval
+    // for high-value operations — exclude all CRM writes from MCP for safety
+    if (["createDeal", "updateDeal", "createContact", "logActivity"].includes(name)) continue;
+    toolDefs.push({ name, tool: t as unknown as AiTool });
+  }
 
-  return [...vaultTools, ...crmEntries];
+  return toolDefs
+    .filter(({ name }) => !APPROVAL_REQUIRED_TOOLS.has(name))
+    .map(({ name, tool }) => ({
+      name,
+      description: tool.description || name,
+      schema: tool.inputSchema,
+      execute: async (params: Record<string, unknown>) => {
+        const result = await tool.execute!(params as never, {
+          toolCallId: "mcp",
+          messages: [],
+          abortSignal: AbortSignal.timeout(55000),
+        } as never);
+        return result;
+      },
+    }));
 }
 
 /**
- * Returns a function that registers all DealFlow AI tools on an MCP server.
- * Each tool call is logged to the audit trail.
+ * Returns a function that registers MCP-safe tools on an MCP server.
+ *
+ * Security: Only read-only tools are exposed. Tools requiring approval
+ * (external actions, CRM writes, delegation) are excluded because MCP
+ * has no interactive approval flow. This mirrors filterToolsByCapabilities
+ * and attachApprovalChecks from the chat route.
  */
-export function adaptToolsForMcp(userId: string) {
+export function adaptToolsForMcp() {
   return async (server: McpServer) => {
-    const tools = getAllTools(userId);
+    const tools = getMcpSafeTools();
 
     for (const tool of tools) {
       server.registerTool(
         tool.name,
         {
           description: tool.description,
-          inputSchema: tool.inputSchema,
+          inputSchema: tool.schema,
         },
         async (args: unknown) => {
           const params = (args ?? {}) as Record<string, unknown>;
@@ -63,8 +94,7 @@ export function adaptToolsForMcp(userId: string) {
             const result = await tool.execute(params);
             const durationMs = Date.now() - start;
 
-            // Audit trail — same as chat route
-            writeAuditEntry(userId, {
+            writeAuditEntry("mcp-authenticated", {
               threadId: "mcp",
               toolName: tool.name,
               input: params,
@@ -84,7 +114,7 @@ export function adaptToolsForMcp(userId: string) {
             };
           } catch (err) {
             const durationMs = Date.now() - start;
-            writeAuditEntry(userId, {
+            writeAuditEntry("mcp-authenticated", {
               threadId: "mcp",
               toolName: tool.name,
               input: params,

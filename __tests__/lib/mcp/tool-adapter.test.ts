@@ -1,14 +1,45 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
+
+// Mock all tool imports so tests don't need real Auth0/Redis
+vi.mock("@/lib/auth0", () => ({
+  auth0: { getSession: vi.fn().mockResolvedValue(null) },
+}));
+
+vi.mock("@/lib/token-exchange", () => ({
+  exchangeToken: vi.fn().mockResolvedValue({ error: "mocked" }),
+  sanitizeApiError: vi.fn(() => "mocked error"),
+  buildTokenMeta: vi.fn(() => ({})),
+}));
+
+vi.mock("@/lib/tools/scope-map", () => ({
+  TOOL_SCOPE_CONFIG: {},
+  TOOL_SCOPES: { checkCalendar: [], searchEmails: [], listSlackChannels: [] },
+  scopeProvider: () => null,
+}));
+
+vi.mock("@/lib/redis", () => ({
+  getRedis: () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    lpush: vi.fn(),
+    expire: vi.fn(),
+    lrange: vi.fn().mockResolvedValue([]),
+  }),
+}));
+
+vi.mock("@/lib/data/audit", () => ({
+  writeAuditEntry: vi.fn(),
+}));
 
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
-    it("AC-10: returns a registration function that can be called with an MCP server", () => {
-      const registerFn = adaptToolsForMcp("test-user");
+    it("AC-10: returns a registration function", () => {
+      const registerFn = adaptToolsForMcp();
       expect(typeof registerFn).toBe("function");
     });
 
-    it("AC-10: registration function accepts a server-like object with registerTool", async () => {
+    it("AC-10: registers only read-only tools (excludes approval-required)", async () => {
       const registered: string[] = [];
       const mockServer = {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
@@ -16,16 +47,22 @@ describe("MCP tool adapter", () => {
         },
       };
 
-      const registerFn = adaptToolsForMcp("test-user");
+      const registerFn = adaptToolsForMcp();
       await registerFn(mockServer as never);
 
-      // Should register the 5 Token Vault tools + 7 CRM tools = 12 total
-      expect(registered.length).toBeGreaterThanOrEqual(5);
+      // Read-only Token Vault tools should be registered
       expect(registered).toContain("checkCalendar");
-      expect(registered).toContain("draftEmail");
       expect(registered).toContain("searchEmails");
       expect(registered).toContain("listSlackChannels");
-      expect(registered).toContain("sendSlackMessage");
+
+      // Approval-required tools should NOT be registered
+      expect(registered).not.toContain("draftEmail");
+      expect(registered).not.toContain("sendSlackMessage");
+      expect(registered).not.toContain("delegateResearch");
+
+      // CRM write tools should NOT be registered
+      expect(registered).not.toContain("createDeal");
+      expect(registered).not.toContain("updateDeal");
     });
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {
@@ -36,7 +73,7 @@ describe("MCP tool adapter", () => {
         },
       };
 
-      const registerFn = adaptToolsForMcp("test-user");
+      const registerFn = adaptToolsForMcp();
       await registerFn(mockServer as never);
 
       for (const tool of tools) {
