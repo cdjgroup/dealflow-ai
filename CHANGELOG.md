@@ -28,37 +28,34 @@ All notable changes to this project will be documented in this file.
 ## [0.3.0] - 2026-04-03
 
 ### Added
-- Conversation management: collapsible sidebar with conversation list, "New Chat" button, conversation switching
-- Auto-save: conversations persist to Redis via `onFinish` callback with 30-day TTL
-- Help-Kit onboarding checklist: 5-step getting started guide (Connect Google, Connect Slack, Try Chat, Check Pipeline, Review Permissions)
-- Help-Kit resource center: help drawer with external doc links, quick actions, and DealFlow glossary (8 terms)
-- DashboardProviders wrapper for OnboardingProvider context
-- ChatContainer component orchestrating conversation list + chat window
-- shadcn/ui Button and Sheet components
+- Dynamic scope narrowing: enriched token exchange with scope/expiresIn/connection metadata, TOOL_SCOPE_CONFIG as single source of truth, buildTokenMeta helper
+- Per-tool trust levels (always/ask/never) with T1 priority layer in approval logic
+- "never" trust hard-blocks tools at registration (LLM never sees them)
+- Token lifecycle animation in chat showing 6-stage pipeline during Token Vault tool execution
+- TokenMeta in audit entries (connection, provider, scope, expiresIn)
+- MCP server endpoint at /api/mcp for external AI agents (Streamable HTTP transport)
+- Cross-agent delegation with scoped, time-limited tokens (delegateResearch tool)
+- Delegation validates tool names and cross-checks user capabilities
 
 ### Changed
-- Dashboard layout: ChatWindow replaced with ChatContainer (includes conversation sidebar)
-- ChatWindow accepts `conversationId` prop, uses key-based remount for clean state reset
-- Nav includes ResourceCenter help button
-- Redis conversation keys now have 30-day TTL (was missing)
+- Token exchange return type enriched from { token } to { token, scope, expiresIn, connection, exchangedAt }
+- TOOL_SCOPES derived from TOOL_SCOPE_CONFIG (single source of truth, prevents drift)
+- Approval logic restructured: T1 trust > S3 external > S1 value > U2 settings
+- Settings API accepts toolTrust with zod validation (enum + size cap)
 
 ### Fixed
-- Conversation save now includes tool call steps (was only saving final text)
+- branch-check.py hook: auto-sync no longer stashes uncommitted changes (was causing silent data loss on merge conflicts)
+- Slack channel-lookup failure now returns explicit error instead of silently falling through
+- Network errors in token exchange return generic message (no infrastructure details leaked)
 
-## [0.2.2] - 2026-04-03
+### Security
+- MCP endpoint requires auth (bearer token validated against Auth0 /userinfo)
+- MCP exposes only read-only tools (approval-required tools excluded)
+- toolTrust keys capped at 64 chars, max 20 entries per request
+- delegateResearch validates tool names against known set
 
-### Added
-- "How It Works" section on landing page with 4-step Token Vault flow explanation
-- "Built for Security" landing section with 4 security highlights (Zero Credentials, Granular Permissions, Step-Up Auth, Audit Trail)
-- Collapsible Tool Capability Matrix on Permissions page (`<details>` element)
-- Accessibility: aria-hidden on decorative SVGs/emoji, semantic heading hierarchy (h1->h2->h3), focus-visible on audit link
-
-### Changed
-- Simplified top navigation: removed "Audit Log" link (accessible via Permissions page)
-- Decluttered Permissions page: removed redundant Profile section, removed How It Works (moved to landing)
-- Fixed chat bubble text readability in light mode (prose-invert for user bubbles)
-- Fixed table header contrast in user bubble markdown (prose-th:bg-white/20)
-- Widened landing page container from max-w-3xl to max-w-4xl
+### Dependencies
+- Added mcp-handler, @modelcontextprotocol/sdk
 
 ## [0.2.1] - 2026-04-03
 

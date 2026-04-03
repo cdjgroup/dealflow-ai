@@ -83,6 +83,20 @@ function DetailPanel({ entry }: { entry: AuditEntry }) {
                 <dd>{entry.durationMs}ms</dd>
               </div>
             )}
+            {entry.consentAction && (
+              <div className="contents">
+                <dt className="text-muted-foreground font-medium">Consent</dt>
+                <dd className={
+                  entry.consentAction === "approved" || entry.consentAction === "always-allowed"
+                    ? "text-emerald-400"
+                    : entry.consentAction === "denied"
+                      ? "text-red-400"
+                      : "text-muted-foreground"
+                }>
+                  {entry.consentAction}
+                </dd>
+              </div>
+            )}
             <div className="contents">
               <dt className="text-muted-foreground font-medium">Thread</dt>
               <dd className="text-muted-foreground">{entry.threadId}</dd>
@@ -113,6 +127,36 @@ function DetailPanel({ entry }: { entry: AuditEntry }) {
             </div>
           ) : (
             <p className="text-muted-foreground italic">No parameters</p>
+          )}
+
+          {entry.tokenMeta && (
+            <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2 space-y-1">
+              <span className="text-emerald-400 font-medium text-[10px]">
+                Token Exchange
+              </span>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-[10px]">
+                <div className="contents">
+                  <dt className="text-muted-foreground">Provider</dt>
+                  <dd>{entry.tokenMeta.provider}</dd>
+                </div>
+                <div className="contents">
+                  <dt className="text-muted-foreground">Connection</dt>
+                  <dd className="font-mono">{entry.tokenMeta.connection}</dd>
+                </div>
+                {entry.tokenMeta.grantedScope && (
+                  <div className="contents">
+                    <dt className="text-muted-foreground">Scope</dt>
+                    <dd className="text-emerald-400 font-mono">{entry.tokenMeta.grantedScope}</dd>
+                  </div>
+                )}
+                {entry.tokenMeta.expiresIn != null && (
+                  <div className="contents">
+                    <dt className="text-muted-foreground">Token TTL</dt>
+                    <dd>{entry.tokenMeta.expiresIn}s</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
           )}
 
           {entry.errorMessage && (

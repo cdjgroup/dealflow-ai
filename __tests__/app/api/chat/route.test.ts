@@ -40,6 +40,7 @@ vi.mock("ai", () => ({
   stepCountIs: (...args: unknown[]) => mockStepCountIs(...args),
   convertToModelMessages: (...args: unknown[]) =>
     mockConvertToModelMessages(...args),
+  tool: (config: unknown) => ({ type: "tool", ...config as Record<string, unknown> }),
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
@@ -64,6 +65,10 @@ vi.mock("@/lib/tools/crm", () => ({
 vi.mock("@/lib/tools/slack", () => ({
   listSlackChannels: { type: "tool", name: "listSlackChannels" },
   sendSlackMessage: { type: "tool", name: "sendSlackMessage" },
+}));
+
+vi.mock("@/lib/tools/delegate", () => ({
+  createDelegateResearchTool: vi.fn(() => ({ type: "tool", name: "delegateResearch" })),
 }));
 
 vi.mock("@/lib/data/settings", () => ({

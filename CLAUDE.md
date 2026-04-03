@@ -4,8 +4,8 @@
 
 ---
 
-## Current Version: 0.3.1 — Permissions & Audit Log Polish (Grouped Toggles, Impact Descriptions, Audit Filters, Structured Detail Panel, Accessibility)
-## Status: DEPLOYED
+## Current Version: 0.3.1 — Permissions & Audit Log Polish + Boundary-Pushing Auth
+## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
 ---

@@ -14,31 +14,40 @@ const CRM_WRITE_TOOLS = new Set([
 const EXTERNAL_ACTION_TOOLS = new Set([
   "draftEmail",
   "sendSlackMessage",
+  "delegateResearch",
 ]);
 
 /**
  * Creates a dynamic needsApproval function for a given tool.
  *
- * Three layers of approval:
- * - S1: Value-based step-up (createDeal >$50K, updateDeal to terminal stages)
+ * Four layers of approval (checked in order):
+ * - T1: Trust level override (toolTrust per-tool setting)
  * - S3: External action approval (draftEmail, sendSlackMessage always need approval)
+ * - S1: Value-based step-up (createDeal >$50K, updateDeal to terminal stages)
  * - U2: User settings-based approval (crmWrite toggle)
  */
 export function createApprovalCheck(
   userId: string,
   toolName: string
 ): (params: Record<string, unknown>) => Promise<boolean> {
-  // S3: External action tools always need approval
-  if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
-    return async () => true;
-  }
-
-  // Read-only tools never need approval
-  if (!CRM_WRITE_TOOLS.has(toolName)) {
-    return async () => false;
-  }
-
   return async (params: Record<string, unknown>) => {
+    const settings = await getUserSettings(userId);
+
+    // T1: Trust level override — highest priority
+    const trust = settings.toolTrust?.[toolName];
+    if (trust === "always") return false;
+    if (trust === "ask" || trust === "never") return true;
+
+    // S3: External action tools always need approval
+    if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
+      return true;
+    }
+
+    // Read-only tools never need approval (unless T1 overrode above)
+    if (!CRM_WRITE_TOOLS.has(toolName)) {
+      return false;
+    }
+
     // S1: Value-based step-up for createDeal
     if (toolName === "createDeal") {
       const value = typeof params.value === "number" ? params.value : 0;
@@ -53,7 +62,6 @@ export function createApprovalCheck(
     }
 
     // U2: User settings-based approval
-    const settings = await getUserSettings(userId);
     if (settings.approvalRequired.crmWrite) {
       return true;
     }

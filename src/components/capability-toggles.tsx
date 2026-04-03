@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback } from "react";
-import type { UserSettings } from "@/lib/types/settings";
+import type { UserSettings, TrustLevel } from "@/lib/types/settings";
 
 interface Props {
   initialSettings: UserSettings;
@@ -84,9 +84,28 @@ const INTEGRATION_GROUPS: IntegrationGroup[] = [
   },
 ];
 
+const TOKEN_VAULT_TOOLS: {
+  name: string;
+  label: string;
+  provider: string;
+  accessLevel: "read" | "write";
+}[] = [
+  { name: "checkCalendar", label: "Check Calendar", provider: "Google", accessLevel: "read" },
+  { name: "searchEmails", label: "Search Emails", provider: "Google", accessLevel: "read" },
+  { name: "draftEmail", label: "Draft Email", provider: "Google", accessLevel: "write" },
+  { name: "listSlackChannels", label: "List Slack Channels", provider: "Slack", accessLevel: "read" },
+  { name: "sendSlackMessage", label: "Send Slack Message", provider: "Slack", accessLevel: "write" },
+];
+
+const TRUST_OPTIONS: { value: TrustLevel; label: string; color: string }[] = [
+  { value: "always", label: "Always allow", color: "bg-emerald-500" },
+  { value: "ask", label: "Ask each time", color: "bg-amber-500" },
+  { value: "never", label: "Never allow", color: "bg-red-500" },
+];
+
 function ConnectionBadge({ status, loading }: { status?: ConnectionStatus; loading?: boolean }) {
   if (loading || !status) {
-    if (loading) return null; // Don't show badge while loading
+    if (loading) return null;
     return (
       <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
         Unknown
@@ -207,6 +226,40 @@ export function CapabilityToggles({ initialSettings }: Props) {
     });
   }
 
+  async function handleTrustChange(toolName: string, trust: TrustLevel) {
+    const updated = {
+      ...settings,
+      toolTrust: {
+        ...(settings.toolTrust || {}),
+        [toolName]: trust,
+      },
+    };
+    setSettings(updated);
+
+    startTransition(async () => {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        body: JSON.stringify({ toolTrust: { [toolName]: trust } }),
+      });
+    });
+  }
+
+  function clearTrust(toolName: string) {
+    const newTrust = { ...(settings.toolTrust || {}) };
+    delete newTrust[toolName];
+    const updated = { ...settings, toolTrust: newTrust };
+    setSettings(updated);
+
+    startTransition(async () => {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        body: JSON.stringify({ toolTrust: newTrust }),
+      });
+    });
+  }
+
   return (
     <div className="space-y-4">
       {INTEGRATION_GROUPS.map((group) => {
@@ -263,6 +316,7 @@ export function CapabilityToggles({ initialSettings }: Props) {
         );
       })}
 
+      {/* CRM approval toggle */}
       <div className="border-t border-border pt-4">
         <div className="flex items-start justify-between rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
           <div className="pr-4">
@@ -283,6 +337,77 @@ export function CapabilityToggles({ initialSettings }: Props) {
               color="bg-amber-500"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Per-tool trust levels */}
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-foreground mb-1">
+          Tool Trust Levels
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Control consent behavior for each Token Vault tool. Overrides default approval settings.
+        </p>
+        <div className="space-y-2">
+          {TOKEN_VAULT_TOOLS.map(({ name, label, provider, accessLevel }) => {
+            const currentTrust = settings.toolTrust?.[name];
+            return (
+              <div
+                key={name}
+                className="rounded-lg border border-border bg-card/50 px-4 py-3"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <span className="text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+                      {provider}
+                    </span>
+                    <span className={`text-[10px] rounded px-1.5 py-0.5 ${
+                      accessLevel === "read"
+                        ? "text-emerald-400 bg-emerald-500/10"
+                        : "text-amber-400 bg-amber-500/10"
+                    }`}>
+                      {accessLevel}
+                    </span>
+                  </div>
+                  {currentTrust && (
+                    <button
+                      onClick={() => clearTrust(name)}
+                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={`Reset ${label} to default`}
+                    >
+                      reset
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-1.5">
+                  {TRUST_OPTIONS.map(({ value, label: trustLabel, color }) => {
+                    const isActive = currentTrust === value;
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => handleTrustChange(name, value)}
+                        disabled={isPending}
+                        aria-pressed={isActive}
+                        className={`flex-1 text-xs py-1.5 rounded-md border transition-all ${
+                          isActive
+                            ? `${color} text-white border-transparent`
+                            : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+                        } ${isPending ? "opacity-50" : ""}`}
+                      >
+                        {trustLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!currentTrust && (
+                  <p className="text-[10px] text-muted-foreground/60 mt-1">
+                    Default: {accessLevel === "write" ? "requires approval" : "auto-approved"}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

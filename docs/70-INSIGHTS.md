@@ -18,27 +18,17 @@ The `tool()` function in AI SDK v6 accepts `needsApproval` as either a boolean o
 
 Multiple breaking changes from AI SDK v5 to v6: `parameters` → `inputSchema`, `maxSteps` → `stopWhen: stepCountIs(n)`, `maxTokens` → `maxOutputTokens`, `useChat` no longer has `input`/`handleInputChange`/`handleSubmit` (use `sendMessage` + `status`), `api` option replaced by `transport: new DefaultChatTransport({api})`, and `messages` from client are `UIMessage[]` that need `convertToModelMessages()` before passing to `streamText`.
 
-## 006 — Help-Kit as a portable component suite across projects (2026-04-03)
+## 005 — Auth0 Token Vault does NOT support scope narrowing (2026-04-03)
 
-The onboarding checklist and resource center were ported directly from the Hoshin Kanri project (`cdjgroup/hoshin-kanri`). The component architecture (OnboardingProvider context + useLocalStorage hook + content files) is deliberately decoupled from app-specific logic: swap the content files (`help-content.ts`, `glossary.ts`) and the suite works in any Next.js + shadcn/ui project. This is a pattern worth maintaining — build reusable component kits once, customize via content injection.
+Auth0's federated connection access token exchange (`urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token`) does NOT accept a `scope` parameter. Confirmed by Auth0 docs and `@auth0/ai` SDK source code. The response includes `scope` and `expires_in` fields, but you cannot request narrower scopes at exchange time — the full consented scope set is always returned. The `@auth0/ai` SDK uses scopes only for post-exchange validation (throws `TokenVaultInterrupt` if required scopes are missing), never sends them in the exchange request. For scope narrowing, implement it at the application layer: tools self-declare minimum required scopes and the UI shows which subset is actually used.
 
-The `autoCompletions` prop on OnboardingProvider is the key extensibility point: the parent passes a `Record<string, boolean>` mapping step IDs to completion status, and the provider auto-marks steps. This avoids coupling the checklist to specific API calls (token status, deal count) — the parent owns detection logic.
+## 006 — MCP server needs same security layers as chat route (2026-04-03)
 
-## 005 — Landing page education > feature parity for hackathon judges (2026-04-03)
+When adding a new entry point (MCP endpoint alongside the existing chat API), every security layer from the original entry point must be replicated: capability filtering, approval checks, user identity resolution, and audit attribution. The MCP route was initially added with tool registration but without `filterToolsByCapabilities` or `attachApprovalChecks`, creating a bypass for all permission controls. Fix: MCP only exposes read-only tools (approval-required tools excluded since MCP has no interactive approval UI), requires auth, and logs all calls to the audit trail.
 
-Teaching judges WHY the security features matter is more impactful than demonstrating all features. The "How It Works" and "Built for Security" sections on the landing page are deliberate UI real estate choices: (1) judges see the security narrative without navigating to settings, (2) "AI agent never stores credentials" differentiates from typical OAuth flows, (3) first-time visitors understand the approval flow before signing in.
+## 007 — AI SDK tool objects use `inputSchema` not `parameters` (2026-04-03)
 
-The Audit Log was removed from top navigation because: (a) judges don't check logs unless something fails, (b) reducing nav from 3 items to 2 focuses attention on the primary workflow, (c) it remains accessible in context on the Permissions page where users manage connections. Principle: frequently-used features in top nav, reference features in context.
-
-## 007 — Token Vault tokenset deletion is a cache operation, not a revocation (2026-04-03)
-
-Deleting a Token Vault tokenset via the Auth0 Management API (`DELETE /api/v2/users/{id}/federated-connections-tokensets/{tokensetId}`) does NOT prevent future token exchanges. Auth0 logs confirm a successful "seta" (token exchange) event immediately after deletion. This is because the tokenset is a cache layer: the underlying social connection (Google OAuth) and the user's Auth0 refresh token remain valid, so Auth0 silently re-provisions a new tokenset on the next RFC 8693 exchange.
-
-Auth0's official approach is the My Account API (`@auth0/myaccount-js` SDK, `connectedAccounts.delete()` with `delete:me:connected_accounts` scope), which invalidates the connection at the Auth0 level. However, this requires additional Auth0 configuration and a user access token with a specific scope.
-
-Our solution: an app-level Redis flag (`{userId}:disabled-connections` set) checked at three integration points before any Auth0 call is made: (1) `exchangeToken()` blocks all five tools, (2) `/api/token-status` returns "Disconnected by user" without calling Auth0, (3) the permissions page renders a persistent "Reconnect" button from server-side state. The tokenset deletion is kept as best-effort cleanup but is non-fatal.
-
-This pattern demonstrates that real user control over AI agent access requires application-level enforcement, not just token-level operations. Token Vault manages token lifecycle (issuance, refresh, expiry) but revocation semantics must be owned by the application. This is a general principle for any OAuth-based AI agent system: the agent framework manages tokens, but the application must manage permissions.
+In AI SDK v6, the `tool()` helper returns an object with `{ description, inputSchema, execute }`. The property is `inputSchema` (matching the v6 naming), not `parameters` (which was the v5 name). When building adapters that convert AI SDK tools to other formats (like MCP), inspect the actual runtime shape rather than guessing from memory or type casts.
 
 ## 008 — In-memory audit filtering is acceptable at hackathon scale (2026-04-03)
 

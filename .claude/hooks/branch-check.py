@@ -319,19 +319,8 @@ def is_merge_in_progress():
     return merge_head.exists()
 
 
-def auto_sync_with_main(session_id, commits_behind):
-    """Automatically sync with origin/main."""
-    if not should_auto_sync():
-        return None
-
-    if is_merge_in_progress():
-        return {'status': 'skipped', 'reason': 'merge_in_progress'}
-
-    print(f"\nAUTO-SYNC: {commits_behind} commits behind origin/main", file=sys.stderr)
-
-    # Check for uncommitted changes
-    stashed = False
-    stash_name = None
+def has_uncommitted_changes():
+    """Check if there are uncommitted changes (staged or unstaged)."""
     try:
         diff_result = subprocess.run(
             ['git', 'diff', '--quiet'],
@@ -341,21 +330,37 @@ def auto_sync_with_main(session_id, commits_behind):
             ['git', 'diff', '--cached', '--quiet'],
             cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=5
         )
+        return diff_result.returncode != 0 or diff_cached.returncode != 0
+    except Exception:
+        return True  # assume dirty if check fails
 
-        if diff_result.returncode != 0 or diff_cached.returncode != 0:
-            stash_name = f"auto-stash-sync-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-            print(f"   Stashing uncommitted changes...", file=sys.stderr)
-            stash_result = subprocess.run(
-                ['git', 'stash', 'push', '-m', stash_name],
-                capture_output=True, text=True,
-                cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=30
-            )
-            if stash_result.returncode == 0:
-                stashed = True
-    except Exception as e:
-        print(f"   Could not check/stash changes: {e}", file=sys.stderr)
 
-    # Try fast-forward first
+def auto_sync_with_main(session_id, commits_behind):
+    """Automatically sync with origin/main.
+
+    SAFETY: Never stashes uncommitted changes. If the worktree is dirty,
+    skip the sync and warn. Previous implementation stashed changes but
+    failed to pop them on merge conflicts, causing silent data loss.
+    """
+    if not should_auto_sync():
+        return None
+
+    if is_merge_in_progress():
+        return {'status': 'skipped', 'reason': 'merge_in_progress'}
+
+    # SAFETY: refuse to sync with uncommitted changes — stash/pop is lossy
+    if has_uncommitted_changes():
+        print(f"\n[branch-check] {commits_behind} commits behind origin/main, "
+              f"but worktree has uncommitted changes — skipping auto-sync. "
+              f"Commit your work, then sync manually: git merge origin/main",
+              file=sys.stderr)
+        record_sync_attempt(session_id, 'skipped_dirty')
+        return {'status': 'skipped', 'reason': 'uncommitted_changes',
+                'commits_behind': commits_behind}
+
+    print(f"\nAUTO-SYNC: {commits_behind} commits behind origin/main", file=sys.stderr)
+
+    # Try fast-forward first (clean worktree guaranteed above)
     try:
         ff_result = subprocess.run(
             ['git', 'merge', 'origin/main', '--ff-only'],
@@ -364,17 +369,12 @@ def auto_sync_with_main(session_id, commits_behind):
         )
         if ff_result.returncode == 0:
             print(f"   Fast-forwarded to origin/main", file=sys.stderr)
-            if stashed:
-                subprocess.run(
-                    ['git', 'stash', 'pop'],
-                    cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=30
-                )
             record_sync_attempt(session_id, 'fast_forward')
             return {'status': 'synced', 'method': 'fast_forward'}
     except Exception as e:
         print(f"[branch-check] WARNING: Fast-forward merge failed: {e}", file=sys.stderr)
 
-    # Try regular merge
+    # Try regular merge (clean worktree, no stash needed)
     try:
         print(f"   Cannot fast-forward, attempting merge...", file=sys.stderr)
         merge_result = subprocess.run(
@@ -385,35 +385,33 @@ def auto_sync_with_main(session_id, commits_behind):
 
         if merge_result.returncode == 0:
             print(f"   Merged origin/main successfully", file=sys.stderr)
-            if stashed:
-                subprocess.run(
-                    ['git', 'stash', 'pop'],
-                    cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=30
-                )
             record_sync_attempt(session_id, 'merged')
             return {'status': 'synced', 'method': 'merge'}
 
-        # Merge conflict
-        print(f"\n   MERGE CONFLICT - Claude will resolve this!", file=sys.stderr)
+        # Merge conflict — abort the merge to keep worktree clean
+        print(f"\n   MERGE CONFLICT — aborting to preserve clean worktree", file=sys.stderr)
+        subprocess.run(
+            ['git', 'merge', '--abort'],
+            cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=10
+        )
 
         conflict_result = subprocess.run(
-            ['git', 'diff', '--name-only', '--diff-filter=U'],
+            ['git', 'diff', '--name-only', 'HEAD..origin/main'],
             capture_output=True, text=True,
             cwd=str(PROJECT_ROOT), env=GIT_ENV, timeout=5
         )
-        conflicted_files = conflict_result.stdout.strip() if conflict_result.returncode == 0 else ''
+        changed_files = conflict_result.stdout.strip() if conflict_result.returncode == 0 else ''
 
         STATE_DIR.mkdir(parents=True, exist_ok=True)
         MERGE_CONFLICT_MARKER.write_text(json.dumps({
             'timestamp': datetime.now().isoformat(),
             'behind_count': commits_behind,
-            'conflicted_files': conflicted_files.replace('\n', ' ').strip(),
-            'stashed': stashed,
-            'stash_name': stash_name or ''
+            'changed_files': changed_files.replace('\n', ' ').strip(),
+            'note': 'Merge aborted — resolve manually with: git merge origin/main'
         }, indent=2))
 
-        record_sync_attempt(session_id, 'conflict')
-        return {'status': 'conflict', 'files': conflicted_files}
+        record_sync_attempt(session_id, 'conflict_aborted')
+        return {'status': 'conflict_aborted', 'files': changed_files}
 
     except Exception as e:
         print(f"   Sync failed: {e}", file=sys.stderr)

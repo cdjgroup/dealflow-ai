@@ -1,3 +1,5 @@
+export type TrustLevel = "always" | "ask" | "never";
+
 export interface UserSettings {
   capabilities: {
     crmRead: boolean;
@@ -9,6 +11,7 @@ export interface UserSettings {
   approvalRequired: {
     crmWrite: boolean;
   };
+  toolTrust: Record<string, TrustLevel>;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -22,4 +25,5 @@ export const DEFAULT_SETTINGS: UserSettings = {
   approvalRequired: {
     crmWrite: false,
   },
+  toolTrust: {},
 };

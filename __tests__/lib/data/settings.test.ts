@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getUserSettings, updateUserSettings } from "@/lib/data/settings";
 import { DEFAULT_SETTINGS } from "@/lib/types/settings";
+import type { TrustLevel } from "@/lib/types/settings";
 
 // Mock Redis
 const mockGet = vi.fn();
@@ -79,6 +80,58 @@ describe("settings data layer", () => {
 
       expect(result.capabilities.slack).toBe(true);
       expect(result.approvalRequired).toEqual(DEFAULT_SETTINGS.approvalRequired);
+    });
+  });
+
+  // AC-4: toolTrust field on UserSettings
+  describe("toolTrust in UserSettings (AC-4)", () => {
+    it("default settings include toolTrust as an empty object", () => {
+      expect(DEFAULT_SETTINGS.toolTrust).toBeDefined();
+      expect(DEFAULT_SETTINGS.toolTrust).toEqual({});
+    });
+
+    it("updateUserSettings merges toolTrust per-key — setting checkCalendar then draftEmail preserves both", async () => {
+      // First call: existing settings have checkCalendar set
+      const settingsWithCalendar = {
+        ...DEFAULT_SETTINGS,
+        toolTrust: { checkCalendar: "ask" as TrustLevel },
+      };
+      mockGet.mockResolvedValue(settingsWithCalendar);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        toolTrust: { draftEmail: "always" },
+      });
+
+      // Both keys must survive the merge
+      expect(result.toolTrust.checkCalendar).toBe("ask");
+      expect(result.toolTrust.draftEmail).toBe("always");
+    });
+
+    it("updateUserSettings with toolTrust does not clobber capabilities", async () => {
+      mockGet.mockResolvedValue(DEFAULT_SETTINGS);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        toolTrust: { checkCalendar: "never" },
+      });
+
+      expect(result.capabilities).toEqual(DEFAULT_SETTINGS.capabilities);
+    });
+
+    it("updateUserSettings with toolTrust does not clobber approvalRequired", async () => {
+      const settingsWithApproval = {
+        ...DEFAULT_SETTINGS,
+        approvalRequired: { crmWrite: true },
+      };
+      mockGet.mockResolvedValue(settingsWithApproval);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        toolTrust: { draftEmail: "always" },
+      });
+
+      expect(result.approvalRequired.crmWrite).toBe(true);
     });
   });
 });

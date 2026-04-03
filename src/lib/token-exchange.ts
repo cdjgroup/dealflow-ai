@@ -1,7 +1,15 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { isConnectionDisabled } from "@/lib/data/connections";
 
-type TokenResult = { token: string } | { error: string };
+export type TokenExchangeSuccess = {
+  token: string;
+  scope: string | null;
+  expiresIn: number | null;
+  connection: string;
+  exchangedAt: string;
+};
+
+type TokenResult = TokenExchangeSuccess | { error: string };
 
 /**
  * Exchange a refresh token for a short-lived access token via Auth0 Token Vault.
@@ -37,32 +45,57 @@ export async function exchangeTokenWithRefresh(
   connection: string,
   refreshToken: string
 ): Promise<TokenResult> {
-  const response = await fetch(
-    `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type:
-          "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
-        client_id: process.env.AUTH0_CLIENT_ID,
-        client_secret: process.env.AUTH0_CLIENT_SECRET,
-        subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token",
-        subject_token: refreshToken,
-        connection,
-        requested_token_type:
-          "http://auth0.com/oauth/token-type/federated-connection-access-token",
-      }),
+  try {
+    const response = await fetch(
+      `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grant_type:
+            "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
+          client_id: process.env.AUTH0_CLIENT_ID,
+          client_secret: process.env.AUTH0_CLIENT_SECRET,
+          subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token",
+          subject_token: refreshToken,
+          connection,
+          requested_token_type:
+            "http://auth0.com/oauth/token-type/federated-connection-access-token",
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      return { error: err.error_description || err.error || "Token exchange failed" };
     }
-  );
 
-  if (!response.ok) {
-    const err = await response.json();
-    return { error: err.error_description || err.error || "Token exchange failed" };
+    const tokenData = await response.json();
+    return {
+      token: tokenData.access_token,
+      scope: tokenData.scope ?? null,
+      expiresIn: tokenData.expires_in ?? null,
+      connection,
+      exchangedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error("Token exchange network error:", err);
+    return { error: "Token exchange failed — please try again" };
   }
+}
 
-  const tokenData = await response.json();
-  return { token: tokenData.access_token };
+/**
+ * Build a _tokenMeta object from a successful token exchange result.
+ * Consumers: tool results -> audit pipeline (F2) and chat UI (F2).
+ */
+export function buildTokenMeta(result: TokenExchangeSuccess, minScope: string) {
+  return {
+    scope: result.scope,
+    expiresIn: result.expiresIn,
+    connection: result.connection,
+    exchangedAt: result.exchangedAt,
+    minScope,
+  };
 }
 
 /**
