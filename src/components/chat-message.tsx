@@ -3,8 +3,15 @@
 import ReactMarkdown from "react-markdown";
 import type { UIMessage } from "ai";
 import { ToolResultCard } from "@/components/tool-result-card";
+import { ApprovalCard } from "@/components/approval-card";
+import { ToolBadge } from "@/components/tool-badge";
 
-export function ChatMessage({ message }: { message: UIMessage }) {
+interface Props {
+  message: UIMessage;
+  onApproval?: (id: string, approved: boolean) => void;
+}
+
+export function ChatMessage({ message, onApproval }: Props) {
   const isUser = message.role === "user";
 
   return (
@@ -32,6 +39,43 @@ export function ChatMessage({ message }: { message: UIMessage }) {
               "toolName" in part ? String(part.toolName) : part.type;
             const state = "state" in part ? String(part.state) : "";
             const output = "output" in part ? part.output : undefined;
+            const approval =
+              "approval" in part
+                ? (part.approval as { id: string; approved?: boolean } | undefined)
+                : undefined;
+            const input =
+              "input" in part
+                ? (part.input as Record<string, unknown>)
+                : undefined;
+
+            // Approval requested — show approval card
+            if (state === "approval-requested" && approval && onApproval) {
+              return (
+                <div key={i}>
+                  <ToolBadge toolName={toolName} state="approval" />
+                  <ApprovalCard
+                    toolName={toolName}
+                    args={input || {}}
+                    onApprove={() => onApproval(approval.id, true)}
+                    onReject={() => onApproval(approval.id, false)}
+                  />
+                </div>
+              );
+            }
+
+            // Approval responded (user already approved/denied)
+            if (state === "approval-responded" && approval) {
+              const approved = approval.approved;
+              return (
+                <div key={i}>
+                  <div className={`text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 ${
+                    approved ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                  }`}>
+                    <span>{approved ? "Approved" : "Denied"}: {toolName}</span>
+                  </div>
+                </div>
+              );
+            }
 
             // Rich tool result cards (D2)
             if (
@@ -40,11 +84,7 @@ export function ChatMessage({ message }: { message: UIMessage }) {
             ) {
               return (
                 <div key={i}>
-                  <div className="text-xs bg-muted/50 rounded px-2 py-1 my-1 text-muted-foreground flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                    <span>{toolName}</span>
-                    <span className="text-muted-foreground/60">completed</span>
-                  </div>
+                  <ToolBadge toolName={toolName} state="completed" />
                   <ToolResultCard toolName={toolName} output={output} />
                 </div>
               );
@@ -52,20 +92,17 @@ export function ChatMessage({ message }: { message: UIMessage }) {
 
             // Running / pending state
             return (
-              <div
-                key={i}
-                className="text-xs bg-muted/50 rounded px-2 py-1 my-1 text-muted-foreground flex items-center gap-1.5"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
-                <span>{toolName}</span>
-                {state === "result" && (
-                  <span className="text-muted-foreground/60">completed</span>
-                )}
-                {(state === "call" || state === "input-streaming") && (
-                  <span className="text-chart-4 animate-pulse">
-                    running...
-                  </span>
-                )}
+              <div key={i}>
+                <ToolBadge
+                  toolName={toolName}
+                  state={
+                    state === "result"
+                      ? "completed"
+                      : state === "call" || state === "input-streaming"
+                        ? "running"
+                        : "pending"
+                  }
+                />
               </div>
             );
           }

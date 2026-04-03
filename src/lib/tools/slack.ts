@@ -1,52 +1,13 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { auth0 } from "@/lib/auth0";
-
-async function getSlackToken(): Promise<{ token: string } | { error: string }> {
-  const session = await auth0.getSession();
-  const refreshToken = session?.tokenSet?.refreshToken;
-  if (!refreshToken) {
-    return {
-      error: "No session refresh token. Please log out and log back in.",
-    };
-  }
-
-  const response = await fetch(
-    `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type:
-          "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
-        client_id: process.env.AUTH0_CLIENT_ID,
-        client_secret: process.env.AUTH0_CLIENT_SECRET,
-        subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token",
-        subject_token: refreshToken,
-        connection: "slack",
-        requested_token_type:
-          "http://auth0.com/oauth/token-type/federated-connection-access-token",
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.json();
-    return {
-      error: err.error_description || err.error || "Slack token exchange failed",
-    };
-  }
-
-  const tokenData = await response.json();
-  return { token: tokenData.access_token };
-}
+import { exchangeToken } from "@/lib/token-exchange";
 
 export const listSlackChannels = tool({
   description:
     "List Slack channels the user has access to. Use this when the user asks about available Slack channels or wants to know where to post a message.",
   inputSchema: z.object({}),
   execute: async () => {
-    const result = await getSlackToken();
+    const result = await exchangeToken("slack");
     if ("error" in result) {
       return {
         error: "Slack not connected",
@@ -103,7 +64,7 @@ export const sendSlackMessage = tool({
     channel: string;
     text: string;
   }) => {
-    const result = await getSlackToken();
+    const result = await exchangeToken("slack");
     if ("error" in result) {
       return {
         error: "Slack not connected",

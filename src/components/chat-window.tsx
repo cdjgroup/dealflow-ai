@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useRef, useEffect, useState, useMemo, type FormEvent } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
 import { ChatMessage } from "./chat-message";
 import { TokenVaultInterrupt } from "./token-vault-interrupt";
 
@@ -34,7 +34,7 @@ export function ChatWindow() {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, error, regenerate } = useChat({
+  const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
   });
 
@@ -62,6 +62,17 @@ export function ChatWindow() {
   const handleSuggestion = (text: string) => {
     sendMessage({ text });
   };
+
+  const handleApproval = useCallback(
+    (approvalId: string, approved: boolean) => {
+      addToolApprovalResponse({
+        id: approvalId,
+        approved,
+        reason: approved ? "User approved" : "User denied",
+      });
+    },
+    [addToolApprovalResponse]
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
@@ -97,7 +108,11 @@ export function ChatWindow() {
         )}
 
         {messages.map((message) => (
-          <ChatMessage key={message.id} message={message} />
+          <ChatMessage
+            key={message.id}
+            message={message}
+            onApproval={handleApproval}
+          />
         ))}
 
         {interrupt && (

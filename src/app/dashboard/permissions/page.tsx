@@ -4,6 +4,9 @@ import { getUserSettings } from "@/lib/data/settings";
 import { CapabilityToggles } from "@/components/capability-toggles";
 import { RevokeButton } from "@/components/revoke-button";
 import { TokenStatus } from "@/components/token-status";
+import { CapabilityMatrix } from "@/components/capability-matrix";
+import { ActivityTimeline } from "@/components/activity-timeline";
+import { getAuditLog } from "@/lib/data/audit";
 
 export default async function PermissionsPage() {
   const session = await auth0.getSession();
@@ -12,10 +15,13 @@ export default async function PermissionsPage() {
   const user = await getUser();
   if (!user?.sub) redirect("/auth/login?returnTo=/dashboard/permissions");
 
-  const settings = await getUserSettings(user.sub);
+  const [settings, recentActivity] = await Promise.all([
+    getUserSettings(user.sub),
+    getAuditLog(user.sub, { limit: 20 }),
+  ]);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-6">
       <h1 className="text-2xl font-bold text-foreground">
         Permissions & Connected Accounts
       </h1>
@@ -29,13 +35,13 @@ export default async function PermissionsPage() {
           <div className="flex justify-between">
             <span className="text-muted-foreground">Name</span>
             <span className="text-foreground">
-              {session.user?.name || "—"}
+              {session.user?.name || "\u2014"}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Email</span>
             <span className="text-foreground">
-              {session.user?.email || "—"}
+              {session.user?.email || "\u2014"}
             </span>
           </div>
         </div>
@@ -53,28 +59,36 @@ export default async function PermissionsPage() {
         <CapabilityToggles initialSettings={settings} />
       </div>
 
-      {/* Token Status (S4) */}
+      {/* Capability Matrix (Item 4) */}
       <div className="bg-card border border-border rounded-lg p-6">
         <h2 className="text-lg font-semibold text-foreground mb-2">
-          Connection Status
+          Tool Capability Matrix
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Live status of your OAuth connections via Auth0 Token Vault.
+          All 12 agent tools with their access levels, data sources, and
+          security guardrails. Token Vault tools use short-lived OAuth tokens
+          from Auth0 — your credentials are never exposed.
         </p>
-        <TokenStatus />
+        <CapabilityMatrix settings={settings} />
       </div>
 
-      {/* Connected Accounts (U3) */}
+      {/* Connection Status + Disconnect (Items 6 & 7) */}
       <div className="bg-card border border-border rounded-lg p-6">
         <h2 className="text-lg font-semibold text-foreground mb-2">
           Connected Accounts
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          The AI agent uses Auth0 Token Vault to securely access your external
-          accounts. Tokens are stored encrypted by Auth0 — DealFlow AI never
-          sees your passwords.
+          Auth0 Token Vault stores your OAuth tokens securely. DealFlow AI
+          only receives short-lived access tokens, never your credentials.
+          Disconnect to revoke the agent&apos;s access instantly.
         </p>
 
+        {/* Live connection status */}
+        <div className="mb-4">
+          <TokenStatus />
+        </div>
+
+        {/* Account cards with disconnect */}
         <div className="space-y-3">
           <div className="flex items-center justify-between bg-secondary/50 rounded-lg px-4 py-3">
             <div className="flex items-center gap-3">
@@ -86,7 +100,10 @@ export default async function PermissionsPage() {
                   Google (Calendar + Gmail)
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  calendar.readonly, gmail.compose, gmail.readonly
+                  Scopes: calendar.readonly, gmail.compose, gmail.readonly
+                </div>
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  Token type: short-lived access token via RFC 8693 exchange
                 </div>
               </div>
             </div>
@@ -103,13 +120,35 @@ export default async function PermissionsPage() {
                   Slack
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  channels:read, chat:write
+                  Scopes: channels:read, chat:write
+                </div>
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  Token type: short-lived access token via RFC 8693 exchange
                 </div>
               </div>
             </div>
             <RevokeButton connection="slack" label="Slack" />
           </div>
         </div>
+      </div>
+
+      {/* Recent Activity (Item 8) */}
+      <div className="bg-card border border-border rounded-lg p-6">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold text-foreground">
+            Recent Agent Activity
+          </h2>
+          <a
+            href="/dashboard/audit"
+            className="text-xs text-primary hover:underline"
+          >
+            View full audit log &rarr;
+          </a>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Every action the AI agent performs is logged for transparency.
+        </p>
+        <ActivityTimeline entries={recentActivity} />
       </div>
 
       {/* How It Works */}
@@ -142,9 +181,9 @@ export default async function PermissionsPage() {
           <div className="flex gap-3">
             <span className="text-primary font-bold">4.</span>
             <p>
-              Emails are always saved as drafts — the agent never sends
-              anything without your review. Every agent action is logged in the
-              Audit Log.
+              External actions (emails, Slack messages) always require your
+              approval. High-value CRM operations trigger step-up
+              authorization. Every action is logged in the audit trail.
             </p>
           </div>
         </div>

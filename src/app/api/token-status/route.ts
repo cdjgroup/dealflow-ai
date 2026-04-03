@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
+import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 
 interface TokenStatus {
   connection: string;
@@ -60,55 +61,25 @@ export async function GET() {
 
   const results: TokenStatus[] = await Promise.all(
     connections.map(async ({ connection, provider, scopes }) => {
-      try {
-        const response = await fetch(
-          `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              grant_type:
-                "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
-              client_id: process.env.AUTH0_CLIENT_ID,
-              client_secret: process.env.AUTH0_CLIENT_SECRET,
-              subject_token_type:
-                "urn:ietf:params:oauth:token-type:refresh_token",
-              subject_token: refreshToken,
-              connection,
-              requested_token_type:
-                "http://auth0.com/oauth/token-type/federated-connection-access-token",
-            }),
-          }
-        );
+      const result = await exchangeTokenWithRefresh(connection, refreshToken);
 
-        if (response.ok) {
-          return { connection, provider, connected: true, scopes };
-        }
-
-        const err = await response.json();
-        // Sanitize Auth0 errors — never expose internal details to client
-        const safeErrors: Record<string, string> = {
-          invalid_grant: "Session expired. Please log out and log back in.",
-          access_denied: "Not connected.",
-          unauthorized_client: "Not configured.",
-        };
-        console.error(`Token status check failed for ${connection}:`, err);
-        return {
-          connection,
-          provider,
-          connected: false,
-          scopes,
-          error: safeErrors[err.error] ?? "Not connected",
-        };
-      } catch {
-        return {
-          connection,
-          provider,
-          connected: false,
-          scopes,
-          error: "Unable to check status",
-        };
+      if ("token" in result) {
+        return { connection, provider, connected: true, scopes };
       }
+
+      // Sanitize Auth0 errors — never expose internal details to client
+      const safeErrors: Record<string, string> = {
+        invalid_grant: "Session expired. Please log out and log back in.",
+        access_denied: "Not connected.",
+        unauthorized_client: "Not configured.",
+      };
+      return {
+        connection,
+        provider,
+        connected: false,
+        scopes,
+        error: safeErrors[result.error] ?? "Not connected",
+      };
     })
   );
 

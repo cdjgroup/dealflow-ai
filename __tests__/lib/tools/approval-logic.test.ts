@@ -69,6 +69,15 @@ describe("approval-logic", () => {
       expect(result).toBe(true);
     });
 
+    it("requires approval for stage change to closed-lost", async () => {
+      const check = createApprovalCheck(TEST_USER, "updateDeal");
+      const result = await check({
+        dealId: "d1",
+        stage: "closed-lost",
+      });
+      expect(result).toBe(true);
+    });
+
     it("does not require approval for other stage changes", async () => {
       const check = createApprovalCheck(TEST_USER, "updateDeal");
       const result = await check({
@@ -76,6 +85,27 @@ describe("approval-logic", () => {
         stage: "qualified",
       });
       expect(result).toBe(false);
+    });
+  });
+
+  describe("createApprovalCheck for external action tools (S3)", () => {
+    it("always requires approval for draftEmail", async () => {
+      const check = createApprovalCheck(TEST_USER, "draftEmail");
+      const result = await check({
+        to: "sarah@example.com",
+        subject: "Follow up",
+        body: "Hello",
+      });
+      expect(result).toBe(true);
+    });
+
+    it("always requires approval for sendSlackMessage", async () => {
+      const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
+      const result = await check({
+        channel: "general",
+        text: "Hello team",
+      });
+      expect(result).toBe(true);
     });
   });
 
@@ -118,6 +148,18 @@ describe("approval-logic", () => {
     it("never requires approval for checkCalendar", async () => {
       const check = createApprovalCheck(TEST_USER, "checkCalendar");
       const result = await check({ date: "2026-04-02" });
+      expect(result).toBe(false);
+    });
+
+    it("never requires approval for searchEmails", async () => {
+      const check = createApprovalCheck(TEST_USER, "searchEmails");
+      const result = await check({ query: "from:test@example.com" });
+      expect(result).toBe(false);
+    });
+
+    it("never requires approval for listSlackChannels", async () => {
+      const check = createApprovalCheck(TEST_USER, "listSlackChannels");
+      const result = await check({});
       expect(result).toBe(false);
     });
   });

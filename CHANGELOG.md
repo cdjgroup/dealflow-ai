@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-04-02
+
+### Added
+- needsApproval for external actions (draftEmail, sendSlackMessage) and terminal deal stages (closed-won/closed-lost)
+- Three-layer approval: S1 value-based step-up, S3 external action approval, U2 user settings toggle
+- Capability matrix on permissions page — all 12 tools with READ/WRITE badges, Token Vault vs Local CRM source, guardrails
+- "Agent cannot" boundary list on permissions page
+- Rich tool badges in chat with icon, scope tag, Token Vault lock icon vs Local CRM
+- Activity timeline on permissions page with usage stats and colored timeline
+- Enhanced connection status with green/red indicators, auto-refresh, inline scope badges
+- Slack integration (listSlackChannels, sendSlackMessage) with Token Vault auth
+- Shared token exchange utility (`src/lib/token-exchange.ts`)
+
+### Removed
+- `@auth0/ai-vercel` dependency (unused since direct RFC 8693 exchange)
+- Duplicated `getGoogleToken()` / `getSlackToken()` functions (consolidated into shared module)
+
+### Changed
+- Token status endpoint uses shared `exchangeTokenWithRefresh()` instead of inline fetch
+- Calendar, Gmail, Slack tools use shared `exchangeToken()` and `sanitizeApiError()`
+- Approval logic extended to cover draftEmail, sendSlackMessage, and closed-lost stage
+
 ## [0.1.0] - 2026-04-02
 
 ### Added

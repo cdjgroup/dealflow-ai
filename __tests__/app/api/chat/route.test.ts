@@ -46,10 +46,6 @@ vi.mock("@ai-sdk/anthropic", () => ({
   anthropic: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@auth0/ai-vercel", () => ({
-  setAIContext: vi.fn(),
-}));
-
 vi.mock("@/lib/tools/calendar", () => ({
   checkCalendar: { type: "tool", name: "checkCalendar" },
 }));
