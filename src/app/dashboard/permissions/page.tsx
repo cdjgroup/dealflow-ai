@@ -127,7 +127,7 @@ export default async function PermissionsPage() {
                 </div>
               </div>
             </div>
-            <RevokeButton connection="slack" label="Slack" />
+            <RevokeButton connection="sign-in-with-slack" label="Slack" />
           </div>
         </div>
       </div>

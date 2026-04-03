@@ -37,7 +37,7 @@ export async function GET() {
         error: "Please log out and log back in to enable connections.",
       },
       {
-        connection: "slack",
+        connection: "sign-in-with-slack",
         provider: "Slack",
         connected: false,
         scopes: ["channels:read", "chat:write"],
@@ -53,7 +53,7 @@ export async function GET() {
       scopes: ["calendar.readonly", "gmail.compose", "gmail.readonly"],
     },
     {
-      connection: "slack",
+      connection: "sign-in-with-slack",
       provider: "Slack",
       scopes: ["channels:read", "chat:write"],
     },
