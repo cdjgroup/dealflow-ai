@@ -9,3 +9,10 @@ export interface AuditEntry {
   durationMs?: number;
   timestamp: string;
 }
+
+export interface AuditFilters {
+  toolName?: string;
+  result?: "success" | "error";
+  startDate?: string; // ISO 8601
+  endDate?: string; // ISO 8601
+}
