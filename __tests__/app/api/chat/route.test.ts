@@ -46,10 +46,6 @@ vi.mock("@ai-sdk/anthropic", () => ({
   anthropic: vi.fn(() => "mock-model"),
 }));
 
-vi.mock("@auth0/ai-vercel", () => ({
-  setAIContext: vi.fn(),
-}));
-
 vi.mock("@/lib/tools/calendar", () => ({
   checkCalendar: { type: "tool", name: "checkCalendar" },
 }));
@@ -63,6 +59,26 @@ vi.mock("@/lib/tools/crm", () => ({
   createCrmTools: vi.fn(() => ({
     getDeals: { type: "tool", name: "getDeals" },
   })),
+}));
+
+vi.mock("@/lib/tools/slack", () => ({
+  listSlackChannels: { type: "tool", name: "listSlackChannels" },
+  sendSlackMessage: { type: "tool", name: "sendSlackMessage" },
+}));
+
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn().mockResolvedValue({
+    capabilities: { crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: false },
+    approvalRequired: { crmWrite: false },
+  }),
+}));
+
+vi.mock("@/lib/data/audit", () => ({
+  writeAuditEntry: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("@/lib/tools/capability-filter", () => ({
+  filterToolsByCapabilities: vi.fn((tools: Record<string, unknown>) => tools),
 }));
 
 vi.mock("@/lib/audit-log", () => ({

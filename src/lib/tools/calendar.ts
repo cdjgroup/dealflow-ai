@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { auth0 } from "@/lib/auth0";
+import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
 
 interface CalendarEvent {
   summary?: string;
@@ -41,41 +41,6 @@ function computeFreeSlots(events: EventSlot[], date: string): string {
     : "No free slots during business hours (09:00-17:00).";
 }
 
-async function getGoogleToken(): Promise<{ token: string } | { error: string }> {
-  const session = await auth0.getSession();
-  const refreshToken = session?.tokenSet?.refreshToken;
-  if (!refreshToken) {
-    return { error: "No session refresh token. Please log out and log back in." };
-  }
-
-  const response = await fetch(
-    `https://${process.env.AUTH0_DOMAIN}/oauth/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type:
-          "urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token",
-        client_id: process.env.AUTH0_CLIENT_ID,
-        client_secret: process.env.AUTH0_CLIENT_SECRET,
-        subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token",
-        subject_token: refreshToken,
-        connection: "google-oauth2",
-        requested_token_type:
-          "http://auth0.com/oauth/token-type/federated-connection-access-token",
-      }),
-    }
-  );
-
-  if (!response.ok) {
-    const err = await response.json();
-    return { error: err.error_description || err.error || "Token exchange failed" };
-  }
-
-  const tokenData = await response.json();
-  return { token: tokenData.access_token };
-}
-
 export const checkCalendar = tool({
   description:
     "Check the user's Google Calendar for events or availability on a specific date. Use this when the user asks about their schedule or wants to find free time for a meeting.",
@@ -83,7 +48,7 @@ export const checkCalendar = tool({
     date: z.string().describe("The date to check in YYYY-MM-DD format"),
   }),
   execute: async ({ date }: { date: string }) => {
-    const result = await getGoogleToken();
+    const result = await exchangeToken("google-oauth2");
     if ("error" in result) {
       return {
         error: "Google Calendar not connected",
@@ -104,11 +69,7 @@ export const checkCalendar = tool({
     );
 
     if (!calResponse.ok) {
-      const status = calResponse.status;
-      if (status === 401 || status === 403) {
-        return { error: "Calendar: authorization failed — token may be expired" };
-      }
-      return { error: `Calendar: request failed (status ${status})` };
+      return { error: sanitizeApiError(calResponse.status, "Calendar") };
     }
 
     const data = await calResponse.json();

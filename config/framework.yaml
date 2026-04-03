@@ -74,7 +74,7 @@ tdd:
 # Claude Integration
 # ============================================================================
 claude:
-  worktree_enforcement: false
+  worktree_enforcement: true
   auto_sync: true
   session_timeout: 1800
   drift_check_interval: 300
