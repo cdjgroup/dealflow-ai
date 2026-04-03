@@ -33,6 +33,12 @@ const settingsSchema = z.object({
       crmWrite: z.boolean(),
     })
     .optional(),
+  toolTrust: z
+    .record(z.string().max(64), z.enum(["always", "ask", "never"]))
+    .refine((obj) => Object.keys(obj).length <= 20, {
+      message: "toolTrust cannot contain more than 20 entries",
+    })
+    .optional(),
 });
 
 export async function PUT(req: Request) {

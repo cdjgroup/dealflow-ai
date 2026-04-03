@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { exchangeToken } from "@/lib/token-exchange";
+import { exchangeToken, buildTokenMeta } from "@/lib/token-exchange";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 
 export const listSlackChannels = tool({
   description:
@@ -40,6 +41,7 @@ export const listSlackChannels = tool({
     return {
       channelCount: channels.length,
       channels,
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["listSlackChannels"].minScope),
     };
   },
 });
@@ -84,18 +86,21 @@ export const sendSlackMessage = tool({
         }
       );
       const listData = await listRes.json();
-      if (listData.ok) {
-        const found = (listData.channels || []).find(
-          (ch: { name: string }) =>
-            ch.name === channel || ch.name === channel.replace(/^#/, "")
-        );
-        if (found) {
-          channelId = found.id;
-        } else {
-          return {
-            error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
-          };
-        }
+      if (!listData.ok) {
+        return {
+          error: `Could not resolve Slack channel "${channel}": ${listData.error ?? "channel lookup failed"}`,
+        };
+      }
+      const found = (listData.channels || []).find(
+        (ch: { name: string }) =>
+          ch.name === channel || ch.name === channel.replace(/^#/, "")
+      );
+      if (found) {
+        channelId = found.id;
+      } else {
+        return {
+          error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
+        };
       }
     }
 
@@ -125,6 +130,7 @@ export const sendSlackMessage = tool({
       channel: data.channel,
       timestamp: data.ts,
       message: `Message sent to #${channel}`,
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["sendSlackMessage"].minScope),
     };
   },
 });
