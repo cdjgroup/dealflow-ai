@@ -3,6 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
+import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
 import { TokenVaultInterrupt } from "./token-vault-interrupt";
 
@@ -29,6 +30,13 @@ function parseInterrupt(error: Error | undefined): {
   }
   return null;
 }
+
+const suggestions = [
+  "Show me my deals",
+  "What's on my calendar tomorrow?",
+  "Draft an email to Sarah about the proposal",
+  "Search contacts at Meridian",
+];
 
 export function ChatWindow() {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
@@ -80,37 +88,50 @@ export function ChatWindow() {
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <h2 className="text-2xl font-semibold text-foreground/80 mb-2">
-                Welcome to DealFlow AI
-              </h2>
-              <p className="text-muted-foreground mb-6 max-w-md">
+              <motion.h2
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="text-2xl font-semibold text-foreground/80 mb-2"
+              >
+                Welcome to{" "}
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  DealFlow AI
+                </span>
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="text-muted-foreground mb-6 max-w-md"
+              >
                 Ask me about your pipeline, check your calendar, or draft a
                 follow-up email.
-              </p>
+              </motion.p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {[
-                  "Show me my deals",
-                  "What's on my calendar tomorrow?",
-                  "Draft an email to Sarah about the proposal",
-                  "Search contacts at Meridian",
-                ].map((suggestion) => (
-                  <button
+                {suggestions.map((suggestion, i) => (
+                  <motion.button
                     key={suggestion}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 + i * 0.08 }}
+                    whileHover={{ scale: 1.03 }}
                     onClick={() => handleSuggestion(suggestion)}
-                    className="text-sm bg-card hover:bg-secondary text-foreground/80 px-3 py-2 rounded-lg border border-border transition-colors"
+                    className="text-sm bg-card/80 backdrop-blur-sm hover:bg-secondary text-foreground/80 px-3 py-2 rounded-lg border border-border hover:border-primary/30 transition-colors"
                   >
                     {suggestion}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
           </div>
         )}
 
-        {messages.map((message) => (
+        {messages.map((message, i) => (
           <ChatMessage
             key={message.id}
             message={message}
+            index={i}
             onApproval={handleApproval}
           />
         ))}
@@ -128,14 +149,21 @@ export function ChatWindow() {
         )}
 
         {isLoading && messages[messages.length - 1]?.role === "user" && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start mb-4"
+          >
+            <div className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-primary to-accent text-[10px] font-bold text-white mr-2 mt-1 shrink-0">
+              D
+            </div>
+            <div className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-4 py-3">
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
                 Thinking...
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {error && !interrupt && (
@@ -151,13 +179,13 @@ export function ChatWindow() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about your deals, calendar, or contacts..."
-            className="flex-1 bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+            className="flex-1 bg-card/80 backdrop-blur-sm border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground font-medium px-6 py-2.5 rounded-lg transition-colors"
+            className="bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground font-medium px-6 py-2.5 rounded-lg transition-all shadow-[0_0_16px_rgba(99,102,241,0.15)] hover:shadow-[0_0_24px_rgba(99,102,241,0.3)]"
           >
             Send
           </button>

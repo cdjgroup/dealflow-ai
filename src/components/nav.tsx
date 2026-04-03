@@ -10,7 +10,7 @@ export function Nav({ userName }: { userName?: string }) {
             <div className="flex size-7 items-center justify-center rounded-md bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
               D
             </div>
-            <span className="text-lg font-bold text-foreground">DealFlow AI</span>
+            <span className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">DealFlow AI</span>
           </Link>
           <div className="flex items-center gap-4 text-sm">
             <Link

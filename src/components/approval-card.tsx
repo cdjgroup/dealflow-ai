@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 interface Props {
   toolName: string;
   args: Record<string, unknown>;
@@ -28,7 +30,12 @@ export function ApprovalCard({ toolName, args, onApprove, onReject }: Props) {
   const label = toolLabels[toolName] || toolName;
 
   return (
-    <div className="my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 backdrop-blur-sm p-4"
+    >
       <div className="mb-3 flex items-center gap-2">
         <span className="text-amber-400">⚠️</span>
         <p className="text-sm font-medium text-foreground">
@@ -63,6 +70,6 @@ export function ApprovalCard({ toolName, args, onApprove, onReject }: Props) {
           Reject
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -17,7 +17,7 @@ const stageColors: Record<string, string> = {
 function CalendarCard({ data }: { data: Record<string, unknown> }) {
   const events = (data.events as { title: string; start: string; end: string }[]) || [];
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-3 my-2">
+    <div className="rounded-lg border border-border bg-card/60 backdrop-blur-sm p-3 my-2">
       <div className="flex items-center gap-2 mb-2">
         <span>📅</span>
         <span className="text-sm font-medium">
@@ -50,7 +50,7 @@ function CalendarCard({ data }: { data: Record<string, unknown> }) {
 function DealListCard({ data }: { data: Record<string, unknown> }) {
   const deals = (data.deals as { name: string; company: string; value: number; stage: string }[]) || [];
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-3 my-2">
+    <div className="rounded-lg border border-border bg-card/60 backdrop-blur-sm p-3 my-2">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span>📊</span>
@@ -87,7 +87,7 @@ function DealListCard({ data }: { data: Record<string, unknown> }) {
 function EmailDraftCard({ data }: { data: Record<string, unknown> }) {
   const draftId = data.draftId as string | undefined;
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-3 my-2">
+    <div className="rounded-lg border border-border bg-card/60 backdrop-blur-sm p-3 my-2">
       <div className="flex items-center gap-2 mb-2">
         <span>✉️</span>
         <span className="text-sm font-medium text-emerald-400">
@@ -117,7 +117,7 @@ function EmailDraftCard({ data }: { data: Record<string, unknown> }) {
 function EmailSearchCard({ data }: { data: Record<string, unknown> }) {
   const results = (data.results as { from: string; subject: string; date: string; snippet: string }[]) || [];
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-3 my-2">
+    <div className="rounded-lg border border-border bg-card/60 backdrop-blur-sm p-3 my-2">
       <div className="flex items-center gap-2 mb-2">
         <span>🔍</span>
         <span className="text-sm font-medium">
@@ -152,7 +152,7 @@ function SlackCard({ data }: { data: Record<string, unknown> }) {
   if (data.channels) {
     const channels = data.channels as { name: string; members: number }[];
     return (
-      <div className="rounded-lg border border-border bg-card/50 p-3 my-2">
+      <div className="rounded-lg border border-border bg-card/60 backdrop-blur-sm p-3 my-2">
         <div className="flex items-center gap-2 mb-2">
           <span>💬</span>
           <span className="text-sm font-medium">
