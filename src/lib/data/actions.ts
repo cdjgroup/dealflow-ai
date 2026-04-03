@@ -131,12 +131,17 @@ export async function batchUpdateStatus(
   return results;
 }
 
-export async function getPendingActionCount(
+export async function getActiveActionCount(
   userId: string
 ): Promise<number> {
   const actions = await getActions(userId);
-  return actions.filter((a) => a.status === "pending").length;
+  return actions.filter(
+    (a) => a.status !== "sent" && a.status !== "dismissed"
+  ).length;
 }
+
+// Alias for backward compatibility
+export const getPendingActionCount = getActiveActionCount;
 
 // --- Seed Data ---
 

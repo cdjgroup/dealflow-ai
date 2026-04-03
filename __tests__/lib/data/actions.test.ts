@@ -309,7 +309,7 @@ describe("Actions Data Layer", () => {
   // --- AC-10: Nav badge ---
 
   describe("getPendingActionCount", () => {
-    it("should return count of pending actions", async () => {
+    it("should return count of active actions (excludes sent and dismissed)", async () => {
       const pending: SuggestedAction = {
         id: "act1",
         userId: "user1",
@@ -325,13 +325,20 @@ describe("Actions Data Layer", () => {
         updatedAt: "2026-04-01T10:00:00Z",
       };
       const approved: SuggestedAction = { ...pending, id: "act2", status: "approved" };
+      const sent: SuggestedAction = { ...pending, id: "act3", status: "sent" };
+      const dismissed: SuggestedAction = { ...pending, id: "act4", status: "dismissed" };
 
-      mockSmembers.mockResolvedValue(["act1", "act2"]);
-      mockMget.mockResolvedValue([JSON.stringify(pending), JSON.stringify(approved)]);
+      mockSmembers.mockResolvedValue(["act1", "act2", "act3", "act4"]);
+      mockMget.mockResolvedValue([
+        JSON.stringify(pending),
+        JSON.stringify(approved),
+        JSON.stringify(sent),
+        JSON.stringify(dismissed),
+      ]);
 
       const count = await getPendingActionCount("user1");
 
-      expect(count).toBe(1);
+      expect(count).toBe(2); // pending + approved are active; sent + dismissed are terminal
     });
 
     it("should return 0 when no actions exist", async () => {
