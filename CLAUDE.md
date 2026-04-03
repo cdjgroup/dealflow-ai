@@ -5,7 +5,7 @@
 ---
 
 ## Current Version: 0.4.0 — Action Center (AI-Suggested Actions Queue with Review, Edit & Execute)
-## Status: DEPLOYED
+## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
 ---

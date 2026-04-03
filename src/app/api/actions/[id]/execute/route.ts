@@ -2,8 +2,17 @@ import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { getAction, updateAction } from "@/lib/data/actions";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { getUserSettings } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
 import { executeAction } from "@/lib/actions/executor";
+import type { ActionType } from "@/lib/types/actions";
+
+// Map action types to the tool names used in capability/trust settings
+const ACTION_TOOL_MAP: Record<ActionType, { tool: string; capability: "gmail" | "calendar" | "slack" }> = {
+  email: { tool: "draftEmail", capability: "gmail" },
+  calendar: { tool: "checkCalendar", capability: "calendar" },
+  slack: { tool: "sendSlackMessage", capability: "slack" },
+};
 
 export async function POST(
   req: Request,
@@ -31,6 +40,22 @@ export async function POST(
     return NextResponse.json(
       { error: "Action must be approved before execution" },
       { status: 400 }
+    );
+  }
+
+  // Check capability toggle and trust level (same controls as chat tools)
+  const settings = await getUserSettings(user.sub);
+  const mapping = ACTION_TOOL_MAP[action.type];
+  if (!settings.capabilities[mapping.capability]) {
+    return NextResponse.json(
+      { error: `${mapping.capability} capability is disabled. Enable it in Permissions.` },
+      { status: 403 }
+    );
+  }
+  if (settings.toolTrust?.[mapping.tool] === "never") {
+    return NextResponse.json(
+      { error: `${mapping.tool} is blocked by your trust settings. Update in Permissions.` },
+      { status: 403 }
     );
   }
 

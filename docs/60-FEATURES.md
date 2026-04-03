@@ -26,56 +26,42 @@ Status transitions are shown inline on each card: Pending (amber) → Approved (
 ### Navigation Integration
 Pending action count shown as a badge on the "Actions" link in the nav bar. Badge hidden when count is zero.
 
-## v0.3.0 — Conversation Management & Help-Kit
+## v0.3.1 — Permissions & Audit Log Polish
 
-### Conversation Management
-Collapsible sidebar with conversation history. Users can:
-- Start a fresh chat via "+ New Chat" button
-- Switch between previous conversations (loaded from Redis)
-- See conversation titles (auto-generated from first user message), message counts, and timestamps
-- Collapse/expand the sidebar to maximize chat space
+### Audit Log Filters
+Filter bar with three controls: tool name dropdown (populated from log entries), result toggle (Success/Error), and date range presets (Last 24h/3d/7d). Filters apply server-side via extended `/api/audit` query params. Client-side state management with loading indicator and error feedback. Empty state with "Clear filters" action.
 
-Conversations auto-save via `onFinish` callback in the chat API route, including full tool call history across all reasoning steps. Redis keys have 30-day TTL.
+### Structured Audit Detail Panel
+Expanded audit rows display a formatted `<dl>` key-value grid: Tool, Timestamp, Status, Duration, Thread ID, Entry ID, plus a Parameters section. Empty inputs show "No parameters". Error messages render in a highlighted box. Replaces raw `JSON.stringify` output.
 
-### Help-Kit Onboarding
-Five-step "Getting Started" checklist in the dashboard sidebar:
-1. Connect Google — link Google account for calendar and email
-2. Connect Slack — enable team communication
-3. Try a chat command — send first message to DealFlow AI
-4. Check your pipeline — review deal metrics
-5. Review permissions — configure tool access
+### Grouped Capability Toggles
+Toggles organized into collapsible integration groups (CRM, Google, Slack) using native `<details>/<summary>`. Each group header shows enabled count ("2 of 2 enabled") and live connection health badge (Connected/Disconnected) for OAuth-backed integrations. Groups default to collapsed.
 
-Progress persists in localStorage (keyed by userId). Checklist is dismissible and collapsible with progress bar.
-
-### Resource Center
-Help drawer accessible via (?) icon in the navigation bar:
-- **External docs**: Auth0 Token Vault, RFC 8693 Token Exchange, AI SDK Documentation
-- **Quick actions**: Manage Permissions, View Audit Log
-- **Glossary**: 8 DealFlow-specific terms (Token Vault, Step-Up Auth, Capability Toggles, Audit Trail, Connected Accounts, Short-Lived Token, RFC 8693, Needs Approval)
-
-## v0.2.2 — Landing Page & Permissions Refinement
-
-### Landing Page Education
-Two new sections explain the Token Vault security story to first-time visitors:
-
-**How It Works (4 steps):** Token request from Auth0 Token Vault, consent popup for new connections, short-lived token delivery, and approval requirements for external actions.
-
-**Built for Security (4 highlights):** Zero Stored Credentials, Granular Permissions, Step-Up Authorization, Full Audit Trail — each with description targeting hackathon judging criteria.
-
-### Simplified Navigation & Permissions
-- Removed "Audit Log" from top nav (accessible via Permissions > Recent Activity "View full audit log" link)
-- Removed redundant Profile section from Permissions page
-- Made Tool Capability Matrix collapsible (`<details>` element, collapsed by default)
-
-### Chat Readability
-- Fixed light mode text contrast in user chat bubbles (prose-invert for white-on-indigo)
-- Fixed table header visibility in user bubble markdown
+### Impact Descriptions
+Each capability toggle includes a descriptive line explaining the operational impact when enabled, helping users make informed permission decisions.
 
 ### Accessibility
-- aria-hidden on decorative emoji icons and SVG arrows
-- Semantic heading hierarchy (h1 > h2 > h3) on landing page
-- focus-visible styles on interactive links
-- Safari VoiceOver-safe details/summary pattern
+Semantic HTML throughout: `<table>` with `scope="col"`, `<time datetime>`, `aria-expanded`/`aria-controls`, keyboard-navigable audit rows, `aria-hidden` on decorative emojis, `role="status"` on spinners, sr-only `<caption>` on capability matrix.
+
+### Shared Constants
+Tool icons, Token Vault tool set, and write tool set extracted to `src/lib/constants/tools.ts` — single source of truth used by audit table and activity timeline.
+
+## v0.3.0 — Boundary-Pushing Auth
+
+### Dynamic Scope Narrowing
+Application-layer scope awareness for Token Vault tools. Each tool declares its minimum required scope via `TOOL_SCOPE_CONFIG`. The token exchange captures the full granted scope from Auth0, and the UI shows which subset the tool actually uses ("Using calendar.readonly of 3 granted scopes"). This demonstrates defense-in-depth: the agent voluntarily restricts itself beyond what the token enforces.
+
+### Consent-Aware Tool Selection
+Per-tool trust levels ("always" / "ask each time" / "never") that override the default approval behavior. Users can require consent on every calendar check or permanently block email access. The "never" level hard-blocks tools at registration — the AI never sees them. Trust settings persist per-user in Redis and are managed at `/dashboard/permissions`.
+
+### Token Vault Audit Visualization
+Animated 6-stage token lifecycle pipeline that appears in the chat during Token Vault tool execution: AI Decides, Token Exchange, Scoped Token, API Call, Response, Token Expires. Shows scope, TTL, provider, and connection in a collapsible panel. Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
+
+### MCP Server for External AI Agents
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.
+
+### Cross-Agent Delegation
+The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.
 
 ## v0.2.1 — UI Polish & Visual Storytelling
 

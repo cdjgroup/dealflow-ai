@@ -16,6 +16,12 @@ export async function GET(req: Request) {
   const rawLimit = parseInt(url.searchParams.get("limit") || "50", 10);
   const limit = isNaN(rawLimit) || rawLimit < 1 ? 50 : Math.min(rawLimit, 200);
 
-  const log = await getAuditLog(user.sub, { limit });
+  const toolName = url.searchParams.get("toolName") || undefined;
+  const resultParam = url.searchParams.get("result");
+  const result = resultParam === "success" || resultParam === "error" ? resultParam : undefined;
+  const startDate = url.searchParams.get("startDate") || undefined;
+  const endDate = url.searchParams.get("endDate") || undefined;
+
+  const log = await getAuditLog(user.sub, { limit, toolName, result, startDate, endDate });
   return NextResponse.json(log);
 }

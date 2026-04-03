@@ -1,3 +1,12 @@
+export interface TokenMeta {
+  connection: string;
+  provider: string;
+  requestedScope: string | null;
+  grantedScope: string | null;
+  expiresIn: number | null;
+  apiEndpoint: string;
+}
+
 export interface AuditEntry {
   id: string;
   userId: string;
@@ -8,4 +17,13 @@ export interface AuditEntry {
   errorMessage?: string;
   durationMs?: number;
   timestamp: string;
+  tokenMeta?: TokenMeta;
+  consentAction?: "auto" | "approved" | "denied" | "always-allowed";
+}
+
+export interface AuditFilters {
+  toolName?: string;
+  result?: "success" | "error";
+  startDate?: string; // ISO 8601
+  endDate?: string; // ISO 8601
 }

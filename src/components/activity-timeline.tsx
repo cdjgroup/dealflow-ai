@@ -1,29 +1,7 @@
 "use client";
 
 import type { AuditEntry } from "@/lib/types/audit";
-
-const toolIcons: Record<string, string> = {
-  checkCalendar: "\uD83D\uDCC5",
-  draftEmail: "\u2709\uFE0F",
-  searchEmails: "\uD83D\uDD0D",
-  listDeals: "\uD83D\uDCCA",
-  getDealDetails: "\uD83D\uDCCB",
-  searchContacts: "\uD83D\uDC64",
-  createDeal: "\u2795",
-  updateDeal: "\u270F\uFE0F",
-  createContact: "\uD83D\uDC65",
-  logActivity: "\uD83D\uDCDD",
-  listSlackChannels: "\uD83D\uDCAC",
-  sendSlackMessage: "\uD83D\uDCAC",
-};
-
-const TOKEN_VAULT_TOOLS = new Set([
-  "checkCalendar",
-  "draftEmail",
-  "searchEmails",
-  "listSlackChannels",
-  "sendSlackMessage",
-]);
+import { toolIcons, TOKEN_VAULT_TOOLS } from "@/lib/constants/tools";
 
 function timeAgo(timestamp: string): string {
   const diff = Date.now() - new Date(timestamp).getTime();

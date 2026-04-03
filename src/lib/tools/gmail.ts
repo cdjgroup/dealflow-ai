@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
+import { exchangeToken, sanitizeApiError, buildTokenMeta } from "@/lib/token-exchange";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 
 interface GmailMessageRef {
   id: string;
@@ -62,6 +63,7 @@ export const draftEmail = tool({
       success: true,
       draftId: draft.id,
       message: `Draft email created to ${to} with subject "${subject}". Open Gmail to review and send.`,
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["draftEmail"].minScope),
     };
   },
 });
@@ -101,8 +103,10 @@ export const searchEmails = tool({
     }
 
     const data = await response.json();
+    const tokenMeta = buildTokenMeta(result, TOOL_SCOPE_CONFIG["searchEmails"].minScope);
+
     if (!data.messages || data.messages.length === 0) {
-      return { results: [], message: "No emails found matching that query." };
+      return { results: [], message: "No emails found matching that query.", _tokenMeta: tokenMeta };
     }
 
     const emails = await Promise.all(
@@ -124,6 +128,6 @@ export const searchEmails = tool({
       })
     );
 
-    return { results: emails.filter(Boolean), count: emails.filter(Boolean).length };
+    return { results: emails.filter(Boolean), count: emails.filter(Boolean).length, _tokenMeta: tokenMeta };
   },
 });

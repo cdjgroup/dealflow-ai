@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
+import { exchangeToken, sanitizeApiError, buildTokenMeta } from "@/lib/token-exchange";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 
 interface CalendarEvent {
   summary?: string;
@@ -86,6 +87,7 @@ export const checkCalendar = tool({
       eventCount: events.length,
       events,
       freeSlots: computeFreeSlots(events, date),
+      _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["checkCalendar"].minScope),
     };
   },
 });
