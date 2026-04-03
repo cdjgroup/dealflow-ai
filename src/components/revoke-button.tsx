@@ -23,6 +23,8 @@ export function RevokeButton({ connection, label }: Props) {
       if (!res.ok) throw new Error("Failed");
       setResult("success");
       setConfirming(false);
+      // Trigger a custom event so TokenStatus can refresh
+      window.dispatchEvent(new Event("connection-changed"));
     } catch {
       setResult("error");
     } finally {
@@ -30,11 +32,37 @@ export function RevokeButton({ connection, label }: Props) {
     }
   }
 
+  async function handleReconnect() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/connections/${connection}`, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!res.ok) throw new Error("Failed");
+      setResult(null);
+      window.dispatchEvent(new Event("connection-changed"));
+    } catch {
+      // Stay in disconnected state
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (result === "success") {
     return (
-      <span className="text-xs text-muted-foreground">
-        Disconnected. Re-authorize on next use.
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          Disconnected.
+        </span>
+        <button
+          onClick={handleReconnect}
+          disabled={loading}
+          className="rounded border border-primary/30 px-2 py-0.5 text-xs text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+        >
+          {loading ? "..." : "Reconnect"}
+        </button>
+      </div>
     );
   }
 

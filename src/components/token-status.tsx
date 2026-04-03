@@ -40,7 +40,13 @@ export function TokenStatus() {
     fetchStatus();
     // Auto-refresh every 30 seconds to show live status
     const interval = setInterval(fetchStatus, 30000);
-    return () => clearInterval(interval);
+    // Refresh immediately when a connection is changed (disconnect/reconnect)
+    const onConnectionChanged = () => { setLoading(true); fetchStatus(); };
+    window.addEventListener("connection-changed", onConnectionChanged);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("connection-changed", onConnectionChanged);
+    };
   }, [fetchStatus]);
 
   if (loading) {
