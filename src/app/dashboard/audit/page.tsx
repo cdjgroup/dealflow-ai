@@ -1,7 +1,7 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { redirect } from "next/navigation";
 import { getAuditLog } from "@/lib/data/audit";
-import { AuditTable } from "@/components/audit-table";
+import { AuditPageClient } from "@/components/audit-page-client";
 
 export default async function AuditPage() {
   const session = await auth0.getSession();
@@ -22,14 +22,7 @@ export default async function AuditPage() {
         </p>
       </div>
 
-      {log.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-          No agent actions recorded yet. Start a conversation to see activity
-          here.
-        </div>
-      ) : (
-        <AuditTable log={log} />
-      )}
+      <AuditPageClient initialLog={log} />
     </div>
   );
 }
