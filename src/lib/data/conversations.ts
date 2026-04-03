@@ -59,9 +59,10 @@ export async function saveConversation(
   };
 
   const p = redis.pipeline();
-  p.set(threadKey(userId, conversationId), JSON.stringify(meta));
-  p.set(messagesKey(userId, conversationId), JSON.stringify(trimmed));
+  p.set(threadKey(userId, conversationId), JSON.stringify(meta), { ex: CONVERSATION_TTL });
+  p.set(messagesKey(userId, conversationId), JSON.stringify(trimmed), { ex: CONVERSATION_TTL });
   p.zadd(indexKey(userId), { score: nowScore, member: conversationId });
+  p.expire(indexKey(userId), CONVERSATION_TTL);
   try {
     await p.exec();
   } catch (err) {

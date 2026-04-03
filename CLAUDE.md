@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.2.2 — Landing Page & Permissions Refinement (How It Works, Built for Security, Nav Declutter, Chat Readability)
+## Current Version: 0.3.0 — Conversation Management & Help-Kit (New Chat, Conversation History, Onboarding, Resource Center)
 ## Status: DEPLOYED
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

@@ -1,5 +1,32 @@
 # Features
 
+## v0.3.0 — Conversation Management & Help-Kit
+
+### Conversation Management
+Collapsible sidebar with conversation history. Users can:
+- Start a fresh chat via "+ New Chat" button
+- Switch between previous conversations (loaded from Redis)
+- See conversation titles (auto-generated from first user message), message counts, and timestamps
+- Collapse/expand the sidebar to maximize chat space
+
+Conversations auto-save via `onFinish` callback in the chat API route, including full tool call history across all reasoning steps. Redis keys have 30-day TTL.
+
+### Help-Kit Onboarding
+Five-step "Getting Started" checklist in the dashboard sidebar:
+1. Connect Google — link Google account for calendar and email
+2. Connect Slack — enable team communication
+3. Try a chat command — send first message to DealFlow AI
+4. Check your pipeline — review deal metrics
+5. Review permissions — configure tool access
+
+Progress persists in localStorage (keyed by userId). Checklist is dismissible and collapsible with progress bar.
+
+### Resource Center
+Help drawer accessible via (?) icon in the navigation bar:
+- **External docs**: Auth0 Token Vault, RFC 8693 Token Exchange, AI SDK Documentation
+- **Quick actions**: Manage Permissions, View Audit Log
+- **Glossary**: 8 DealFlow-specific terms (Token Vault, Step-Up Auth, Capability Toggles, Audit Trail, Connected Accounts, Short-Lived Token, RFC 8693, Needs Approval)
+
 ## v0.2.2 — Landing Page & Permissions Refinement
 
 ### Landing Page Education

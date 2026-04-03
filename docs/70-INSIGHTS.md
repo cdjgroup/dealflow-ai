@@ -18,6 +18,12 @@ The `tool()` function in AI SDK v6 accepts `needsApproval` as either a boolean o
 
 Multiple breaking changes from AI SDK v5 to v6: `parameters` → `inputSchema`, `maxSteps` → `stopWhen: stepCountIs(n)`, `maxTokens` → `maxOutputTokens`, `useChat` no longer has `input`/`handleInputChange`/`handleSubmit` (use `sendMessage` + `status`), `api` option replaced by `transport: new DefaultChatTransport({api})`, and `messages` from client are `UIMessage[]` that need `convertToModelMessages()` before passing to `streamText`.
 
+## 006 — Help-Kit as a portable component suite across projects (2026-04-03)
+
+The onboarding checklist and resource center were ported directly from the Hoshin Kanri project (`cdjgroup/hoshin-kanri`). The component architecture (OnboardingProvider context + useLocalStorage hook + content files) is deliberately decoupled from app-specific logic: swap the content files (`help-content.ts`, `glossary.ts`) and the suite works in any Next.js + shadcn/ui project. This is a pattern worth maintaining — build reusable component kits once, customize via content injection.
+
+The `autoCompletions` prop on OnboardingProvider is the key extensibility point: the parent passes a `Record<string, boolean>` mapping step IDs to completion status, and the provider auto-marks steps. This avoids coupling the checklist to specific API calls (token status, deal count) — the parent owns detection logic.
+
 ## 005 — Landing page education > feature parity for hackathon judges (2026-04-03)
 
 Teaching judges WHY the security features matter is more impactful than demonstrating all features. The "How It Works" and "Built for Security" sections on the landing page are deliberate UI real estate choices: (1) judges see the security narrative without navigating to settings, (2) "AI agent never stores credentials" differentiates from typical OAuth flows, (3) first-time visitors understand the approval flow before signing in.
