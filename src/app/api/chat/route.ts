@@ -13,6 +13,7 @@ import { getUserSettings } from "@/lib/data/settings";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { filterToolsByCapabilities } from "@/lib/tools/capability-filter";
 import { createApprovalCheck } from "@/lib/tools/approval-logic";
+import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 import { NextResponse } from "next/server";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
@@ -201,9 +202,10 @@ Some actions require user approval before they execute (drafting emails, sending
         // Extract _tokenMeta from tool output (F2: token lifecycle data)
         const output = event.success ? (event.output as Record<string, unknown> | undefined) : undefined;
         const rawTokenMeta = output?._tokenMeta as Record<string, unknown> | undefined;
+        const scopeConfig = TOOL_SCOPE_CONFIG[event.toolCall.toolName as keyof typeof TOOL_SCOPE_CONFIG];
         const tokenMeta = rawTokenMeta ? {
           connection: String(rawTokenMeta.connection ?? ""),
-          provider: String(rawTokenMeta.connection ?? "").includes("google") ? "Google" : "Slack",
+          provider: scopeConfig?.provider ?? "Unknown",
           requestedScope: rawTokenMeta.minScope ? String(rawTokenMeta.minScope) : null,
           grantedScope: rawTokenMeta.scope ? String(rawTokenMeta.scope) : null,
           expiresIn: typeof rawTokenMeta.expiresIn === "number" ? rawTokenMeta.expiresIn : null,

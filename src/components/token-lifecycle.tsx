@@ -14,13 +14,15 @@ interface TokenLifecycleProps {
 }
 
 const STAGES = [
-  { label: "AI Decides", icon: "🤖", color: "text-primary" },
-  { label: "Token Exchange", icon: "🔐", color: "text-amber-400" },
-  { label: "Scoped Token", icon: "🎯", color: "text-emerald-400" },
-  { label: "API Call", icon: "📡", color: "text-blue-400" },
-  { label: "Response", icon: "✓", color: "text-emerald-400" },
-  { label: "Token Expires", icon: "⏱", color: "text-muted-foreground" },
+  { label: "AI Decides", shortLabel: "Decide", icon: "\u{1F916}", color: "text-primary" },
+  { label: "Token Exchange", shortLabel: "Exchange", icon: "\u{1F510}", color: "text-amber-400" },
+  { label: "Scoped Token", shortLabel: "Scoped", icon: "\u{1F3AF}", color: "text-emerald-400" },
+  { label: "API Call", shortLabel: "Call", icon: "\u{1F4E1}", color: "text-blue-400" },
+  { label: "Response", shortLabel: "Done", icon: "\u2713", color: "text-emerald-400" },
+  { label: "Token Expires", shortLabel: "Expire", icon: "\u23F1", color: "text-muted-foreground" },
 ];
+
+const API_CALL_INDEX = STAGES.findIndex(s => s.label === "API Call");
 
 export function TokenLifecycle({
   toolName,
@@ -33,29 +35,31 @@ export function TokenLifecycle({
 }: TokenLifecycleProps) {
   const [expanded, setExpanded] = useState(state === "running");
   const isComplete = state === "completed";
-  const activeStage = isComplete ? STAGES.length - 1 : 3;
+  const activeStage = isComplete ? STAGES.length - 1 : API_CALL_INDEX;
 
   return (
     <div className="my-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full"
+        aria-expanded={expanded}
+        aria-label={`Token Vault ${isComplete ? "completed" : "active"}${provider ? ` for ${provider}` : ""}. ${expanded ? "Collapse" : "Expand"} details.`}
+        className="flex items-center gap-2 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full py-2"
       >
-        <span className="relative flex h-2 w-2">
+        <span className="relative flex h-2.5 w-2.5">
           {!isComplete && (
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
           )}
           <span
-            className={`relative inline-flex h-2 w-2 rounded-full ${
+            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
               isComplete ? "bg-emerald-500" : "bg-emerald-400"
             }`}
           />
         </span>
         <span>
           Token Vault {isComplete ? "completed" : "active"}
-          {provider && ` — ${provider}`}
+          {provider && ` \u2014 ${provider}`}
         </span>
-        <span className="ml-auto opacity-60">{expanded ? "▲" : "▼"}</span>
+        <span className="ml-auto opacity-60" aria-hidden="true">{expanded ? "\u25B2" : "\u25BC"}</span>
       </button>
 
       <AnimatePresence>
@@ -67,7 +71,7 @@ export function TokenLifecycle({
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 rounded-lg border border-border/50 bg-card/30 backdrop-blur-sm p-3">
+            <div className="mt-1 rounded-lg border border-border/50 bg-card/30 backdrop-blur-sm p-3">
               {/* Stage pipeline */}
               <div className="flex items-center gap-1 mb-3 overflow-x-auto">
                 {STAGES.map((stage, i) => {
@@ -85,6 +89,8 @@ export function TokenLifecycle({
                       className="flex items-center gap-1 shrink-0"
                     >
                       <div
+                        title={stage.label}
+                        aria-label={stage.label}
                         className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium border ${
                           isCurrent
                             ? "border-emerald-500/40 bg-emerald-500/10"
@@ -93,7 +99,8 @@ export function TokenLifecycle({
                               : "border-transparent"
                         } ${isActive ? stage.color : "text-muted-foreground/40"}`}
                       >
-                        <span>{stage.icon}</span>
+                        <span aria-hidden="true">{stage.icon}</span>
+                        <span className="sm:hidden">{stage.shortLabel}</span>
                         <span className="hidden sm:inline">{stage.label}</span>
                       </div>
                       {i < STAGES.length - 1 && (
@@ -118,19 +125,19 @@ export function TokenLifecycle({
                 {connection && (
                   <>
                     <span className="text-muted-foreground">Connection</span>
-                    <span className="text-foreground font-mono">{connection}</span>
+                    <span className="text-foreground font-mono truncate" title={connection}>{connection}</span>
                   </>
                 )}
                 {minScope && (
                   <>
                     <span className="text-muted-foreground">Using scope</span>
-                    <span className="text-emerald-400 font-mono">{minScope}</span>
+                    <span className="text-emerald-400 font-mono break-all">{minScope}</span>
                   </>
                 )}
                 {scope && scope !== minScope && (
                   <>
                     <span className="text-muted-foreground">Granted scope</span>
-                    <span className="text-muted-foreground/70 font-mono text-[9px]">
+                    <span className="text-muted-foreground/70 font-mono text-[9px] break-all">
                       {scope}
                     </span>
                   </>
@@ -148,8 +155,8 @@ export function TokenLifecycle({
                 )}
               </div>
 
-              <p className="text-[8px] text-muted-foreground/40 mt-2">
-                Short-lived token via Auth0 Token Vault — revocable anytime
+              <p className="text-[10px] text-muted-foreground/60 mt-2">
+                Short-lived token via Auth0 Token Vault \u2014 revocable anytime
               </p>
             </div>
           </motion.div>
