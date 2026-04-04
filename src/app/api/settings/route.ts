@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
-import { getUserSettings, updateUserSettings } from "@/lib/data/settings";
+import {
+  getUserSettings,
+  updateUserSettings,
+  updateScheduleIndex,
+} from "@/lib/data/settings";
+import {
+  storeScheduleRefreshToken,
+  deleteScheduleRefreshToken,
+} from "@/lib/data/schedule-tokens";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 
@@ -39,6 +47,19 @@ const settingsSchema = z.object({
       message: "toolTrust cannot contain more than 20 entries",
     })
     .optional(),
+  schedule: z
+    .object({
+      enabled: z.boolean(),
+      hours: z
+        .array(
+          z.number().int().refine((h) => [8, 12, 17].includes(h), {
+            message: "Hour must be 8, 12, or 17",
+          })
+        )
+        .max(3),
+      timezone: z.string().max(64),
+    })
+    .optional(),
 });
 
 export async function PUT(req: Request) {
@@ -69,6 +90,28 @@ export async function PUT(req: Request) {
     );
   }
 
+  // Get old settings before update (for schedule index diff)
+  const oldSettings = await getUserSettings(user.sub);
+
   const updated = await updateUserSettings(user.sub, parsed.data);
+
+  // Maintain schedule index and refresh token
+  if (parsed.data.schedule) {
+    const oldHours = oldSettings.schedule?.hours ?? [];
+    const newHours = parsed.data.schedule.enabled
+      ? parsed.data.schedule.hours
+      : [];
+    await updateScheduleIndex(user.sub, oldHours, newHours);
+
+    if (parsed.data.schedule.enabled && parsed.data.schedule.hours.length > 0) {
+      const refreshToken = session.tokenSet?.refreshToken;
+      if (refreshToken) {
+        await storeScheduleRefreshToken(user.sub, refreshToken);
+      }
+    } else {
+      await deleteScheduleRefreshToken(user.sub);
+    }
+  }
+
   return NextResponse.json(updated);
 }
