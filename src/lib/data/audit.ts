@@ -1,7 +1,10 @@
 import { getRedis } from "@/lib/redis";
 import type { AuditEntry, AuditFilters } from "@/lib/types/audit";
 
-const AUDIT_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+// PII retention: audit entries contain masked email addresses and truncated
+// tool inputs. Auto-deleted after 7 days via Redis TTL. User data deletion
+// cascades through clearAllActions + Redis key expiry.
+const AUDIT_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 function auditKey(userId: string): string {
   return `${userId}:audit`;

@@ -83,7 +83,7 @@ describe("POST /api/seed", () => {
 
     expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body.error).toContain("missing user ID");
+    expect(body.error).toBe("Unauthorized");
   });
 
   it("should return 429 when rate limited", async () => {

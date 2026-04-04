@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { getActions, createAction, clearAllActions } from "@/lib/data/actions";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
@@ -12,14 +12,8 @@ const statusValues = [
 const statusFilterSchema = z.enum(statusValues).optional();
 
 export async function GET(req: Request) {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(req.url);
   const rawStatus = searchParams.get("status") ?? undefined;
@@ -31,7 +25,7 @@ export async function GET(req: Request) {
     ? { status: statusResult.data as ActionStatus }
     : undefined;
 
-  const actions = await getActions(user.sub, filter);
+  const actions = await getActions(auth.userId, filter);
   return NextResponse.json({ actions });
 }
 
@@ -49,14 +43,8 @@ export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   let body: unknown;
   try {
@@ -73,7 +61,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const action = await createAction(user.sub, { ...parsed.data, status: "pending" });
+  const action = await createAction(auth.userId, { ...parsed.data, status: "pending" });
   return NextResponse.json({ action }, { status: 201 });
 }
 
@@ -81,15 +69,9 @@ export async function DELETE(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const cleared = await clearAllActions(user.sub);
+  const cleared = await clearAllActions(auth.userId);
   return NextResponse.json({ cleared });
 }

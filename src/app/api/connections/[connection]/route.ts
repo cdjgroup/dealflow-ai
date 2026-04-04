@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
 import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { disableConnection, enableConnection } from "@/lib/data/connections";
@@ -19,16 +19,10 @@ export async function DELETE(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success: rlOk } = await getSensitiveLimiter().limit(user.sub);
+  const { success: rlOk } = await getSensitiveLimiter().limit(auth.userId);
   if (!rlOk) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -43,11 +37,11 @@ export async function DELETE(
 
   try {
     // Set the disabled flag — this is the source of truth for disconnect
-    await disableConnection(user.sub, connection);
+    await disableConnection(auth.userId, connection);
 
     // Best-effort: also delete Token Vault tokensets via Management API
     try {
-      await deleteTokensets(user.sub, connection);
+      await deleteTokensets(auth.userId, connection);
     } catch (err) {
       // Non-fatal — the Redis flag is what matters
       console.error("Tokenset cleanup failed (non-fatal):", err);
@@ -75,16 +69,10 @@ export async function POST(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success: rlOk } = await getSensitiveLimiter().limit(user.sub);
+  const { success: rlOk } = await getSensitiveLimiter().limit(auth.userId);
   if (!rlOk) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -98,7 +86,7 @@ export async function POST(
   }
 
   try {
-    await enableConnection(user.sub, connection);
+    await enableConnection(auth.userId, connection);
     return NextResponse.json({ success: true, connection });
   } catch (err) {
     console.error("Connection re-enable failed:", err);

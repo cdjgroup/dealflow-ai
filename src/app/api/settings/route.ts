@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { auth0 } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   getUserSettings,
   updateUserSettings,
@@ -13,16 +14,10 @@ import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 
 export async function GET() {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const settings = await getUserSettings(user.sub);
+  const settings = await getUserSettings(auth.userId);
   return NextResponse.json(settings);
 }
 
@@ -76,14 +71,8 @@ export async function PUT(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   let body: unknown;
   try {
@@ -101,9 +90,9 @@ export async function PUT(req: Request) {
   }
 
   // Get old settings before update (for schedule index diff)
-  const oldSettings = await getUserSettings(user.sub);
+  const oldSettings = await getUserSettings(auth.userId);
 
-  const updated = await updateUserSettings(user.sub, parsed.data);
+  const updated = await updateUserSettings(auth.userId, parsed.data);
 
   // Maintain schedule index and refresh token
   if (parsed.data.schedule) {
@@ -111,20 +100,21 @@ export async function PUT(req: Request) {
     const newHours = parsed.data.schedule.enabled
       ? parsed.data.schedule.hours
       : [];
-    await updateScheduleIndex(user.sub, oldHours, newHours);
+    await updateScheduleIndex(auth.userId, oldHours, newHours);
 
     if (parsed.data.schedule.enabled && parsed.data.schedule.hours.length > 0) {
-      const refreshToken = session.tokenSet?.refreshToken;
+      const session = await auth0.getSession();
+      const refreshToken = session?.tokenSet?.refreshToken;
       if (refreshToken) {
-        await storeScheduleRefreshToken(user.sub, refreshToken);
+        await storeScheduleRefreshToken(auth.userId, refreshToken);
       } else {
         console.warn(
           "Schedule enabled for user %s but no refresh token in session",
-          user.sub
+          auth.userId
         );
       }
     } else {
-      await deleteScheduleRefreshToken(user.sub);
+      await deleteScheduleRefreshToken(auth.userId);
     }
   }
 
