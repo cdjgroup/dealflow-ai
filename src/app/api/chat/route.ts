@@ -162,31 +162,37 @@ function attachCibaChecks(
 
       // No existing session — initiate new CIBA request
       const bindingMessage = buildBindingMessage(name, params);
-      const cibaResult = await initiateCiba(userId, bindingMessage);
+      try {
+        const cibaResult = await initiateCiba(userId, bindingMessage);
 
-      // Store session in Redis
-      await storeCibaSession({
-        authReqId: cibaResult.authReqId,
-        userId,
-        bindingMessage: cibaResult.bindingMessage,
-        toolName: name,
-        expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
-        interval: cibaResult.interval,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      });
-
-      // Return interrupt as tool result (not throw — throws become generic tool errors)
-      return {
-        _cibaInterrupt: {
-          type: "CibaInterrupt",
+        // Store session in Redis
+        await storeCibaSession({
           authReqId: cibaResult.authReqId,
+          userId,
           bindingMessage: cibaResult.bindingMessage,
-          expiresIn: cibaResult.expiresIn,
+          toolName: name,
+          expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
           interval: cibaResult.interval,
-        },
-        error: "Device verification required. Please approve on your phone.",
-      };
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        });
+
+        // Return interrupt as tool result (not throw — throws become generic tool errors)
+        return {
+          _cibaInterrupt: {
+            type: "CibaInterrupt",
+            authReqId: cibaResult.authReqId,
+            bindingMessage: cibaResult.bindingMessage,
+            expiresIn: cibaResult.expiresIn,
+            interval: cibaResult.interval,
+          },
+          error: "Device verification required. Please approve on your phone.",
+        };
+      } catch (cibaErr) {
+        // CIBA initiation failed — log the error and fall back to normal execution
+        console.error("CIBA initiation failed, falling back to normal execution:", cibaErr);
+        return originalExecute(params, context);
+      }
     };
 
     result[name] = { ...t, execute: wrappedExecute } as Tool;
