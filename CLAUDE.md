@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.4.0 — Action Center (AI-Suggested Actions Queue with Review, Edit & Execute)
+## Current Version: 0.5.0 — CIBA Step-Up Authentication (Device-Level Consent for High-Value Actions)
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -57,10 +57,23 @@
 | listDeals | Upstash Redis | No |
 | getDealDetails | Upstash Redis | No |
 | searchContacts | Upstash Redis | No |
-| createDeal | Upstash Redis | No (needsApproval >$50K) |
-| updateDeal | Upstash Redis | No (needsApproval closed-won) |
+| createDeal | Upstash Redis | No (needsApproval >$50K + CIBA) |
+| updateDeal | Upstash Redis | No (needsApproval closed-won + CIBA) |
 | createContact | Upstash Redis | No |
 | logActivity | Upstash Redis | No |
+
+---
+
+## CIBA Step-Up Authentication (v0.5.0)
+
+Device-level consent via Auth0 Guardian push notifications for high-value actions.
+
+- **Trigger**: createDeal >$50K, updateDeal to closed-won/closed-lost
+- **Two-Step Consent**: Inline approval card (app-level) → CIBA push notification (device-level)
+- **Chat Flow**: Tool executes → CIBA wrapper detects threshold → Auth0 /bc-authorize → Guardian push → CibaWaitingCard polls → phone approval → tool completes
+- **Action Center Flow**: Execute → CIBA check via deal value lookup → ciba-pending status → phone approval → action executes
+- **Session Management**: Redis-keyed (`ciba:{userId}:{toolName}`) with TTL, prevents re-initiation on regenerate
+- **Auth0 Config Required**: CIBA grant type enabled, Guardian push factor, user enrolled in MFA
 
 ---
 

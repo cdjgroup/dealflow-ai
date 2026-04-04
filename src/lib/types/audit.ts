@@ -19,6 +19,7 @@ export interface AuditEntry {
   timestamp: string;
   tokenMeta?: TokenMeta;
   consentAction?: "auto" | "approved" | "denied" | "always-allowed";
+  cibaAuthReqId?: string;
 }
 
 export interface AuditFilters {

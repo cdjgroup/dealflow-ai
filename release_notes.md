@@ -1,29 +1,35 @@
-# Release Notes — v0.4.0
+# Release Notes — v0.5.0
 
-## DealFlow AI: Action Center
+## DealFlow AI: CIBA Step-Up Authentication
 
-AI-suggested next steps with human-in-the-loop review, inline editing, and Token Vault execution.
+Device-level consent via Auth0 Guardian push notifications for high-value AI agent actions.
 
 ### What's new
 
-- **Action Center page** (`/dashboard/actions`): Dedicated page where the AI agent's suggested actions are queued for user review. Each card shows the action type (Email, Calendar, Slack), the justification (why the AI recommends it), and a draft preview.
-- **Inline draft editing**: Expand any action card to edit the draft content before approving. Email cards show To/Subject/Body fields, Calendar cards show title/date/time/duration/attendees, Slack cards show channel/message.
-- **Approve/Dismiss/Execute workflow**: Pending actions can be approved (queued for execution) or dismissed. Approved actions show an Execute button that triggers the real API call via Token Vault OAuth exchange.
-- **Batch approve**: "Approve All Pending" button with count badge for fast review of multiple suggestions.
-- **Calendar event creation**: New capability — creates Google Calendar events via Events.insert API using the `calendar.events` scope (upgraded from read-only).
-- **Execution feedback**: Cards show real-time status transitions (pending → approved → executing → sent/failed) with appropriate colors and animations. Failed actions show error messages and a Retry button.
-- **Nav badge**: Pending action count displayed as a badge on the Actions link in the navigation bar.
-- **Seeded demo data**: 5 realistic suggested actions tied to existing CRM deals, created automatically during data seeding.
-- **Type-specific validation**: Zod schemas validate email addresses, date formats, field lengths, and Slack channel names on all draft payloads.
+- **CIBA step-up authentication**: When the AI agent triggers a high-value action ($50K+ deals, closed-won/closed-lost stage changes), a two-step consent flow activates: inline approval card in chat followed by Auth0 Guardian push notification on the user's phone.
+- **CibaWaitingCard**: Animated UI component showing the binding message ("Approve creating $75,000 deal: Acme Enterprise"), pulsing indicator, countdown timer, and status transitions (waiting/approved/denied/expired).
+- **Action Center CIBA integration**: High-value actions in the Action Center trigger device approval before execution. Status badge shows "Device Approval..." during CIBA pending state.
+- **CIBA API routes**: `POST /api/ciba/initiate` starts CIBA flow, `GET /api/ciba/status/[authReqId]` polls for user response.
+- **Redis-backed CIBA sessions**: Prevents re-initiation when chat regenerates after phone approval. Sessions auto-expire via TTL.
+- **21 unit tests**: Full coverage of CIBA threshold logic, Auth0 backchannel initiation, and polling response handling.
 
 ### Security
 
-- All action endpoints require Auth0 session + CSRF header
-- Draft payloads validated with type-specific Zod schemas (prevents CRLF injection, enforces size limits)
-- Execute endpoint returns 502 on downstream API failure (not silent 200)
-- Action creation hardcoded to "pending" status (no approval bypass)
-- Redis keys user-scoped for data isolation
+- Access tokens from CIBA grants never exposed to the client (stripped at API boundary)
+- Auth0 error descriptions sanitized — no internal detail leakage
+- CIBA sessions user-scoped in Redis with TTL cleanup
+- CSRF protection on initiate endpoint
+- Binding messages truncated to 64 chars per CIBA spec
+
+### Architecture
+
+- Direct HTTP to Auth0 `/bc-authorize` and `/oauth/token` (CIBA grant type `urn:openid:params:grant-type:ciba`)
+- Follows ADR 001 pattern: bypass `@auth0/ai` SDK wrapper, call endpoints directly
+- Form-urlencoded content type with `iss_sub` login_hint format per Auth0 SDK reference
+- Reuses existing TokenVaultInterrupt pattern for chat-side interrupt handling
 
 ### Deployment
+
 - Live at: https://dealflow-ai-seven.vercel.app
 - Repo: https://github.com/cdjgroup/dealflow-ai
+- Requires: Auth0 CIBA grant type enabled + Guardian push factor configured + user enrolled in MFA

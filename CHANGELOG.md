@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-04
+
+### Added
+- CIBA (Client-Initiated Backchannel Authentication) step-up for high-value actions
+- Auth0 Guardian push notification approval on phone for deals >$50K and terminal stage changes
+- Two-step consent: inline approval card (app-level) then CIBA push (device-level)
+- CibaWaitingCard component with animated polling, countdown timer, and status states
+- CIBA API routes: POST /api/ciba/initiate, GET /api/ciba/status/[authReqId]
+- Redis-backed CIBA session management (prevents re-initiation on regenerate)
+- Action Center CIBA integration: high-value actions trigger device approval before execution
+- `ciba-pending` action status with device approval styling
+- 21 unit tests for CIBA core module (should-require, authorize, poll)
+- Audit trail includes cibaAuthReqId for traceability
+
+### Security
+- Access tokens stripped from client-facing CIBA status endpoint
+- Auth0 error descriptions sanitized (no internal detail leakage)
+- CIBA sessions user-scoped in Redis with TTL cleanup
+
 ## [0.4.1] - 2026-04-03
 
 ### Changed

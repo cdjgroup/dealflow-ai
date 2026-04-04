@@ -6,23 +6,46 @@ import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } fro
 import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
 import { TokenVaultInterrupt } from "./token-vault-interrupt";
+import { CibaWaitingCard } from "./ciba-waiting-card";
 
 const transport = new DefaultChatTransport({
   api: "/api/chat",
   headers: { "X-Requested-With": "XMLHttpRequest" },
 });
 
-function parseInterrupt(error: Error | undefined): {
+interface TokenVaultInterruptData {
+  type: "TokenVaultInterrupt";
   connection: string;
   scopes?: string[];
-} | null {
+}
+
+interface CibaInterruptData {
+  type: "CibaInterrupt";
+  authReqId: string;
+  bindingMessage: string;
+  expiresIn: number;
+  interval: number;
+}
+
+type InterruptData =
+  | { kind: "token-vault"; data: TokenVaultInterruptData }
+  | { kind: "ciba"; data: CibaInterruptData };
+
+function parseInterrupt(error: Error | undefined): InterruptData | null {
   if (!error) return null;
   try {
     const parsed = JSON.parse(error.message);
+    if (parsed.type === "CibaInterrupt" && parsed.authReqId) {
+      return { kind: "ciba", data: parsed };
+    }
     if (parsed.type === "TokenVaultInterrupt" || parsed.connection) {
       return {
-        connection: parsed.connection || "google-oauth2",
-        scopes: parsed.scopes,
+        kind: "token-vault",
+        data: {
+          type: "TokenVaultInterrupt",
+          connection: parsed.connection || "google-oauth2",
+          scopes: parsed.scopes,
+        },
       };
     }
   } catch {
@@ -169,13 +192,30 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
           />
         ))}
 
-        {interrupt && (
+        {interrupt?.kind === "token-vault" && (
           <TokenVaultInterrupt
-            connection={interrupt.connection}
-            scopes={interrupt.scopes}
+            connection={interrupt.data.connection}
+            scopes={interrupt.data.scopes}
             onAuthorized={() => {
               setDismissedError(error ?? null);
               regenerate();
+            }}
+            onDismiss={() => setDismissedError(error ?? null)}
+          />
+        )}
+
+        {interrupt?.kind === "ciba" && (
+          <CibaWaitingCard
+            authReqId={interrupt.data.authReqId}
+            bindingMessage={interrupt.data.bindingMessage}
+            expiresIn={interrupt.data.expiresIn}
+            interval={interrupt.data.interval}
+            onApproved={() => {
+              setDismissedError(error ?? null);
+              regenerate();
+            }}
+            onDenied={() => {
+              setDismissedError(error ?? null);
             }}
             onDismiss={() => setDismissedError(error ?? null)}
           />
