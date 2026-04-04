@@ -22,6 +22,7 @@ export interface CalendarDraft {
   duration: number;
   attendees: string[];
   notes?: string;
+  timeZone?: string;
 }
 
 export interface SlackDraft {
