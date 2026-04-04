@@ -9,12 +9,20 @@ const {
   mockLimit,
   mockCheckCsrf,
   mockUpdateUserSettings,
+  mockGetUserSettings,
+  mockUpdateScheduleIndex,
+  mockStoreScheduleRefreshToken,
+  mockDeleteScheduleRefreshToken,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockLimit: vi.fn(),
   mockCheckCsrf: vi.fn(),
   mockUpdateUserSettings: vi.fn(),
+  mockGetUserSettings: vi.fn(),
+  mockUpdateScheduleIndex: vi.fn(),
+  mockStoreScheduleRefreshToken: vi.fn(),
+  mockDeleteScheduleRefreshToken: vi.fn(),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -32,6 +40,15 @@ vi.mock("@/lib/api-guard", () => ({
 
 vi.mock("@/lib/data/settings", () => ({
   updateUserSettings: (...args: unknown[]) => mockUpdateUserSettings(...args),
+  getUserSettings: (...args: unknown[]) => mockGetUserSettings(...args),
+  updateScheduleIndex: (...args: unknown[]) => mockUpdateScheduleIndex(...args),
+}));
+
+vi.mock("@/lib/data/schedule-tokens", () => ({
+  storeScheduleRefreshToken: (...args: unknown[]) =>
+    mockStoreScheduleRefreshToken(...args),
+  deleteScheduleRefreshToken: (...args: unknown[]) =>
+    mockDeleteScheduleRefreshToken(...args),
 }));
 
 import { PUT } from "@/app/api/settings/route";
@@ -51,9 +68,20 @@ describe("PUT /api/settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCheckCsrf.mockReturnValue(null);
-    mockGetSession.mockResolvedValue({ user: {} });
+    mockGetSession.mockResolvedValue({ user: {}, tokenSet: {} });
     mockGetUser.mockResolvedValue({ sub: "auth0|user1" });
     mockLimit.mockResolvedValue({ success: true });
+    mockGetUserSettings.mockResolvedValue({
+      capabilities: {
+        crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: false,
+      },
+      approvalRequired: { crmWrite: false },
+      toolTrust: {},
+      schedule: { enabled: false, hours: [], timezone: "UTC" },
+    });
+    mockUpdateScheduleIndex.mockResolvedValue(undefined);
+    mockStoreScheduleRefreshToken.mockResolvedValue(undefined);
+    mockDeleteScheduleRefreshToken.mockResolvedValue(undefined);
     mockUpdateUserSettings.mockResolvedValue({
       capabilities: {
         crmRead: true,

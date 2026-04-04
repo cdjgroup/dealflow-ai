@@ -24,7 +24,7 @@ export const draftEmail = tool({
   execute: async ({ to, subject, body }: { to: string; subject: string; body: string }) => {
     const result = await exchangeToken("google-oauth2");
     if ("error" in result) {
-      return { error: "Gmail not connected", action: "Click 'Connect Google Account' in the sidebar.", details: result.error };
+      return { error: "Gmail not connected", action: "Go to Permissions & Connected Accounts to connect your Google account.", details: result.error };
     }
 
     const encodedMessage = buildRawEmail(to, subject, body);
@@ -76,7 +76,7 @@ export const searchEmails = tool({
   execute: async ({ query, maxResults }: { query: string; maxResults?: number }) => {
     const result = await exchangeToken("google-oauth2");
     if ("error" in result) {
-      return { error: "Gmail not connected", action: "Click 'Connect Google Account' in the sidebar.", details: result.error };
+      return { error: "Gmail not connected", action: "Go to Permissions & Connected Accounts to connect your Google account.", details: result.error };
     }
 
     const max = maxResults || 5;

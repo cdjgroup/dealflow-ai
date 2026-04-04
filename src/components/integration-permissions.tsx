@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback } from "react";
+import { useState, useTransition, useEffect, useCallback, useRef } from "react";
 import type { UserSettings, TrustLevel } from "@/lib/types/settings";
 import { SCOPE_LABELS } from "@/lib/constants/tools";
 
@@ -97,17 +97,52 @@ function ConnectionActions({
   connection,
   label,
   isDisconnected,
+  isTokenVaultConnected,
   onConnectionChange,
 }: {
   connection: string;
   label: string;
   isDisconnected: boolean;
+  isTokenVaultConnected: boolean;
   onConnectionChange: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [localDisconnected, setLocalDisconnected] = useState(isDisconnected);
   const [error, setError] = useState(false);
+  const popupRef = useRef<Window | null>(null);
+
+  // Listen for postMessage from the Auth0 connect popup
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "auth0-connect-success") {
+        setConnecting(false);
+        popupRef.current = null;
+        window.dispatchEvent(new Event("connection-changed"));
+        onConnectionChange();
+      }
+    }
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      popupRef.current?.close();
+    };
+  }, [onConnectionChange]);
+
+  function handleConnect() {
+    setConnecting(true);
+    const params = new URLSearchParams({
+      connection,
+      returnTo: "/close",
+    });
+    popupRef.current = window.open(
+      `/auth/connect?${params.toString()}`,
+      "auth0-connect",
+      "width=500,height=600,scrollbars=yes"
+    );
+  }
 
   async function handleRevoke() {
     setLoading(true);
@@ -146,6 +181,19 @@ function ConnectionActions({
     } finally {
       setLoading(false);
     }
+  }
+
+  // Not connected to Token Vault yet — show Connect button
+  if (!isTokenVaultConnected && !localDisconnected) {
+    return (
+      <button
+        onClick={handleConnect}
+        disabled={connecting}
+        className="rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+      >
+        {connecting ? "Connecting..." : `Connect ${label}`}
+      </button>
+    );
   }
 
   if (localDisconnected) {
@@ -391,6 +439,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections }:
                   connection={integration.connectionId!}
                   label={integration.label}
                   isDisconnected={!!isDisconnected}
+                  isTokenVaultConnected={isConnected}
                   onConnectionChange={fetchConnectionStatus}
                 />
               )}

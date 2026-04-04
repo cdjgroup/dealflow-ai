@@ -337,10 +337,12 @@ src/
 ## Testing
 
 ```bash
-npm test              # 246 tests across 29 files
+npm test              # 298 tests across 34 files
 npm run build         # TypeScript + Next.js production build
 npx playwright test   # E2E smoke tests
 ```
+
+Test coverage spans API routes (32), components (22), data layer (71), tools & approval logic (82), CIBA device consent (22), core library (46), and E2E smoke tests (8).
 
 ## License
 

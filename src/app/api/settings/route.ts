@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
+import { auth0 } from "@/lib/auth0";
 import { requireAuth } from "@/lib/auth-guard";
-import { getUserSettings, updateUserSettings } from "@/lib/data/settings";
+import {
+  getUserSettings,
+  updateUserSettings,
+  updateScheduleIndex,
+} from "@/lib/data/settings";
+import {
+  storeScheduleRefreshToken,
+  deleteScheduleRefreshToken,
+} from "@/lib/data/schedule-tokens";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 
@@ -33,6 +42,29 @@ const settingsSchema = z.object({
       message: "toolTrust cannot contain more than 20 entries",
     })
     .optional(),
+  schedule: z
+    .object({
+      enabled: z.boolean(),
+      hours: z
+        .array(
+          z.number().int().refine((h) => [8, 12, 17].includes(h), {
+            message: "Hour must be 8, 12, or 17",
+          })
+        )
+        .max(3),
+      timezone: z.string().max(64).refine(
+        (tz) => {
+          try {
+            Intl.DateTimeFormat(undefined, { timeZone: tz });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: "Invalid IANA timezone identifier" }
+      ),
+    })
+    .optional(),
 });
 
 export async function PUT(req: Request) {
@@ -57,6 +89,34 @@ export async function PUT(req: Request) {
     );
   }
 
+  // Get old settings before update (for schedule index diff)
+  const oldSettings = await getUserSettings(auth.userId);
+
   const updated = await updateUserSettings(auth.userId, parsed.data);
+
+  // Maintain schedule index and refresh token
+  if (parsed.data.schedule) {
+    const oldHours = oldSettings.schedule?.hours ?? [];
+    const newHours = parsed.data.schedule.enabled
+      ? parsed.data.schedule.hours
+      : [];
+    await updateScheduleIndex(auth.userId, oldHours, newHours);
+
+    if (parsed.data.schedule.enabled && parsed.data.schedule.hours.length > 0) {
+      const session = await auth0.getSession();
+      const refreshToken = session?.tokenSet?.refreshToken;
+      if (refreshToken) {
+        await storeScheduleRefreshToken(auth.userId, refreshToken);
+      } else {
+        console.warn(
+          "Schedule enabled for user %s but no refresh token in session",
+          auth.userId
+        );
+      }
+    } else {
+      await deleteScheduleRefreshToken(auth.userId);
+    }
+  }
+
   return NextResponse.json(updated);
 }

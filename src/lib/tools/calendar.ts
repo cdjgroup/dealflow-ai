@@ -60,7 +60,7 @@ export const checkCalendar = tool({
       return {
         error: "Google Calendar not connected",
         details: result.error,
-        action: "Click 'Connect Google Account' in the sidebar, then try again.",
+        action: "Go to Permissions & Connected Accounts to connect your Google account, then try again.",
       };
     }
 

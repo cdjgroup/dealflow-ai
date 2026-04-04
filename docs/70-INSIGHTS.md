@@ -2,9 +2,9 @@
 
 Non-obvious design decisions and discoveries.
 
-## 001 — @auth0/ai-vercel SDK incompatible with AI SDK v6 (2026-04-02)
+## 001 — @auth0/ai-vercel SDK swallows token exchange errors (2026-04-02)
 
-The `@auth0/ai-vercel` v5.1.0 `withTokenVault()` wrapper silently fails with Vercel AI SDK v6. The wrapper's `protect` method throws before the tool's `execute` function runs, but the error is swallowed by the streaming response — no interrupt is thrown and no token is passed. Fix: call Auth0's `/oauth/token` endpoint directly using RFC 8693 federated connection access token exchange. The `Tool` type changed from `parameters` (zod/v3) to `inputSchema` (zod v4) in v6, and the wrapper's TypeScript types are incompatible.
+The `@auth0/ai-vercel` SDK's `TokenVaultAuthorizerBase` silently swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175), still open). When the token exchange HTTP call fails, the SDK returns `undefined` instead of throwing — then `validateToken()` throws a misleading `TokenVaultInterrupt` saying "Authorization required" when the real issue may be misconfigured credentials, wrong connection name, or expired refresh token. This made initial Token Vault setup extremely difficult to debug. Fix: call Auth0's `/oauth/token` endpoint directly using RFC 8693 federated connection access token exchange, which surfaces actual error messages. **Note:** The SDK added AI SDK v6 compatibility in v5.0.0 (Jan 29, 2026) — the version mismatch we initially hit is resolved, but error swallowing remains the primary reason for direct exchange.
 
 ## 002 — Google login ≠ Token Vault Connected Accounts (2026-04-02)
 
@@ -53,3 +53,11 @@ Auth0's backchannel endpoints (`/bc-authorize` and `/oauth/token` for CIBA grant
 ## 012 — CIBA interrupt reuses TokenVaultInterrupt pattern exactly (2026-04-04)
 
 The existing TokenVaultInterrupt pattern (JSON error in tool execution → `parseInterrupt()` in chat-window → specialized card component → `regenerate()` on resolution) works for CIBA without architectural changes. The key insight: throwing a JSON-encoded error from a tool's `execute` function is a generic "interrupt" mechanism, not specific to token vault. CibaInterrupt and TokenVaultInterrupt are just different payloads in the same pattern. The challenge is preventing re-initiation: when `regenerate()` retries the tool, it would initiate a new CIBA request. Solution: Redis-keyed sessions (`ciba:{userId}:{toolName}`) that the wrapper checks before initiating. If an approved session exists, skip CIBA and proceed. Google translates `calendar.readonly` to "See and download any calendar you can access" on their consent screen. Showing raw scope strings like `calendar.readonly` or `channels:read` is a developer-facing anti-pattern — end users don't know what these mean. The fix: maintain a SCOPE_LABELS map with human-readable translations, show the friendly version as primary text, keep the technical scope available via tooltip for transparency.
+
+## 013 — CIBA is designed for server-initiated flows (2026-04-04)
+
+Auth0's CIBA implementation (`/bc-authorize`) does not require a user HTTP session or browser context — it only needs `client_id`, `client_secret`, `login_hint` (userId), and `binding_message`. This makes it ideal for server-initiated consent: a cron job can send a Guardian push notification without the user being in the app. The CIBA access token returned on approval is scoped to `openid` only — it's proof of consent, not an API token. For actual execution (calling Gmail/Slack/Calendar), you still need the user's refresh token stored separately and exchanged via Token Vault. This "CIBA for consent, refresh token for execution" separation is the key architectural insight.
+
+## 014 — Vercel cron requires two-phase design for CIBA polling (2026-04-04)
+
+Vercel serverless functions can't poll for 5+ minutes (CIBA timeout). Solution: separate the initiation (hourly cron sends CIBA push) from polling (per-minute cron checks Auth0, executes on approval). This maps naturally to the CIBA spec's async model. Key constraint: Hobby plan = daily minimum/hourly precision; Pro plan = per-minute. Vercel delivers cron events at-least-once, so idempotency guards (hour-truncated batch IDs, SET NX execution locks) are essential.

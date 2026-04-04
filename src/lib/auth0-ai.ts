@@ -1,8 +1,10 @@
 // Auth0 AI Token Vault configuration
 // We use direct token exchange (RFC 8693) instead of the @auth0/ai-vercel
-// SDK wrapper due to compatibility issues between @auth0/ai-vercel v5 and AI SDK v6.
-// The direct approach calls Auth0's /oauth/token endpoint with the federated
-// connection access token grant type. See src/lib/tools/calendar.ts for the pattern.
+// SDK wrapper for better error observability. The SDK swallows federated
+// connection errors (see github.com/auth0/auth0-ai-js/issues/175), returning
+// a misleading "Authorization required" interrupt instead of the actual Auth0
+// API error. Direct calls let us surface real error messages to users.
+// See src/lib/token-exchange.ts for the shared implementation.
 
 export const TOKEN_VAULT_CONFIG = {
   connection: "google-oauth2",
