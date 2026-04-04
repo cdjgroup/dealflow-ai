@@ -230,6 +230,57 @@ const SEED_ACTIONS: Omit<SuggestedAction, "userId" | "createdAt" | "updatedAt">[
       body: "Hi Marcus,\n\nJust wanted to touch base while the contract review is underway. If there are any technical questions from your team about the API integration scope, I'm happy to hop on a call.\n\nLet me know if there's anything I can help move things along.\n\nBest regards",
     } as ActionDraft,
   },
+  {
+    id: "act6",
+    type: "email",
+    status: "pending",
+    priority: "high",
+    dealId: "d6",
+    dealName: "Nova Finance Data Pipeline",
+    contactName: "David Kim",
+    justification:
+      "The $65K Nova Finance proposal was sent but David hasn't responded. As VP of Engineering, he likely needs technical specifics on real-time sync capabilities before moving forward.",
+    draft: {
+      to: "dkim@novafinance.com",
+      subject: "Real-time sync architecture details — Nova Data Pipeline",
+      body: "Hi David,\n\nFollowing up on the data pipeline proposal. I put together a brief technical overview of our real-time sync architecture that addresses the requirements you mentioned on our last call.\n\nWould it be helpful to schedule a 30-minute deep dive with our engineering team?\n\nBest regards",
+    } as ActionDraft,
+  },
+  {
+    id: "act7",
+    type: "calendar",
+    status: "pending",
+    priority: "high",
+    dealId: "d7",
+    dealName: "Axon Health Portal Redesign",
+    contactName: "Rachel Torres",
+    justification:
+      "Rachel requested HIPAA compliance details during the demo. The $95K deal is in negotiation — scheduling a compliance review meeting addresses her top concern.",
+    draft: {
+      title: "Axon Health — HIPAA Compliance & Security Review",
+      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      time: "10:00",
+      duration: 60,
+      attendees: ["rachel.t@axonhealth.co"],
+      notes: "Cover: HIPAA BAA, data encryption at rest/transit, audit logging, access controls, SOC 2 certification timeline",
+    } as ActionDraft,
+  },
+  {
+    id: "act8",
+    type: "slack",
+    status: "pending",
+    priority: "medium",
+    dealId: "d5",
+    dealName: "Stratos Cloud Migration",
+    contactName: "Priya Patel",
+    justification:
+      "Stratos Cloud Migration ($120K) just closed. Sharing this win with the team boosts morale and provides context for the upcoming onboarding kickoff.",
+    draft: {
+      channel: "#sales-team",
+      message:
+        "Closed-won: Stratos Cloud Migration ($120K) is signed! 12-month engagement with Priya Patel's team. Onboarding kickoff is scheduled. Big thanks to everyone who supported the technical evaluation. Pipeline is looking strong heading into Q2.",
+    } as ActionDraft,
+  },
 ];
 
 export async function seedActions(userId: string): Promise<number> {
