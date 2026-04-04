@@ -17,6 +17,11 @@ import { saveConversation } from "@/lib/data/conversations";
 import { filterToolsByCapabilities } from "@/lib/tools/capability-filter";
 import { createApprovalCheck } from "@/lib/tools/approval-logic";
 import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
+import { shouldRequireCiba } from "@/lib/ciba/should-require";
+import { initiateCiba } from "@/lib/ciba/authorize";
+import { pollCiba } from "@/lib/ciba/poll";
+import { getCibaSession, storeCibaSession, deleteCibaSession } from "@/lib/ciba/session";
+import type { CibaInterrupt } from "@/lib/ciba/types";
 import { NextResponse } from "next/server";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
@@ -75,6 +80,112 @@ function attachApprovalChecks(
     // Wrap the tool with needsApproval — the SDK will pause execution
     // and stream an approval-requested state to the client
     result[name] = { ...t, needsApproval: check } as Tool;
+  }
+  return result;
+}
+
+/**
+ * Build a binding message for CIBA push notification.
+ * Action-focused format per design decision.
+ */
+function buildBindingMessage(
+  toolName: string,
+  params: Record<string, unknown>
+): string {
+  if (toolName === "createDeal") {
+    const value = typeof params.value === "number" ? `$${params.value.toLocaleString()}` : "";
+    const name = typeof params.name === "string" ? params.name : "new deal";
+    return `Approve creating ${value} deal: ${name}`.slice(0, 64);
+  }
+  if (toolName === "updateDeal") {
+    const name = typeof params.name === "string" ? params.name : "deal";
+    const stage = typeof params.stage === "string" ? params.stage : "";
+    return `Approve updating ${name} to ${stage}`.slice(0, 64);
+  }
+  return `Approve ${toolName}`.slice(0, 64);
+}
+
+/**
+ * Wrap tool execute functions with CIBA step-up authentication.
+ * On first call: initiates CIBA and throws CibaInterrupt.
+ * On retry (after regenerate): checks cached session, proceeds if approved.
+ */
+function attachCibaChecks(
+  tools: Record<string, Tool>,
+  userId: string
+): Record<string, Tool> {
+  const result: Record<string, Tool> = {};
+  for (const [name, t] of Object.entries(tools)) {
+    const originalExecute = (t as { execute?: (...args: unknown[]) => unknown }).execute;
+    if (!originalExecute || !shouldRequireCiba(name, {})) {
+      // Tool doesn't have execute or never needs CIBA — pass through
+      result[name] = t;
+      continue;
+    }
+
+    // Wrap execute to check CIBA before running
+    const wrappedExecute = async (params: Record<string, unknown>, context: unknown) => {
+      if (!shouldRequireCiba(name, params)) {
+        return originalExecute(params, context);
+      }
+
+      // Check for existing CIBA session
+      const existing = await getCibaSession(userId, name);
+      if (existing) {
+        if (existing.status === "approved") {
+          // CIBA was approved — clean up and proceed
+          await deleteCibaSession(userId, name);
+          return originalExecute(params, context);
+        }
+        if (existing.status === "pending") {
+          // Poll to check if it's been approved since last check
+          const pollResult = await pollCiba(existing.authReqId);
+          if (pollResult.status === "approved") {
+            await deleteCibaSession(userId, name);
+            return originalExecute(params, context);
+          }
+          // Still pending or denied/expired — throw interrupt again
+          const interrupt: CibaInterrupt = {
+            type: "CibaInterrupt",
+            authReqId: existing.authReqId,
+            bindingMessage: existing.bindingMessage,
+            expiresIn: Math.max(0, Math.floor((new Date(existing.expiresAt).getTime() - Date.now()) / 1000)),
+            interval: existing.interval,
+          };
+          throw new Error(JSON.stringify(interrupt));
+        }
+        // Session exists but is denied/expired/error — clean up and re-initiate
+        await deleteCibaSession(userId, name);
+      }
+
+      // No existing session — initiate new CIBA request
+      const bindingMessage = buildBindingMessage(name, params);
+      const cibaResult = await initiateCiba(userId, bindingMessage);
+
+      // Store session in Redis
+      await storeCibaSession({
+        authReqId: cibaResult.authReqId,
+        userId,
+        bindingMessage,
+        toolName: name,
+        expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
+        interval: cibaResult.interval,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+
+      // Throw interrupt for client to handle
+      const interrupt: CibaInterrupt = {
+        type: "CibaInterrupt",
+        authReqId: cibaResult.authReqId,
+        bindingMessage,
+        expiresIn: cibaResult.expiresIn,
+        interval: cibaResult.interval,
+      };
+      throw new Error(JSON.stringify(interrupt));
+    };
+
+    result[name] = { ...t, execute: wrappedExecute } as Tool;
   }
   return result;
 }
@@ -146,7 +257,10 @@ export async function POST(req: Request) {
   const filtered = filterToolsByCapabilities(allTools, settings);
 
   // Attach needsApproval checks (S1 value-based, S3 external actions, U2 user settings)
-  const tools = attachApprovalChecks(filtered, userId);
+  const withApproval = attachApprovalChecks(filtered, userId);
+
+  // Attach CIBA step-up auth for high-value actions (C1 layer — runs after inline approval)
+  const tools = attachCibaChecks(withApproval, userId);
 
   // Build dynamic system prompt based on available tools
   const availableTools: string[] = [];
