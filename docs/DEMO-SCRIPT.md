@@ -40,29 +40,34 @@
    - Watch: Approved (blue) → Executing (pulse) → Completed (green)
    - "That draft just landed in Gmail through Token Vault. Same OAuth flow as chat, different surface."
 
-## Act 3: Trust Controls & Security (45 sec)
+## Act 3: Two-Step Consent + Trust Controls (45 sec)
 
-> "The same authorization model governs every surface — chat, Action Center, and external agents."
+> "High-value actions get device-level verification — like a bank wire transfer."
 
-6. **Switch to Permissions tab** → disable Gmail (toggle off or trust to "never")
+6. **Type in chat**: "Create a deal for Acme Corp worth $75,000"
+   - Inline approval card appears → click **Approve**
+   - CIBA card appears: "Device Verification Required" with phone icon + countdown
+   - **Show phone**: Guardian push notification arrives → tap Approve
+   - Deal created
+   - "Two-step consent. The app asks 'are you sure', then Auth0 independently verifies on a separate device."
 
-7. **Switch back to Actions** → try to Approve another email action
-   - **Blocked**: "Cannot approve: gmail is disabled"
-   - "Same control, consistent everywhere. The user's decision propagates to every surface."
+7. **Quick contrast**: "Create a deal for SmallCo worth $10,000"
+   - Only inline approval (no CIBA push)
+   - "Routine actions don't need device verification. The agent is smart about when to escalate."
 
 8. **Quick hits** (say while navigating, don't pause):
-   - Re-enable Gmail
-   - Click "Full audit log →": "Every action — chat and Action Center — logged with parameters, duration, status"
-   - Click "MCP" in nav: "External AI agents like OpenClaw can discover and use these same tools through MCP. Same Token Vault pipeline, same audit trail. This isn't just one app's security — it's a reusable pattern for the AI agent ecosystem."
+   - Click "Full audit log →": "Every action logged — including CIBA approval status"
+   - Click "MCP" in nav: "External AI agents use the same secure pipeline via MCP"
 
 ## Act 4: Closing (30 sec)
 
 > Deliver standing at the Permissions page or MCP Explorer.
 
-"DealFlow AI demonstrates three levels of 'Authorized to Act':
+"DealFlow AI demonstrates four levels of 'Authorized to Act':
 1. **Per-tool** — capability toggles, trust levels, step-up approval
-2. **Per-action** — the Action Center queues AI suggestions for human review
-3. **Per-agent** — MCP gives external agents the same secure, audited access
+2. **Per-device** — CIBA Guardian push for high-value actions (two-step consent)
+3. **Per-action** — the Action Center queues AI suggestions for human review
+4. **Per-agent** — MCP gives external agents the same secure, audited access
 
 All through Auth0 Token Vault. The AI never stores credentials. Every action is auditable. The user is always in control."
 

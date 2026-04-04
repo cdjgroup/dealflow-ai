@@ -12,6 +12,7 @@ What makes it different is the security and control model:
 
 - **Capability toggles** — Users control which tools the agent can use. Disable Gmail? The agent literally can't see email tools. It's not a permission check at runtime — the tools are removed from the LLM entirely
 - **Step-up authorization** — High-value operations ($50K+ deals, closing as "won") require explicit user approval before execution, using AI SDK 6's native `needsApproval`
+- **CIBA device-level consent** — High-value actions also trigger an Auth0 Guardian push notification to the user's phone. Two-step consent: inline approval in the app, then device verification via CIBA — the same pattern banks use for wire transfers
 - **Audit trail** — Every agent action is logged with sanitized parameters, viewable in a dedicated dashboard. Full transparency into what the agent did and when
 - **Progressive consent** — Each tool requests only the OAuth scopes it needs. Calendar gets read-only. Only email drafting requests compose access
 - **Disconnect & revoke** — Users can revoke OAuth connections at any time. The next tool invocation triggers a fresh consent flow
@@ -40,7 +41,7 @@ The Token Vault integration uses direct token exchange rather than the `@auth0/a
 ## Challenges we ran into
 
 1. **@auth0/ai-vercel SDK incompatibility** — The SDK wrapper's `protect` method silently fails with AI SDK v6. We bypassed it entirely and call Auth0's `/oauth/token` endpoint directly. Same security, fewer abstractions
-2. **CIBA requires Enterprise Plan** — Our original design included CIBA (Guardian push notifications) for step-up auth. We discovered this needs Enterprise-tier Auth0. We pivoted to AI SDK 6's native `needsApproval`, which turned out cleaner and simpler
+2. **CIBA discovery and implementation** — Our original design included CIBA (Guardian push notifications) for step-up auth. We initially thought it required Enterprise-tier Auth0 and pivoted to AI SDK 6's `needsApproval`. Then Auth0 confirmed our trial had CIBA access — so we built both: inline approval as the first layer, CIBA Guardian push as the second layer for high-value actions. The direct HTTP pattern from ADR 001 worked perfectly for CIBA too (Auth0's `/bc-authorize` endpoint with `application/x-www-form-urlencoded`)
 3. **Google login vs Connected Accounts** — Logging in with Google does NOT enable Token Vault. You need: enableConnectAccountEndpoint, My Account API audience, connection purpose set to "Auth + Connected Accounts," and MRRT enabled. This took significant debugging
 4. **Free Plan connection limit** — Two Token Vault connections maximum. We designed for exactly two (Google + Slack) and built capability toggles so users can manage both
 
@@ -51,13 +52,14 @@ The Token Vault integration uses direct token exchange rather than the `@auth0/a
 - **MCP as ecosystem security** — Turned one app's Token Vault integration into a reusable pattern for external AI agents (OpenClaw, Claude Desktop, Cursor)
 - **Two Token Vault providers** — Google + Slack, demonstrating the pattern's extensibility with identical integration code
 - **Token lifecycle visualization** — Animated 6-stage pipeline makes the invisible security model visible for users and judges
+- **CIBA two-step consent** — Device-level approval via Auth0 Guardian for high-value actions, proving defense-in-depth at the identity layer
 
 ## What we learned
 
 - Security is a composition problem — no single mechanism is sufficient
 - Remove tools from the LLM entirely when disabled, don't check at runtime. The model produces cleaner behavior when it doesn't know about tools it can't use
-- Check your framework before building custom auth flows. AI SDK 6's `needsApproval` replaced hundreds of lines of custom code
-- Auth0's Free Plan provides everything you need for a production-grade Token Vault integration
+- Check your framework before building custom auth flows. AI SDK 6's `needsApproval` replaced hundreds of lines of custom code — then compose it with Auth0's CIBA for high-stakes cases
+- Auth0's trial plan provides everything you need: Token Vault, CIBA, Guardian push notifications
 
 ## What's next for DealFlow AI
 

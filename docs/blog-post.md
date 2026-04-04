@@ -21,13 +21,11 @@ DealFlow AI is a sales agent powered by Claude that manages pipeline, checks cal
 
 This isn't theoretical architecture — it's running code. The capability filter is 30 lines. The approval logic is 40 lines. The audit wrapper is a single `writeAuditEntry` call in the chat endpoint's `onToolCallFinish` callback. Simple primitives, composed deliberately.
 
-## The CIBA Discovery
+## The CIBA Journey: Pivot and Return
 
-Our original plan included CIBA (Client Initiated Backchannel Authentication) for step-up authorization — the user would approve high-value operations via push notification on their phone through Auth0 Guardian. It's the gold standard for out-of-band consent.
+Our original plan included CIBA (Client Initiated Backchannel Authentication) for step-up authorization — the user would approve high-value operations via push notification on their phone through Auth0 Guardian.
 
-We discovered that **CIBA requires an Auth0 Enterprise Plan**. The hackathon provides Free Plan tenants.
-
-This forced a pivot that turned out better than the original plan. The Vercel AI SDK v6 has a native `needsApproval` property on tools that supports dynamic approval logic:
+We initially discovered that **CIBA requires an Auth0 Enterprise Plan** (the hackathon provides Free Plan tenants), which forced a pivot to AI SDK v6's native `needsApproval` for inline approval:
 
 ```typescript
 const createDeal = tool({
@@ -36,9 +34,20 @@ const createDeal = tool({
 });
 ```
 
-The SDK handles the full lifecycle: pausing execution, surfacing an approval request to the UI, collecting the user's response, and resuming or canceling. No custom polling, no WebSocket, no state machine. One property on the tool definition.
+**The insight:** Before reaching for complex auth flows, check what your framework already provides. `needsApproval` handles the full lifecycle — pausing execution, surfacing an approval card, collecting the response, and resuming. One property on the tool definition.
 
-**The insight:** Before reaching for complex auth flows, check what your framework already provides. CIBA is powerful for production — but for user-facing approval in a web app, native SDK support is simpler, faster to implement, and works on any Auth0 plan.
+### CIBA Comes Back
+
+Then Auth0 confirmed our trial already had CIBA access. We built it as an **additive layer** on top of inline approval — two-step consent for high-value actions:
+
+1. **Inline approval card** (app-level) — user clicks Approve in the chat
+2. **Guardian push notification** (device-level) — user approves on their phone
+
+The same direct HTTP pattern from ADR 001 worked perfectly: `POST /bc-authorize` with `application/x-www-form-urlencoded` encoding and a `login_hint` in `iss_sub` format. The CIBA access token serves purely as an authorization gate — the actual API credentials still come from Token Vault's RFC 8693 exchange.
+
+**The architectural insight:** The existing `TokenVaultInterrupt` error-handling pattern (JSON error from tool → client parses → specialized card → retry on resolution) turned out to be a generic suspension mechanism. CIBA reuses the exact same pattern — just a different payload. Adding a new out-of-band verification flow required zero architectural changes.
+
+**The security insight:** Two-step consent is the same pattern banks use for wire transfers. The app asks "are you sure?" and the identity provider independently verifies on a physically separate device. The AI agent can never act on high-value decisions without two independent confirmations.
 
 ## Two Connections, Not One
 
@@ -68,21 +77,21 @@ The permissions page in DealFlow AI isn't informational — it's functional:
 
 This addresses the judging criterion directly: *"Can users understand what permissions the agent has? Are scopes and access boundaries clearly defined and visible?"* The answer isn't just yes — the answer is the user controls all of it.
 
-## What We'd Do Differently
+## What's Next
 
-If we had more time (or an Enterprise Plan), we'd add:
+With CIBA, Action Center, and inline approval all working, the next priorities would be:
 
-- **CIBA for truly sensitive operations** — Push notification approval on a separate device
 - **Per-tool audit analytics** — Which tools run most often, average latency, error rates
 - **Role-based capability presets** — "Sales Rep" vs "Sales Manager" vs "Executive" with different default permissions
 - **Token refresh observability** — Surface when tokens are silently refreshed vs when re-consent is needed
+- **Configurable CIBA threshold** — Let users set their own high-value threshold instead of the hardcoded $50K
 
 ## Key Takeaways
 
 1. **Security is a composition problem.** No single mechanism is sufficient. Layer CSRF + rate limiting + capability filtering + step-up auth + scoped tokens + audit logging
 2. **Remove, don't restrict.** When a user disables a tool, don't check permissions at execution time — remove the tool from the LLM entirely. The model produces cleaner behavior when it doesn't know about tools it can't use
-3. **Free Plan is enough.** Token Vault, two connections, async authorization patterns — everything we needed was available on the free tier
-4. **Check your SDK before building custom.** AI SDK 6's `needsApproval` replaced hundreds of lines of custom approval wrapper code with a single property
+3. **Layer app-level and device-level consent.** Inline approval cards are great for the demo, but high-value actions deserve a second factor on a separate device. CIBA + `needsApproval` together give you defense in depth
+4. **Check your SDK before building custom.** AI SDK 6's `needsApproval` replaced hundreds of lines of custom approval wrapper code with a single property. But don't stop there — compose it with Auth0-native flows like CIBA for the high-stakes cases
 
 ---
 

@@ -63,25 +63,33 @@
 
 ---
 
-## 1:45–2:15 — Step-Up Auth + Audit Trail (30s)
+## 1:45–2:25 — Two-Step Consent: Inline + CIBA Device Approval (40s)
 
-**Say:** "Now let me show step-up authorization. I'll enable approval for CRM writes."
-
-**Action:** Toggle "Require Approval for CRM Writes" ON → go to chat
+**Say:** "Now the key security feature. Watch what happens with a high-value deal."
 
 **Action:** Type: "Create a new deal for Acme Corp, $75,000, proposal stage"
 
 **Show:** Approval card appears with deal details and Approve/Reject buttons
 
-**Say:** "Because this is a $75K deal AND I have approval required, the agent pauses and asks me to confirm. I can approve or reject right here in the chat."
+**Say:** "First — app-level consent. The agent pauses and shows me exactly what it wants to do."
 
-**Action:** Click Approve → deal created
+**Action:** Click Approve
+
+**Show:** CibaInlineCard appears — phone icon, "Device Verification Required", binding message, pulsing indicator, countdown timer
+
+**Say:** "But that's not enough for a $75K deal. Auth0 now sends a push notification to my phone via Guardian. The identity provider independently verifies on a separate device."
+
+**Action:** Show phone receiving Guardian push notification → tap Approve
+
+**Show:** CibaInlineCard shows "Approved on Device" → deal created
+
+**Say:** "Two-step consent — like a bank wire transfer. The app asks 'are you sure', then Auth0 verifies on a physically separate device. The AI agent can never act on high-value decisions without two independent confirmations."
 
 **Action:** Navigate to Audit Log page
 
 **Show:** Table with all tool invocations, timestamps, parameters, status, duration
 
-**Say:** "Every single action the agent takes is logged here. Full transparency — you can see what it did, when, and with what parameters."
+**Say:** "Every action is logged with full transparency."
 
 ---
 

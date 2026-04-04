@@ -86,6 +86,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
 | **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
 | **Step-up approval** | Confirm high-value deals (>$50K), external actions | AI SDK `needsApproval` with async logic |
+| **CIBA device approval** | Guardian push notification for >$50K deals | Direct HTTP to Auth0 /bc-authorize + polling |
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
 | **Scope awareness** | Tools self-declare minimum scopes | UI shows voluntary least-privilege |
@@ -108,6 +109,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
 | **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
 | **Direct RFC 8693 exchange** | Bypassed broken SDK wrapper — more control, richer token metadata |
+| **CIBA via direct HTTP** | Device-level consent using Auth0 Guardian push — same direct HTTP pattern as Token Vault (ADR 004) |
 
 ### Potential Impact (Judging: Potential Impact)
 
@@ -132,7 +134,7 @@ This pattern is reusable: any application with Auth0 Token Vault can expose its 
 
 ### Insight Value (Judging: Insight Value)
 
-We documented 10 non-obvious discoveries during development:
+We documented 12 non-obvious discoveries during development:
 
 1. **@auth0/ai-vercel SDK is incompatible with AI SDK v6** — the wrapper's `protect` method silently throws. Fix: call Auth0's token exchange endpoint directly.
 2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
@@ -157,9 +159,10 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 - **Three-surface security**: Chat, Action Center, and MCP all enforce the same capability/trust/audit pipeline — no gaps between surfaces
 - **AI-generated justifications**: Every suggested action explains WHY, making human-in-the-loop meaningful rather than ceremonial
 - **MCP as ecosystem security**: Turned one app's Token Vault integration into a reusable pattern for external AI agents
-- **269 tests passing**: Comprehensive coverage across data layer, API routes, approval logic, and capability filtering
-- **10 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, and OAuth patterns that benefit the Auth0 community
-- **Architecture Decision Records**: Two ADRs documenting the rationale behind direct token exchange and action center execution approach
+- **CIBA device-level consent**: Two-step approval for high-value actions — inline card + Auth0 Guardian push notification on a separate device
+- **290 tests passing**: Comprehensive coverage across data layer, API routes, approval logic, CIBA module, and capability filtering
+- **12 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, and OAuth patterns that benefit the Auth0 community
+- **Architecture Decision Records**: Four ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, and CIBA implementation
 
 ## What we learned
 

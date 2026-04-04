@@ -1,6 +1,6 @@
 # ADR 004: CIBA via Direct HTTP vs @auth0/ai SDK Wrapper
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-04
 
 ## Context
