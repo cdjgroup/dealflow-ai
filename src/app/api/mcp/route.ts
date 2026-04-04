@@ -54,7 +54,7 @@ const handler = createMcpHandler(
   {
     serverInfo: {
       name: "dealflow-ai",
-      version: "0.3.0",
+      version: "0.5.0",
     },
   },
   {
