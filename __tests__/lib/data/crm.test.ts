@@ -221,9 +221,9 @@ describe("CRM Data Layer", () => {
     it("should create demo deals, contacts, and activities via pipeline", async () => {
       const result = await seedDemoData("user1");
 
-      expect(result.deals).toBe(4);
-      expect(result.contacts).toBe(4);
-      expect(result.activities).toBe(5);
+      expect(result.deals).toBe(8);
+      expect(result.contacts).toBe(7);
+      expect(result.activities).toBe(12);
       expect(mockPipeline).toHaveBeenCalled();
 
       const pipeline = mockPipeline.mock.results[0].value;
@@ -237,10 +237,10 @@ describe("CRM Data Layer", () => {
       const contactSets = setCalls.filter((c: string[]) => c[0].includes(":contact:"));
       const activitySets = setCalls.filter((c: string[]) => c[0].includes(":activity:"));
 
-      expect(dealSets).toHaveLength(4);
-      expect(contactSets).toHaveLength(4);
-      expect(activitySets).toHaveLength(5);
-      expect(saddCalls.length).toBe(13); // 4 + 4 + 5 index entries
+      expect(dealSets).toHaveLength(8);
+      expect(contactSets).toHaveLength(7);
+      expect(activitySets).toHaveLength(12);
+      expect(saddCalls.length).toBe(27); // 8 + 7 + 12 index entries
     });
   });
 });

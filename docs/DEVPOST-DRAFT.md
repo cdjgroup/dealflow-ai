@@ -36,6 +36,8 @@ The same capability toggles, trust levels, and connection controls govern all th
 - **RFC 8693** federated connection access token exchange (direct — see Challenges)
 - **Model Context Protocol** for external agent interop
 
+**Built in 4 days** (March 31 – April 4, 2026), 146 commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, CIBA device consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
+
 ### Architecture
 
 ```
