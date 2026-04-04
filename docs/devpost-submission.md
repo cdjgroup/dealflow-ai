@@ -36,11 +36,11 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
-The Token Vault integration uses direct token exchange rather than the `@auth0/ai-vercel` SDK wrapper, which we found to be incompatible with AI SDK v6. The same RFC 8693 pattern works identically for both Google and Slack connections.
+The Token Vault integration uses direct RFC 8693 token exchange rather than the `@auth0/ai-vercel` SDK wrapper. We found that the SDK swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)) — returning a misleading "Authorization required" interrupt instead of the actual Auth0 API error, making Token Vault setup nearly impossible to debug. Direct calls give us full error observability plus rich token metadata (scope, TTL, connection) that powers the lifecycle visualization. The same pattern works identically for both Google and Slack connections.
 
 ## Challenges we ran into
 
-1. **@auth0/ai-vercel SDK incompatibility** — The SDK wrapper's `protect` method silently fails with AI SDK v6. We bypassed it entirely and call Auth0's `/oauth/token` endpoint directly. Same security, fewer abstractions
+1. **@auth0/ai-vercel SDK error swallowing** — The SDK wrapper swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)), returning "Authorization required" instead of the actual error. We call Auth0's `/oauth/token` endpoint directly for full error observability and richer token metadata
 2. **CIBA discovery and implementation** — Our original design included CIBA (Guardian push notifications) for step-up auth. We initially thought it required Enterprise-tier Auth0 and pivoted to AI SDK 6's `needsApproval`. Then Auth0 confirmed our trial had CIBA access — so we built both: inline approval as the first layer, CIBA Guardian push as the second layer for high-value actions. The direct HTTP pattern from ADR 001 worked perfectly for CIBA too (Auth0's `/bc-authorize` endpoint with `application/x-www-form-urlencoded`)
 3. **Google login vs Connected Accounts** — Logging in with Google does NOT enable Token Vault. You need: enableConnectAccountEndpoint, My Account API audience, connection purpose set to "Auth + Connected Accounts," and MRRT enabled. This took significant debugging
 4. **Free Plan connection limit** — Two Token Vault connections maximum. We designed for exactly two (Google + Slack) and built capability toggles so users can manage both
