@@ -117,8 +117,8 @@ function attachCibaChecks(
   const result: Record<string, Tool> = {};
   for (const [name, t] of Object.entries(tools)) {
     const originalExecute = (t as { execute?: (...args: unknown[]) => unknown }).execute;
-    if (!originalExecute || !shouldRequireCiba(name, {})) {
-      // Tool doesn't have execute or never needs CIBA — pass through
+    if (!originalExecute) {
+      // Tool doesn't have execute — pass through
       result[name] = t;
       continue;
     }

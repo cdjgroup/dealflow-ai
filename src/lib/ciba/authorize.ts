@@ -49,6 +49,6 @@ export async function initiateCiba(
     authReqId: data.auth_req_id,
     expiresIn: data.expires_in,
     interval: data.interval,
-    bindingMessage,
+    bindingMessage: truncatedMessage,
   };
 }

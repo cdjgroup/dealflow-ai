@@ -70,83 +70,81 @@ export async function POST(
   const cibaRequired = dealValue > HIGH_VALUE_THRESHOLD;
 
   if (cibaRequired) {
-    const cibaToolKey = `action:${action.type}`;
+    // Include action ID to prevent session key collision across actions
+    const cibaToolKey = `action:${action.type}:${id}`;
 
     // Check for existing CIBA session
     const existing = await getCibaSession(user.sub, cibaToolKey);
-    if (existing) {
-      if (existing.status === "approved") {
+
+    if (existing?.status === "approved") {
+      await deleteCibaSession(user.sub, cibaToolKey);
+      // Fall through to execution
+    } else if (existing?.status === "pending") {
+      const pollResult = await pollCiba(existing.authReqId);
+      if (pollResult.status === "approved") {
         await deleteCibaSession(user.sub, cibaToolKey);
         // Fall through to execution
-      } else if (existing.status === "pending") {
-        const pollResult = await pollCiba(existing.authReqId);
-        if (pollResult.status === "approved") {
-          await deleteCibaSession(user.sub, cibaToolKey);
-          // Fall through to execution
-        } else if (pollResult.status === "pending") {
-          return NextResponse.json({
-            cibaRequired: true,
-            authReqId: existing.authReqId,
-            bindingMessage: existing.bindingMessage,
-            status: "ciba-pending",
-          });
-        } else {
-          // Denied/expired/error — clean up
-          await deleteCibaSession(user.sub, cibaToolKey);
-          await updateAction(user.sub, id, {
-            status: "failed",
-            errorMessage: `CIBA authorization ${pollResult.status}: ${pollResult.error || ""}`,
-          });
-          return NextResponse.json(
-            { error: `CIBA authorization ${pollResult.status}` },
-            { status: 403 }
-          );
-        }
+      } else if (pollResult.status === "pending") {
+        const remainingSeconds = Math.max(0, Math.floor(
+          (new Date(existing.expiresAt).getTime() - Date.now()) / 1000
+        ));
+        return NextResponse.json({
+          cibaRequired: true,
+          authReqId: existing.authReqId,
+          bindingMessage: existing.bindingMessage,
+          expiresIn: remainingSeconds,
+          interval: existing.interval,
+          status: "ciba-pending",
+        });
       } else {
-        // Stale session — clean up
+        // Denied/expired/error — clean up and report
         await deleteCibaSession(user.sub, cibaToolKey);
+        await updateAction(user.sub, id, {
+          status: "failed",
+          errorMessage: `CIBA authorization ${pollResult.status}: ${pollResult.error || ""}`,
+        });
+        return NextResponse.json(
+          { error: `CIBA authorization ${pollResult.status}` },
+          { status: 403 }
+        );
       }
-    }
+    } else {
+      // No session, or stale (denied/expired/error) — always initiate new CIBA
+      if (existing) await deleteCibaSession(user.sub, cibaToolKey);
 
-    // No approved session — need to initiate CIBA
-    if (!existing || existing.status !== "approved") {
-      // Only initiate if we didn't already find an approved session above
-      const needsInitiation = !existing || existing.status !== "pending";
-      if (needsInitiation) {
-        try {
-          const dealName = deal?.name || action.dealName || "deal";
-          const bindingMessage = `Approve ${action.type} for $${dealValue.toLocaleString()} deal: ${dealName}`.slice(0, 64);
-          const cibaResult = await initiateCiba(user.sub, bindingMessage);
+      try {
+        const dealName = deal?.name || action.dealName || "deal";
+        const bindingMessage = `Approve ${action.type} for $${dealValue.toLocaleString()} deal: ${dealName}`.slice(0, 64);
+        const cibaResult = await initiateCiba(user.sub, bindingMessage);
 
-          await storeCibaSession({
-            authReqId: cibaResult.authReqId,
-            userId: user.sub,
-            bindingMessage,
-            toolName: cibaToolKey,
-            expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
-            interval: cibaResult.interval,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-          });
+        await storeCibaSession({
+          authReqId: cibaResult.authReqId,
+          userId: user.sub,
+          bindingMessage: cibaResult.bindingMessage,
+          toolName: cibaToolKey,
+          expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
+          interval: cibaResult.interval,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        });
 
-          await updateAction(user.sub, id, { status: "ciba-pending" as "approved" });
+        await updateAction(user.sub, id, { status: "ciba-pending" as "approved" });
 
-          return NextResponse.json({
-            cibaRequired: true,
-            authReqId: cibaResult.authReqId,
-            bindingMessage,
-            expiresIn: cibaResult.expiresIn,
-            interval: cibaResult.interval,
-            status: "ciba-pending",
-          });
-        } catch (err) {
-          console.error("Action CIBA initiation failed:", err);
-          const raw = err instanceof Error ? err.message : "";
-          const msg = raw.includes("not enrolled")
-            ? "Device verification requires Auth0 Guardian enrollment"
-            : "Step-up authentication unavailable";
-          return NextResponse.json({ error: msg }, { status: 502 });
-        }
+        return NextResponse.json({
+          cibaRequired: true,
+          authReqId: cibaResult.authReqId,
+          bindingMessage: cibaResult.bindingMessage,
+          expiresIn: cibaResult.expiresIn,
+          interval: cibaResult.interval,
+          status: "ciba-pending",
+        });
+      } catch (err) {
+        console.error("Action CIBA initiation failed:", err);
+        const raw = err instanceof Error ? err.message : "";
+        const msg = raw.includes("not enrolled")
+          ? "Device verification requires Auth0 Guardian enrollment"
+          : "Step-up authentication unavailable";
+        return NextResponse.json({ error: msg }, { status: 502 });
       }
     }
   }

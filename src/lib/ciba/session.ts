@@ -34,7 +34,8 @@ export async function getCibaSession(
   if (!raw) return null;
   try {
     return typeof raw === "string" ? JSON.parse(raw) : raw as unknown as CibaSession;
-  } catch {
+  } catch (err) {
+    console.error("Failed to parse CIBA session from Redis:", err);
     return null;
   }
 }
