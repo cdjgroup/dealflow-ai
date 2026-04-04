@@ -3,6 +3,7 @@ export type ActionStatus =
   | "pending"
   | "approved"
   | "dismissed"
+  | "ciba-pending"
   | "executing"
   | "sent"
   | "failed";

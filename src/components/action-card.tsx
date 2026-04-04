@@ -40,6 +40,7 @@ const statusStyles: Record<string, { border: string; badge: string; label: strin
   pending: { border: "border-amber-500/30", badge: "bg-amber-500/10 text-amber-400", label: "Pending" },
   approved: { border: "border-blue-500/30", badge: "bg-blue-500/10 text-blue-400", label: "Approved" },
   dismissed: { border: "border-border", badge: "bg-muted text-muted-foreground", label: "Dismissed" },
+  "ciba-pending": { border: "border-chart-4/30", badge: "bg-chart-4/10 text-chart-4", label: "Device Approval..." },
   executing: { border: "border-primary/30", badge: "bg-primary/10 text-primary", label: "Executing..." },
   sent: { border: "border-emerald-500/30", badge: "bg-emerald-500/10 text-emerald-400", label: "Completed" },
   failed: { border: "border-destructive/30", badge: "bg-destructive/10 text-destructive", label: "Failed" },

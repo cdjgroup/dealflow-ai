@@ -70,6 +70,47 @@ export function ActionList({ initialActions }: Props) {
     [updateLocal]
   );
 
+  const pollCibaStatus = useCallback(
+    async (id: string, authReqId: string, interval: number) => {
+      const pollMs = Math.max(interval, 2) * 1000;
+      const maxPolls = 60; // Max ~5 minutes of polling
+      for (let i = 0; i < maxPolls; i++) {
+        await new Promise((r) => setTimeout(r, pollMs));
+        try {
+          const res = await fetch(`/api/ciba/status/${authReqId}`, { headers });
+          const data = await res.json();
+          if (data.status === "approved") {
+            // CIBA approved — now execute the action
+            updateLocal(id, { status: "executing" });
+            const execRes = await fetch(`/api/actions/${id}/execute`, {
+              method: "POST",
+              headers,
+            });
+            const execData = await execRes.json();
+            if (execData.action) {
+              updateLocal(id, {
+                status: execData.action.status,
+                errorMessage: execData.action.errorMessage,
+              });
+            }
+            return;
+          } else if (data.status === "denied" || data.status === "expired" || data.status === "error") {
+            updateLocal(id, {
+              status: "failed",
+              errorMessage: data.error || `Device authorization ${data.status}`,
+            });
+            return;
+          }
+          // Still pending — continue polling
+        } catch {
+          // Network error — keep polling
+        }
+      }
+      updateLocal(id, { status: "failed", errorMessage: "CIBA polling timed out" });
+    },
+    [updateLocal]
+  );
+
   const handleExecute = useCallback(
     async (id: string) => {
       updateLocal(id, { status: "executing", errorMessage: undefined });
@@ -79,6 +120,14 @@ export function ActionList({ initialActions }: Props) {
           headers,
         });
         const data = await res.json();
+
+        // Handle CIBA step-up response
+        if (data.cibaRequired && data.authReqId) {
+          updateLocal(id, { status: "ciba-pending" as "approved" });
+          pollCibaStatus(id, data.authReqId, data.interval || 5);
+          return;
+        }
+
         if (data.action) {
           updateLocal(id, {
             status: data.action.status,
@@ -94,7 +143,7 @@ export function ActionList({ initialActions }: Props) {
         updateLocal(id, { status: "failed", errorMessage: "Network error" });
       }
     },
-    [updateLocal]
+    [updateLocal, pollCibaStatus]
   );
 
   const handleUpdateDraft = useCallback(
