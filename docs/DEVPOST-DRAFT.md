@@ -86,7 +86,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
 | **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
 | **Step-up approval** | Confirm high-value deals (>$50K), external actions | AI SDK `needsApproval` with async logic |
-| **CIBA device approval** | Guardian push notification for >$50K deals | Direct HTTP to Auth0 /bc-authorize + polling |
+| **CIBA device consent** | Guardian push for >$50K deals, terminal stages | Direct HTTP to Auth0 `/bc-authorize` + polling |
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
 | **Scope awareness** | Tools self-declare minimum scopes | UI shows voluntary least-privilege |
@@ -104,6 +104,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 ### Technical Innovation (Judging: Technical Execution)
 | Feature | Why it matters |
 |---------|---------------|
+| **Two-step consent** | Inline approval (AI SDK) + CIBA Guardian push (Auth0) — graduated device-level authorization |
 | **Token lifecycle visualization** | Makes the invisible security model visible — 6-stage animation in chat |
 | **MCP Server** | External AI agents get Auth0-grade security without framework changes |
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
