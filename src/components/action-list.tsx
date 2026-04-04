@@ -200,6 +200,17 @@ export function ActionList({ initialActions }: Props) {
     }
   }, [actions, updateLocal]);
 
+  const handleClearAll = useCallback(async () => {
+    const prev = actions;
+    setActions([]);
+    try {
+      const res = await fetch("/api/actions", { method: "DELETE", headers });
+      if (!res.ok) setActions(prev);
+    } catch {
+      setActions(prev);
+    }
+  }, [actions]);
+
   const filtered =
     filter === "all" ? actions : actions.filter((a) => a.status === filter);
 
@@ -210,6 +221,7 @@ export function ActionList({ initialActions }: Props) {
         activeFilter={filter}
         onFilterChange={setFilter}
         onBatchApprove={handleBatchApprove}
+        onClearAll={handleClearAll}
       />
 
       <div className="space-y-3">

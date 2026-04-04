@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ResourceCenter } from "@/components/helpkit/ResourceCenter";
+import { ActionBadge } from "@/components/action-badge";
 
 export function Nav({ userName, pendingActionCount }: { userName?: string; pendingActionCount?: number }) {
   return (
@@ -25,11 +26,7 @@ export function Nav({ userName, pendingActionCount }: { userName?: string; pendi
               className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
             >
               Actions
-              {pendingActionCount != null && pendingActionCount > 0 && (
-                <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary text-[10px] font-medium text-white">
-                  {pendingActionCount}
-                </span>
-              )}
+              <ActionBadge initialCount={pendingActionCount ?? 0} />
             </Link>
             <Link
               href="/dashboard/permissions"

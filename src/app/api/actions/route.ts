@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
-import { getActions, createAction } from "@/lib/data/actions";
+import { getActions, createAction, clearAllActions } from "@/lib/data/actions";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 import type { ActionStatus } from "@/lib/types/actions";
@@ -75,4 +75,21 @@ export async function POST(req: Request) {
 
   const action = await createAction(user.sub, { ...parsed.data, status: "pending" });
   return NextResponse.json({ action }, { status: 201 });
+}
+
+export async function DELETE(req: Request) {
+  const csrfError = checkCsrf(req);
+  if (csrfError) return csrfError;
+
+  const session = await auth0.getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const user = await getUser();
+  if (!user?.sub) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const cleared = await clearAllActions(user.sub);
+  return NextResponse.json({ cleared });
 }
