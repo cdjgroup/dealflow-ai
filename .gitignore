@@ -46,8 +46,9 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
+# vercel (commit project.json so worktrees can deploy)
+.vercel/
+!.vercel/project.json
 
 # typescript
 *.tsbuildinfo
