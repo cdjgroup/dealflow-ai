@@ -1,5 +1,26 @@
 # Features
 
+## v0.5.0 — CIBA Step-Up Authentication
+
+### Device-Level Consent for High-Value Actions
+When the AI agent triggers a high-value action ($50K+ deals or terminal stage changes like closed-won), a two-step consent flow activates:
+1. **Inline approval** — standard approval card in chat (app-level consent)
+2. **CIBA push notification** — Auth0 sends a push to the user's phone via Guardian app (device-level consent)
+
+The user sees a CibaWaitingCard in the chat with the binding message (e.g., "Approve creating $75,000 deal: Acme Enterprise"), an animated pulse indicator, and a countdown timer. Upon phone approval, the tool executes normally.
+
+### Action Center Integration
+High-value actions in the Action Center also trigger CIBA. When a user clicks Execute on an action linked to a $50K+ deal, the action status changes to `ciba-pending` with a device approval badge, Auth0 sends a push notification, and the action executes after phone approval.
+
+### How It Works
+- Direct HTTP calls to Auth0 `/bc-authorize` (CIBA initiation) and `/oauth/token` (CIBA grant polling)
+- Follows the same pattern as Token Vault exchange (ADR 001) — no SDK wrapper
+- Redis-backed CIBA sessions prevent re-initiation when the chat regenerates
+- Access tokens never exposed to the client — consumed server-side only
+
+### Routine Actions Unchanged
+CIBA only activates for high-value mutations. Email drafts, Slack messages, calendar checks, and low-value deals continue to use the existing inline approval flow.
+
 ## v0.4.0 — Action Center
 
 ### AI-Suggested Actions Queue
