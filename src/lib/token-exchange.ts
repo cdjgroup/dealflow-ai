@@ -38,9 +38,6 @@ export async function exchangeToken(connection: string): Promise<TokenResult> {
   return exchangeTokenWithRefresh(connection, refreshToken);
 }
 
-/**
- * Exchange when you already have the refresh token (e.g., token-status endpoint).
- */
 export async function exchangeTokenWithRefresh(
   connection: string,
   refreshToken: string
@@ -84,10 +81,6 @@ export async function exchangeTokenWithRefresh(
   }
 }
 
-/**
- * Build a _tokenMeta object from a successful token exchange result.
- * Consumers: tool results -> audit pipeline (F2) and chat UI (F2).
- */
 export function buildTokenMeta(result: TokenExchangeSuccess, minScope: string) {
   return {
     scope: result.scope,
@@ -98,9 +91,6 @@ export function buildTokenMeta(result: TokenExchangeSuccess, minScope: string) {
   };
 }
 
-/**
- * Sanitize external API errors into safe user-facing messages.
- */
 export function sanitizeApiError(status: number, label: string): string {
   if (status === 401 || status === 403) return `${label}: authorization failed — token may be expired`;
   if (status === 404) return `${label}: resource not found`;

@@ -7,10 +7,6 @@ function sessionKey(userId: string, toolName: string): string {
   return `ciba:${userId}:${toolName}`;
 }
 
-/**
- * Store a CIBA session in Redis, keyed by userId + toolName.
- * Only one active CIBA session per user per tool at a time.
- */
 export async function storeCibaSession(
   session: CibaSession
 ): Promise<void> {
@@ -22,9 +18,6 @@ export async function storeCibaSession(
   );
 }
 
-/**
- * Retrieve the active CIBA session for a user + tool, if one exists.
- */
 export async function getCibaSession(
   userId: string,
   toolName: string
@@ -40,9 +33,6 @@ export async function getCibaSession(
   }
 }
 
-/**
- * Update the status of a CIBA session.
- */
 export async function updateCibaSessionStatus(
   userId: string,
   toolName: string,
@@ -54,9 +44,6 @@ export async function updateCibaSessionStatus(
   await storeCibaSession(session);
 }
 
-/**
- * Delete the CIBA session (cleanup after completion).
- */
 export async function deleteCibaSession(
   userId: string,
   toolName: string

@@ -11,9 +11,6 @@ function genId(): string {
   return crypto.randomUUID().replace(/-/g, "").substring(0, 12);
 }
 
-/**
- * Sanitize tool input — mask email addresses, truncate long values.
- */
 function sanitizeInput(
   input: Record<string, unknown>
 ): Record<string, unknown> {

@@ -1,6 +1,3 @@
-/**
- * Detailed scope configuration for Token Vault tools.
- */
 export interface ToolScopeConfig {
   connection: string;
   provider: string;
@@ -60,12 +57,7 @@ export const TOOL_SCOPE_CONFIG: Record<TokenVaultToolName, ToolScopeConfig> = {
   },
 };
 
-/**
- * Static mapping of tool names to their required OAuth scopes.
- * Derived from TOOL_SCOPE_CONFIG for Token Vault tools (single source of truth).
- * Used by the ScopeIndicator component to show which scopes
- * are actively being used during tool execution.
- */
+// Derived from TOOL_SCOPE_CONFIG — used by ScopeIndicator component
 export const TOOL_SCOPES: Record<string, string[]> = {
   ...Object.fromEntries(
     Object.entries(TOOL_SCOPE_CONFIG).map(([k, v]) => [k, v.scopes])
@@ -80,9 +72,6 @@ export const TOOL_SCOPES: Record<string, string[]> = {
   logActivity: [],
 };
 
-/**
- * Returns the display-friendly provider name for a set of scopes.
- */
 export function scopeProvider(scopes: string[]): string | null {
   if (scopes.some((s) => s.startsWith("calendar") || s.startsWith("gmail"))) {
     return "Google";

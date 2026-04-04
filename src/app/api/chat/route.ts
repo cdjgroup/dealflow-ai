@@ -30,32 +30,36 @@ const MAX_TOOL_STEPS = 7;
 const MAX_OUTPUT_TOKENS = 4096;
 
 /**
- * Patch denied approval parts so they produce a tool_result for the Anthropic API.
- *
- * When needsApproval denies a tool call, the UI message has an approval-responded
- * part with approved=false but no output. convertToModelMessages creates a tool_use
- * block but no tool_result, which Anthropic rejects. This fixes it by converting
- * denied approvals into completed results with a denial message.
+ * Workaround: convertToModelMessages creates a tool_use block but no
+ * tool_result for denied approvals (approval-responded with approved=false),
+ * which Anthropic rejects. Convert them into completed results with a
+ * denial message so the model gets a valid tool_result.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function patchDeniedApprovals(messages: any[]): any[] {
+interface ToolPartLike {
+  type: string;
+  state?: string;
+  toolName?: string;
+  approval?: { approved?: boolean };
+  [key: string]: unknown;
+}
+function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(messages: T[]): T[] {
   return messages.map((msg) => {
     if (msg.role !== "assistant" || !msg.parts) return msg;
 
-    const newParts = msg.parts.map((part: Record<string, unknown>) => {
-      const approval = part.approval as { approved?: boolean } | undefined;
+    const newParts = msg.parts.map((part) => {
+      const p = part as ToolPartLike;
       if (
-        typeof part.type === "string" &&
-        part.type.startsWith("tool-") &&
-        part.state === "approval-responded" &&
-        approval?.approved === false
+        typeof p.type === "string" &&
+        p.type.startsWith("tool-") &&
+        p.state === "approval-responded" &&
+        p.approval?.approved === false
       ) {
         return {
-          ...part,
+          ...p,
           state: "result",
           output: {
             denied: true,
-            message: `User denied ${part.toolName || "this action"}. Ask the user how they'd like to proceed.`,
+            message: `User denied ${p.toolName || "this action"}. Ask the user how they'd like to proceed.`,
           },
         };
       }
@@ -370,7 +374,6 @@ Some actions require user approval before they execute (drafting emails, sending
           error: event.success ? undefined : String(event.error),
         });
 
-        // Extract _tokenMeta from tool output (F2: token lifecycle data)
         const output = event.success ? (event.output as Record<string, unknown> | undefined) : undefined;
         const rawTokenMeta = output?._tokenMeta as Record<string, unknown> | undefined;
         const scopeConfig = TOOL_SCOPE_CONFIG[event.toolCall.toolName as keyof typeof TOOL_SCOPE_CONFIG];
