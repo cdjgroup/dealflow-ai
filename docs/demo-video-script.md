@@ -23,7 +23,7 @@
 
 **Show:** Dashboard with chat + deal sidebar
 
-**Say:** "Here's my pipeline — four active deals worth $170K. Let me ask the agent about one."
+**Say:** "Here's my pipeline — six active deals worth $330K, plus a closed-won and a lost deal. Let me ask the agent about one."
 
 **Action:** Type: "What's the status of the Meridian deal?"
 

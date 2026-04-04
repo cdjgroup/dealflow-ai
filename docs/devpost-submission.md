@@ -17,11 +17,13 @@ What makes it different is the security and control model:
 - **Disconnect & revoke** — Users can revoke OAuth connections at any time. The next tool invocation triggers a fresh consent flow
 - **Live scope indicator** — Shows which OAuth scopes are actively being used during tool execution
 
-The agent supports 12 tools across 4 services:
-- **CRM** (7 tools): deals, contacts, activities — stored in Upstash Redis
+The agent supports 13 tools across 4 services:
+- **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
 - **Google Calendar** (1): check availability and events
 - **Gmail** (2): draft emails (never auto-send) and search correspondence
 - **Slack** (2): list channels and send team messages
+
+Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up emails, demo meetings, team updates) for human review. Each suggestion includes the AI's reasoning. Users edit drafts inline, approve, and execute through Token Vault. An **MCP Server** exposes the same secure, audited tools to external AI agents (OpenClaw, Claude Desktop, Cursor).
 
 ## How we built it
 
@@ -31,7 +33,7 @@ The agent supports 12 tools across 4 services:
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
-We followed a structured development methodology (Full Sherlock) with test-driven development, multi-agent code review, and acceptance criteria for all 18 features. 116 tests pass across 16 test files.
+We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
 The Token Vault integration uses direct token exchange rather than the `@auth0/ai-vercel` SDK wrapper, which we found to be incompatible with AI SDK v6. The same RFC 8693 pattern works identically for both Google and Slack connections.
 
@@ -44,10 +46,11 @@ The Token Vault integration uses direct token exchange rather than the `@auth0/a
 
 ## Accomplishments that we're proud of
 
-- **Six-layer security model** that composes CSRF, rate limiting, capability filtering, step-up auth, scoped Token Vault, and audit logging into a clean pipeline
-- **User control as a feature** — The permissions page isn't informational, it's functional. Users can toggle, approve, revoke, and audit everything the agent does
+- **Three-surface security** — Chat, Action Center, and MCP Server all enforce the same capability/trust/audit pipeline. Disable Gmail in Permissions → it's blocked everywhere
+- **AI justifications** — Every suggested action explains WHY, making human-in-the-loop meaningful rather than ceremonial
+- **MCP as ecosystem security** — Turned one app's Token Vault integration into a reusable pattern for external AI agents (OpenClaw, Claude Desktop, Cursor)
 - **Two Token Vault providers** — Google + Slack, demonstrating the pattern's extensibility with identical integration code
-- **Rich tool result cards** — Calendar events, email drafts with "Open in Gmail" links, deal pipeline views, and Slack message confirmations rendered as structured cards, not plain text
+- **Token lifecycle visualization** — Animated 6-stage pipeline makes the invisible security model visible for users and judges
 
 ## What we learned
 
@@ -58,11 +61,11 @@ The Token Vault integration uses direct token exchange rather than the `@auth0/a
 
 ## What's next for DealFlow AI
 
-- CIBA integration (with Enterprise Plan) for out-of-band push notification approval
-- Per-tool audit analytics and error rate dashboards
-- Role-based capability presets (Sales Rep vs Manager vs Executive)
+- **AI-driven suggestion timing** — Automatically surface Action Center suggestions based on deal activity patterns
+- **Incremental authorization** — Request additional OAuth scopes only when needed
+- **Multi-user workspaces** — Team-level permissions and delegation policies
+- **OpenClaw reference integration** — Published example showing OpenClaw agents using DealFlow tools via MCP with full Token Vault security
 - Additional Token Vault connections (GitHub, Salesforce, Microsoft 365)
-- Fine-grained authorization with Auth0 FGA for document-level access control
 
 ## Built With
 

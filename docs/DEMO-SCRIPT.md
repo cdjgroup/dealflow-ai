@@ -23,7 +23,7 @@
 
 2. Type: **"Analyze my pipeline and suggest next steps"**
    - AI calls `analyzePipeline`, creates suggestions
-   - "The AI read 4 deals, analyzed activity history, and generated prioritized action items."
+   - "The AI read 8 deals across the full pipeline — including a $120K closed-won and a lost deal — and generated prioritized action items."
 
 ## Act 2: Action Center — Review Before Execution (1 min)
 
