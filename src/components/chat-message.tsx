@@ -8,6 +8,7 @@ import { ApprovalCard } from "@/components/approval-card";
 import { ToolBadge } from "@/components/tool-badge";
 import { TokenLifecycle } from "@/components/token-lifecycle";
 import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
+import { CibaInlineCard } from "@/components/ciba-inline-card";
 
 interface Props {
   message: UIMessage;
@@ -102,6 +103,28 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
             const tokenMeta = output && typeof output === "object"
               ? (output as Record<string, unknown>)._tokenMeta as Record<string, unknown> | undefined
               : undefined;
+
+            // CIBA interrupt — show waiting card inline in tool result
+            const cibaInterrupt = output && typeof output === "object"
+              ? (output as Record<string, unknown>)._cibaInterrupt as {
+                  type: string; authReqId: string; bindingMessage: string;
+                  expiresIn: number; interval: number;
+                } | undefined
+              : undefined;
+
+            if (cibaInterrupt && (state === "result" || state === "output-available")) {
+              return (
+                <div key={i}>
+                  <ToolBadge toolName={toolName} state="approval" />
+                  <CibaInlineCard
+                    authReqId={cibaInterrupt.authReqId}
+                    bindingMessage={cibaInterrupt.bindingMessage}
+                    expiresIn={cibaInterrupt.expiresIn}
+                    interval={cibaInterrupt.interval}
+                  />
+                </div>
+              );
+            }
 
             // Rich tool result cards
             if (

@@ -144,15 +144,17 @@ function attachCibaChecks(
             await deleteCibaSession(userId, name);
             return originalExecute(params, context);
           }
-          // Still pending or denied/expired — throw interrupt again
-          const interrupt: CibaInterrupt = {
-            type: "CibaInterrupt",
-            authReqId: existing.authReqId,
-            bindingMessage: existing.bindingMessage,
-            expiresIn: Math.max(0, Math.floor((new Date(existing.expiresAt).getTime() - Date.now()) / 1000)),
-            interval: existing.interval,
+          // Still pending or denied/expired — return interrupt as tool result
+          return {
+            _cibaInterrupt: {
+              type: "CibaInterrupt",
+              authReqId: existing.authReqId,
+              bindingMessage: existing.bindingMessage,
+              expiresIn: Math.max(0, Math.floor((new Date(existing.expiresAt).getTime() - Date.now()) / 1000)),
+              interval: existing.interval,
+            },
+            error: "Device verification required. Please approve on your phone.",
           };
-          throw new Error(JSON.stringify(interrupt));
         }
         // Session exists but is denied/expired/error — clean up and re-initiate
         await deleteCibaSession(userId, name);
@@ -166,7 +168,7 @@ function attachCibaChecks(
       await storeCibaSession({
         authReqId: cibaResult.authReqId,
         userId,
-        bindingMessage,
+        bindingMessage: cibaResult.bindingMessage,
         toolName: name,
         expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
         interval: cibaResult.interval,
@@ -174,15 +176,17 @@ function attachCibaChecks(
         createdAt: new Date().toISOString(),
       });
 
-      // Throw interrupt for client to handle
-      const interrupt: CibaInterrupt = {
-        type: "CibaInterrupt",
-        authReqId: cibaResult.authReqId,
-        bindingMessage,
-        expiresIn: cibaResult.expiresIn,
-        interval: cibaResult.interval,
+      // Return interrupt as tool result (not throw — throws become generic tool errors)
+      return {
+        _cibaInterrupt: {
+          type: "CibaInterrupt",
+          authReqId: cibaResult.authReqId,
+          bindingMessage: cibaResult.bindingMessage,
+          expiresIn: cibaResult.expiresIn,
+          interval: cibaResult.interval,
+        },
+        error: "Device verification required. Please approve on your phone.",
       };
-      throw new Error(JSON.stringify(interrupt));
     };
 
     result[name] = { ...t, execute: wrappedExecute } as Tool;
