@@ -1,7 +1,9 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { redirect } from "next/navigation";
 import { getActions } from "@/lib/data/actions";
+import { getUserSettings } from "@/lib/data/settings";
 import { ActionList } from "@/components/action-list";
+import { SchedulePanel } from "@/components/schedule-panel";
 
 export default async function ActionsPage() {
   const session = await auth0.getSession();
@@ -10,7 +12,10 @@ export default async function ActionsPage() {
   const user = await getUser();
   if (!user?.sub) redirect("/auth/login?returnTo=/dashboard/actions");
 
-  const actions = await getActions(user.sub);
+  const [actions, settings] = await Promise.all([
+    getActions(user.sub),
+    getUserSettings(user.sub),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -21,6 +26,8 @@ export default async function ActionsPage() {
           actions before they execute.
         </p>
       </div>
+
+      <SchedulePanel initialSchedule={settings.schedule} />
 
       {actions.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">

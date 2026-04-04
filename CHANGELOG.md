@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-04-04
+
+### Added
+- Scheduled Action Review: users opt into 8am/12pm/5pm review via checkboxes on Action Center
+- Vercel cron jobs: Phase 1 (hourly initiate) sends Guardian push for pending actions, Phase 2 (per-minute poll) auto-executes on approval
+- AES-256-GCM encrypted refresh token storage for offline/cron execution
+- Distributed execution lock (Redis SET NX) prevents duplicate action execution
+- Timezone-aware scheduling with IANA timezone validation
+- SchedulePanel UI component with optimistic updates and error handling
+
+### Security
+- Timing-safe CRON_SECRET comparison (crypto.timingSafeEqual)
+- Encryption key length validation with actionable error messages
+- Token exchange errors sanitized before user-facing storage
+- IANA timezone validated in Zod schema (prevents silent UTC fallback)
+
+### Changed
+- Executor refactored: new `executeActionWithToken()` for pre-obtained tokens (cron flow)
+- Schedule index uses idempotent SADD (self-heals index drift)
+- CIBA denial on scheduled batch reverts actions to pending (not failed)
+
 ## [0.5.0] - 2026-04-04
 
 ### Added

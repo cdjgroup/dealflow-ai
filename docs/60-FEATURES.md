@@ -1,5 +1,25 @@
 # Features
 
+## v0.5.1 — Scheduled Action Review
+
+### Autonomous Agent Execution on a Schedule
+Users opt into scheduled review times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the scheduled time:
+1. **Vercel cron** finds opted-in users whose local timezone matches the hour
+2. **CIBA Guardian push** sent to user's phone: "Execute N pending actions?"
+3. **Phone approval** triggers auto-execution of all pending actions (email drafts, calendar events, Slack messages)
+4. **Phone denial** reverts actions to pending for next cycle
+
+### How It Works
+- Two-phase cron: hourly initiate (finds users, sends CIBA) + per-minute poll (checks approval, executes)
+- User's Auth0 refresh token stored encrypted (AES-256-GCM) at opt-in time for offline token exchange
+- Distributed execution lock prevents duplicate execution from overlapping cron ticks
+- Timezone-aware: uses browser's IANA timezone, validated server-side
+
+### Security
+- Timing-safe CRON_SECRET comparison on all cron endpoints
+- Encrypted refresh token with 90-day TTL, separate encryption key
+- CIBA serves as device-level consent — proof of authorization before executing
+
 ## v0.5.0 — CIBA Step-Up Authentication
 
 ### Device-Level Consent for High-Value Actions

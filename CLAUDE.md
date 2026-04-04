@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.5.0 — CIBA Step-Up Authentication (Device-Level Consent for High-Value Actions)
+## Current Version: 0.5.1 — Scheduled Action Review (Autonomous Agent Execution with CIBA Consent)
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
