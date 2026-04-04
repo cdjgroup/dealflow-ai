@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
 import type { UIMessage } from "ai";
 import { ToolResultCard } from "@/components/tool-result-card";
@@ -51,7 +52,7 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
                     : "dark:prose-invert prose-headings:text-primary prose-strong:text-foreground prose-a:text-accent"
                 }`}
               >
-                <ReactMarkdown>{part.text}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
               </div>
             );
           }
