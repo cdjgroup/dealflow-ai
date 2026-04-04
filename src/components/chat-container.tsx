@@ -17,6 +17,7 @@ interface ChatContainerProps {
 export function ChatContainer({ userId }: ChatContainerProps) {
   const [conversations, setConversations] = useState<ConversationMeta[]>([]);
   const [activeId, setActiveId] = useState<string>(newId);
+  const [isExisting, setIsExisting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fetchConversations = useCallback(async () => {
@@ -38,10 +39,12 @@ export function ChatContainer({ userId }: ChatContainerProps) {
   }, [fetchConversations]);
 
   const handleNew = () => {
+    setIsExisting(false);
     setActiveId(newId());
   };
 
   const handleSelect = (id: string) => {
+    setIsExisting(true);
     setActiveId(id);
   };
 
@@ -56,6 +59,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
         headers: { "X-Requested-With": "XMLHttpRequest" },
       });
       setConversations([]);
+      setIsExisting(false);
       setActiveId(newId());
     } catch {
       // Silently fail
@@ -103,6 +107,7 @@ export function ChatContainer({ userId }: ChatContainerProps) {
         <ChatWindow
           key={activeId}
           conversationId={activeId}
+          isExisting={isExisting}
           onConversationCreated={handleConversationCreated}
         />
       </div>

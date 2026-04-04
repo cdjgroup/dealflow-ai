@@ -66,14 +66,16 @@ const suggestions = [
 
 interface ChatWindowProps {
   conversationId: string;
+  isExisting?: boolean;
   onConversationCreated?: () => void;
 }
 
-export function ChatWindow({ conversationId, onConversationCreated }: ChatWindowProps) {
+export function ChatWindow({ conversationId, isExisting, onConversationCreated }: ChatWindowProps) {
   const [dismissedError, setDismissedError] = useState<Error | null>(null);
   const [input, setInput] = useState("");
+  const [loadingHistory, setLoadingHistory] = useState(!!isExisting);
 
-  const { messages, sendMessage, status, error, regenerate, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
     onFinish() {
@@ -101,6 +103,30 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
       return hasResponded && !hasPending;
     },
   });
+
+  // Load saved messages when opening an existing conversation
+  useEffect(() => {
+    if (!isExisting) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          if (Array.isArray(data.messages) && data.messages.length > 0) {
+            setMessages(data.messages);
+          }
+        }
+      } catch {
+        // Non-critical — user can still start a new conversation
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [conversationId, isExisting, setMessages]);
 
   const detectedInterrupt = useMemo(() => parseInterrupt(error), [error]);
   // Show interrupt unless this specific error was dismissed
@@ -141,7 +167,16 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
   return (
     <div className="flex flex-col h-full">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
+        {loadingHistory && (
+          <div className="flex items-center justify-center h-full">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+              Loading conversation...
+            </div>
+          </div>
+        )}
+
+        {!loadingHistory && messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <motion.h2
