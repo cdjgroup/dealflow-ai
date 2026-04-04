@@ -16,15 +16,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let body: { bindingMessage?: string; toolName?: string };
   try {
-    const { bindingMessage, toolName } = await req.json();
-    if (!bindingMessage || !toolName) {
-      return NextResponse.json(
-        { error: "bindingMessage and toolName are required" },
-        { status: 400 }
-      );
-    }
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
+  const { bindingMessage, toolName } = body;
+  if (!bindingMessage || !toolName) {
+    return NextResponse.json(
+      { error: "bindingMessage and toolName are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
     const result = await initiateCiba(user.sub, bindingMessage);
     return NextResponse.json(result);
   } catch (err) {

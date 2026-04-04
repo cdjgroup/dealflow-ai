@@ -198,9 +198,11 @@ function attachCibaChecks(
           error: "Device verification required. Please approve on your phone.",
         };
       } catch (cibaErr) {
-        // CIBA initiation failed — log the error and fall back to normal execution
-        console.error("CIBA initiation failed, falling back to normal execution:", cibaErr);
-        return originalExecute(params, context);
+        // CIBA initiation failed — fail closed, do not bypass device consent
+        console.error("CIBA initiation failed:", cibaErr);
+        return {
+          error: "Device verification unavailable. Please try again later.",
+        };
       }
     };
 

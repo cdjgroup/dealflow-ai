@@ -40,6 +40,21 @@ export function validateMessages(
           { status: 400 }
         );
       }
+      // Handle multi-part content arrays (AI SDK format)
+      if (Array.isArray(content)) {
+        let totalLength = 0;
+        for (const part of content) {
+          if (typeof part === "object" && part !== null && "text" in part) {
+            totalLength += String((part as { text: unknown }).text).length;
+          }
+        }
+        if (totalLength > MAX_MESSAGE_LENGTH) {
+          return NextResponse.json(
+            { error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` },
+            { status: 400 }
+          );
+        }
+      }
     }
   }
 

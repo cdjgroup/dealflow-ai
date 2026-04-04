@@ -15,26 +15,32 @@ interface EventSlot {
   end: string | undefined;
 }
 
+function toHHMM(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function computeFreeSlots(events: EventSlot[], date: string): string {
   if (events.length === 0) return "The entire day appears free.";
 
-  const dayStart = `${date}T09:00:00`;
-  const dayEnd = `${date}T17:00:00`;
+  const dayStart = new Date(`${date}T09:00:00`);
+  const dayEnd = new Date(`${date}T17:00:00`);
   const slots: string[] = [];
 
   const sorted = events
     .filter((e) => e.start && e.end)
-    .sort((a, b) => (a.start! < b.start! ? -1 : 1));
+    .sort((a, b) => new Date(a.start!).getTime() - new Date(b.start!).getTime());
 
   let cursor = dayStart;
   for (const event of sorted) {
-    if (event.start! > cursor) {
-      slots.push(`${cursor.substring(11, 16)} - ${event.start!.substring(11, 16)}`);
+    const eventStart = new Date(event.start!);
+    const eventEnd = new Date(event.end!);
+    if (eventStart > cursor) {
+      slots.push(`${toHHMM(cursor)} - ${toHHMM(eventStart)}`);
     }
-    if (event.end! > cursor) cursor = event.end!;
+    if (eventEnd > cursor) cursor = eventEnd;
   }
   if (cursor < dayEnd) {
-    slots.push(`${cursor.substring(11, 16)} - ${dayEnd.substring(11, 16)}`);
+    slots.push(`${toHHMM(cursor)} - ${toHHMM(dayEnd)}`);
   }
 
   return slots.length > 0

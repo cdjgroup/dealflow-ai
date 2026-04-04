@@ -128,7 +128,7 @@ export async function POST(
           createdAt: new Date().toISOString(),
         });
 
-        await updateAction(user.sub, id, { status: "ciba-pending" as "approved" });
+        await updateAction(user.sub, id, { status: "ciba-pending" });
 
         return NextResponse.json({
           cibaRequired: true,
