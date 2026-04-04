@@ -142,3 +142,19 @@ export async function getActiveActionCount(
 
 // Alias for backward compatibility
 export const getPendingActionCount = getActiveActionCount;
+
+export async function clearAllActions(userId: string): Promise<number> {
+  const redis = getRedis();
+  const indexKey = actionIndexKey(userId);
+  const ids = await redis.smembers(indexKey);
+  if (ids.length === 0) return 0;
+
+  const p = redis.pipeline();
+  for (const id of ids) {
+    p.del(actionKey(userId, id));
+  }
+  p.del(indexKey);
+  await p.exec();
+
+  return ids.length;
+}
