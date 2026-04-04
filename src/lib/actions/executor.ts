@@ -12,29 +12,62 @@ export interface ExecutionResult {
   [key: string]: unknown;
 }
 
+const CONNECTION_MAP: Record<string, string> = {
+  email: "google-oauth2",
+  calendar: "google-oauth2",
+  slack: "sign-in-with-slack",
+};
+
+const CONNECTION_ERRORS: Record<string, string> = {
+  email: "Gmail not connected. Connect your Google Account in Permissions.",
+  calendar: "Google Calendar not connected. Connect your Google Account in Permissions.",
+  slack: "Slack not connected. Connect your Slack account in Permissions.",
+};
+
+/**
+ * Execute an action using session-based token exchange (interactive UI flow).
+ */
 export async function executeAction(
   action: SuggestedAction
 ): Promise<ExecutionResult> {
+  const connection = CONNECTION_MAP[action.type];
+  const result = await exchangeToken(connection);
+  if ("error" in result) {
+    throw new Error(CONNECTION_ERRORS[action.type]);
+  }
+  return executeWithToken(action, result.token);
+}
+
+/**
+ * Execute an action with a pre-obtained access token (scheduled/cron flow).
+ */
+export async function executeActionWithToken(
+  action: SuggestedAction,
+  token: string
+): Promise<ExecutionResult> {
+  return executeWithToken(action, token);
+}
+
+function executeWithToken(
+  action: SuggestedAction,
+  token: string
+): Promise<ExecutionResult> {
   switch (action.type) {
     case "email":
-      return executeEmail(action.draft as EmailDraft);
+      return executeEmail(action.draft as EmailDraft, token);
     case "calendar":
-      return executeCalendar(action.draft as CalendarDraft);
+      return executeCalendar(action.draft as CalendarDraft, token);
     case "slack":
-      return executeSlack(action.draft as SlackDraft);
+      return executeSlack(action.draft as SlackDraft, token);
     default:
       throw new Error(`Unknown action type: ${action.type}`);
   }
 }
 
-async function executeEmail(draft: EmailDraft): Promise<ExecutionResult> {
-  const result = await exchangeToken("google-oauth2");
-  if ("error" in result) {
-    throw new Error(
-      "Gmail not connected. Connect your Google Account in Permissions."
-    );
-  }
-
+async function executeEmail(
+  draft: EmailDraft,
+  token: string
+): Promise<ExecutionResult> {
   const rawMessage = [
     `To: ${draft.to}`,
     `Subject: ${draft.subject}`,
@@ -54,7 +87,7 @@ async function executeEmail(draft: EmailDraft): Promise<ExecutionResult> {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${result.token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ message: { raw: encodedMessage } }),
@@ -74,15 +107,9 @@ async function executeEmail(draft: EmailDraft): Promise<ExecutionResult> {
 }
 
 async function executeCalendar(
-  draft: CalendarDraft
+  draft: CalendarDraft,
+  token: string
 ): Promise<ExecutionResult> {
-  const result = await exchangeToken("google-oauth2");
-  if ("error" in result) {
-    throw new Error(
-      "Google Calendar not connected. Connect your Google Account in Permissions."
-    );
-  }
-
   const startDateTime = `${draft.date}T${draft.time}:00`;
   const endDate = new Date(
     new Date(startDateTime).getTime() + draft.duration * 60 * 1000
@@ -102,7 +129,7 @@ async function executeCalendar(
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${result.token}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(event),
@@ -122,20 +149,15 @@ async function executeCalendar(
   };
 }
 
-async function executeSlack(draft: SlackDraft): Promise<ExecutionResult> {
-  const result = await exchangeToken("sign-in-with-slack");
-  if ("error" in result) {
-    throw new Error(
-      "Slack not connected. Connect your Slack account in Permissions."
-    );
-  }
-
+async function executeSlack(
+  draft: SlackDraft,
+  token: string
+): Promise<ExecutionResult> {
   const channel = draft.channel.replace(/^#/, "");
 
-  // Resolve channel name to ID
   const listRes = await fetch(
     "https://slack.com/api/conversations.list?types=public_channel&limit=200",
-    { headers: { Authorization: `Bearer ${result.token}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
 
   if (!listRes.ok) {
@@ -159,7 +181,7 @@ async function executeSlack(draft: SlackDraft): Promise<ExecutionResult> {
   const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${result.token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ channel: found.id, text: draft.message }),
