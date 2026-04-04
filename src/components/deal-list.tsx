@@ -9,10 +9,22 @@ const stageColors: Record<string, string> = {
   "closed-lost": "bg-destructive text-white",
 };
 
+const stageOrder: Record<string, number> = {
+  negotiation: 0,
+  proposal: 1,
+  qualified: 2,
+  lead: 3,
+  "closed-won": 4,
+  "closed-lost": 5,
+};
+
 export function DealList({ deals }: { deals: Deal[] }) {
-  const totalValue = deals.reduce((sum, d) => sum + d.value, 0);
   const activeDeals = deals.filter(
     (d) => d.stage !== "closed-won" && d.stage !== "closed-lost"
+  );
+  const activeValue = activeDeals.reduce((sum, d) => sum + d.value, 0);
+  const sortedDeals = [...deals].sort(
+    (a, b) => (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99)
   );
 
   return (
@@ -20,15 +32,14 @@ export function DealList({ deals }: { deals: Deal[] }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-foreground">Pipeline</h2>
         <div className="text-sm text-muted-foreground">
-          {activeDeals.length} active &middot; $
-          {totalValue.toLocaleString()} total
+          {activeDeals.length} active &middot; ${activeValue.toLocaleString()}
         </div>
       </div>
       <div className="space-y-2">
-        {deals.map((deal) => (
+        {sortedDeals.map((deal) => (
           <div
             key={deal.id}
-            className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2"
+            className={`flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2 ${deal.stage.startsWith("closed-") ? "opacity-60" : ""}`}
           >
             <div className="flex items-center gap-3">
               <span

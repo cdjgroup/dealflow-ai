@@ -8,7 +8,7 @@ export function PipelineMetrics({ deals }: Props) {
   const activeDeals = deals.filter(
     (d) => d.stage !== "closed-won" && d.stage !== "closed-lost"
   );
-  const totalValue = deals.reduce((sum, d) => sum + d.value, 0);
+  const totalValue = activeDeals.reduce((sum, d) => sum + d.value, 0);
   const wonDeals = deals.filter((d) => d.stage === "closed-won");
   const wonValue = wonDeals.reduce((sum, d) => sum + d.value, 0);
 
