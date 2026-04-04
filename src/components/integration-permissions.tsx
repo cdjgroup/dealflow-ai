@@ -436,7 +436,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections }:
                     {enabled && toolNames && toolNames.length > 0 && !grayed && (
                       <div className="px-4 pb-2.5 space-y-1.5">
                         {toolNames.map((toolName) => {
-                          const currentTrust = settings.toolTrust?.[toolName];
+                          const currentTrust = settings.toolTrust?.[toolName] ?? "ask";
                           return (
                             <div key={toolName} className="flex items-center gap-2">
                               <span className="text-[10px] text-muted-foreground w-28 truncate">
@@ -468,7 +468,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections }:
                                     </button>
                                   );
                                 })}
-                                {currentTrust && (
+                                {settings.toolTrust?.[toolName] && (
                                   <button
                                     onClick={() => clearTrust(toolName)}
                                     className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
