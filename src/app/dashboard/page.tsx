@@ -1,5 +1,6 @@
 import { auth0 } from "@/lib/auth0";
-import { getDeals } from "@/lib/data/crm";
+import { getDeals, seedDemoData, getDeal } from "@/lib/data/crm";
+import { seedActions } from "@/lib/data/actions";
 import { ChatContainer } from "@/components/chat-container";
 import { DealList } from "@/components/deal-list";
 import { DealFunnel } from "@/components/deal-funnel";
@@ -14,7 +15,14 @@ export default async function DashboardPage() {
   if (!userId) {
     throw new Error("Invalid session: missing user ID");
   }
-  const deals = await getDeals(userId);
+
+  // Auto-reseed if new deals (d5-d8) are missing but old deals exist
+  let deals = await getDeals(userId);
+  if (deals.length > 0 && !deals.some((d) => d.id === "d5")) {
+    await seedDemoData(userId);
+    await seedActions(userId);
+    deals = await getDeals(userId);
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-8rem)]">
