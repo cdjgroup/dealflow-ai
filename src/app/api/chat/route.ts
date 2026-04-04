@@ -88,21 +88,30 @@ function attachApprovalChecks(
  * Build a binding message for CIBA push notification.
  * Action-focused format per design decision.
  */
+/**
+ * Sanitize binding message for Auth0 CIBA.
+ * Only allows: alphanumerics, whitespace, and +-_.,:#
+ * Must not have leading/trailing whitespace.
+ */
+function sanitizeBindingMessage(msg: string): string {
+  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
+}
+
 function buildBindingMessage(
   toolName: string,
   params: Record<string, unknown>
 ): string {
   if (toolName === "createDeal") {
-    const value = typeof params.value === "number" ? `$${params.value.toLocaleString()}` : "";
+    const value = typeof params.value === "number" ? params.value.toLocaleString() : "";
     const name = typeof params.name === "string" ? params.name : "new deal";
-    return `Approve creating ${value} deal: ${name}`.slice(0, 64);
+    return sanitizeBindingMessage(`Approve creating ${value} deal: ${name}`);
   }
   if (toolName === "updateDeal") {
     const name = typeof params.name === "string" ? params.name : "deal";
     const stage = typeof params.stage === "string" ? params.stage : "";
-    return `Approve updating ${name} to ${stage}`.slice(0, 64);
+    return sanitizeBindingMessage(`Approve updating ${name} to ${stage}`);
   }
-  return `Approve ${toolName}`.slice(0, 64);
+  return sanitizeBindingMessage(`Approve ${toolName}`);
 }
 
 /**
