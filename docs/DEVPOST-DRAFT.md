@@ -86,7 +86,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
 | **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
 | **Step-up approval** | Confirm high-value deals (>$50K), external actions | AI SDK `needsApproval` with async logic |
-| **CIBA device approval** | Guardian push notification for >$50K deals | Direct HTTP to Auth0 /bc-authorize + polling |
+| **CIBA device consent** | Guardian push for >$50K deals, terminal stages | Direct HTTP to Auth0 `/bc-authorize` + polling |
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
 | **Scope awareness** | Tools self-declare minimum scopes | UI shows voluntary least-privilege |
@@ -104,11 +104,12 @@ The same `exchangeToken()` function works from all three entry points — provin
 ### Technical Innovation (Judging: Technical Execution)
 | Feature | Why it matters |
 |---------|---------------|
+| **Two-step consent** | Inline approval (AI SDK) + CIBA Guardian push (Auth0) — graduated device-level authorization |
 | **Token lifecycle visualization** | Makes the invisible security model visible — 6-stage animation in chat |
 | **MCP Server** | External AI agents get Auth0-grade security without framework changes |
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
 | **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
-| **Direct RFC 8693 exchange** | Bypassed broken SDK wrapper — more control, richer token metadata |
+| **Direct RFC 8693 exchange** | SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — direct calls give full error observability + richer token metadata |
 | **CIBA via direct HTTP** | Device-level consent using Auth0 Guardian push — same direct HTTP pattern as Token Vault (ADR 004) |
 
 ### Potential Impact (Judging: Potential Impact)
@@ -136,7 +137,7 @@ This pattern is reusable: any application with Auth0 Token Vault can expose its 
 
 We documented 12 non-obvious discoveries during development:
 
-1. **@auth0/ai-vercel SDK is incompatible with AI SDK v6** — the wrapper's `protect` method silently throws. Fix: call Auth0's token exchange endpoint directly.
+1. **@auth0/ai-vercel SDK swallows token exchange errors** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — failed exchanges return "Authorization required" instead of the real error. Fix: call Auth0's token exchange endpoint directly for full error observability.
 2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
 3. **Token Vault tokenset deletion doesn't revoke access** — tokensets are a cache layer. Application-level enforcement is required.
 4. **Auth0 Token Vault does NOT support scope narrowing** — the `scope` parameter is ignored on federated exchanges. Scope narrowing must be application-layer.
@@ -146,7 +147,7 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 
 ## Challenges we ran into
 
-1. **@auth0/ai-vercel SDK incompatibility**: The v5 SDK wrapper silently fails with AI SDK v6. The wrapper's `protect` method throws before the tool's `execute` function runs, but the error is swallowed by streaming. We bypassed it and called Auth0's `/oauth/token` endpoint directly using RFC 8693 — which gave us richer token metadata (scope, TTL, connection) that powers the lifecycle visualization.
+1. **@auth0/ai-vercel SDK error swallowing** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)): The SDK's `TokenVaultAuthorizerBase` silently returns `undefined` when token exchange fails, then `validateToken()` throws a misleading "Authorization required" interrupt. The real error (wrong credentials, misconfigured connection, expired refresh token) is swallowed. We called Auth0's `/oauth/token` endpoint directly using RFC 8693 — which surfaces actual error messages and yields richer token metadata (scope, TTL, connection) that powers the lifecycle visualization.
 
 2. **Token Vault tokenset deletion is non-revocable**: Deleting a tokenset via the Management API doesn't prevent re-provisioning. Auth0 silently creates a new tokenset on the next exchange. We implemented application-level disconnect via Redis flags checked at three integration points: `exchangeToken()`, `/api/token-status`, and the permissions UI.
 

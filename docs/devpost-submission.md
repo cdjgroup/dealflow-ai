@@ -8,15 +8,18 @@ Most AI agent demos show an impressive chat interface — but give users zero co
 
 DealFlow AI is an AI sales agent that manages your pipeline, checks your Google Calendar, drafts Gmail follow-ups, and sends Slack team updates — all secured through Auth0 Token Vault.
 
-What makes it different is the security and control model:
+What makes it different is the security and control model — a **policy-driven authorization framework** where every tool invocation passes through a layered decision pipeline:
 
-- **Capability toggles** — Users control which tools the agent can use. Disable Gmail? The agent literally can't see email tools. It's not a permission check at runtime — the tools are removed from the LLM entirely
-- **Step-up authorization** — High-value operations ($50K+ deals, closing as "won") require explicit user approval before execution, using AI SDK 6's native `needsApproval`
-- **CIBA device-level consent** — High-value actions also trigger an Auth0 Guardian push notification to the user's phone. Two-step consent: inline approval in the app, then device verification via CIBA — the same pattern banks use for wire transfers
-- **Audit trail** — Every agent action is logged with sanitized parameters, viewable in a dedicated dashboard. Full transparency into what the agent did and when
-- **Progressive consent** — Each tool requests only the OAuth scopes it needs. Calendar gets read-only. Only email drafting requests compose access
-- **Disconnect & revoke** — Users can revoke OAuth connections at any time. The next tool invocation triggers a fresh consent flow
-- **Live scope indicator** — Shows which OAuth scopes are actively being used during tool execution
+1. **CSRF + Rate Limiting** — Request-level protection (10 req/min per user)
+2. **Capability Filtering** — Users toggle tools ON/OFF. Disabled tools are removed from the LLM entirely — the agent can't see them, can't try to use them
+3. **Trust Level Evaluation** — Per-tool policy: "always" (skip approval), "ask" (require consent), "never" (hard-block). Overrides all other layers
+4. **Value-Based Step-Up** — High-value operations ($50K+ deals, closing as "won") require explicit approval via AI SDK 6's `needsApproval`
+5. **CIBA Device Consent** — Critical mutations trigger Auth0 Guardian push notifications for out-of-band approval on the user's phone
+6. **Audit Trail** — Every tool call logged with parameters, duration, token metadata, and outcome
+
+Each tool invocation evaluates all six layers in sequence. The result isn't a single yes/no — it's a graduated response: proceed silently, prompt for approval, require device consent, or block entirely. This mirrors how enterprise access control works: context-dependent authorization, not blanket permissions.
+
+**Design philosophy:** We treat AI agency as a spectrum of delegation, not a binary. Users grant specific capabilities, set trust levels per tool, approve high-value actions inline, and confirm critical mutations on their phone. The AI is authorized to act — but only within bounds the user controls in real-time
 
 The agent supports 13 tools across 4 services:
 - **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
@@ -36,12 +39,12 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
-The Token Vault integration uses direct token exchange rather than the `@auth0/ai-vercel` SDK wrapper, which we found to be incompatible with AI SDK v6. The same RFC 8693 pattern works identically for both Google and Slack connections.
+The Token Vault integration uses direct RFC 8693 token exchange rather than the `@auth0/ai-vercel` SDK wrapper. We found that the SDK swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)) — returning a misleading "Authorization required" interrupt instead of the actual Auth0 API error, making Token Vault setup nearly impossible to debug. Direct calls give us full error observability plus rich token metadata (scope, TTL, connection) that powers the lifecycle visualization. The same pattern works identically for both Google and Slack connections.
 
 ## Challenges we ran into
 
-1. **@auth0/ai-vercel SDK incompatibility** — The SDK wrapper's `protect` method silently fails with AI SDK v6. We bypassed it entirely and call Auth0's `/oauth/token` endpoint directly. Same security, fewer abstractions
-2. **CIBA discovery and implementation** — Our original design included CIBA (Guardian push notifications) for step-up auth. We initially thought it required Enterprise-tier Auth0 and pivoted to AI SDK 6's `needsApproval`. Then Auth0 confirmed our trial had CIBA access — so we built both: inline approval as the first layer, CIBA Guardian push as the second layer for high-value actions. The direct HTTP pattern from ADR 001 worked perfectly for CIBA too (Auth0's `/bc-authorize` endpoint with `application/x-www-form-urlencoded`)
+1. **@auth0/ai-vercel SDK error swallowing** — The SDK wrapper swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)), returning "Authorization required" instead of the actual error. We call Auth0's `/oauth/token` endpoint directly for full error observability and richer token metadata
+2. **CIBA: from "can't" to two-step consent** — We initially believed CIBA required an Enterprise Plan and pivoted to AI SDK 6's `needsApproval` for inline approval. Then Auth0 confirmed our trial had CIBA access — so we built both: inline approval as the first layer, CIBA Guardian push as the second layer. The direct HTTP pattern from ADR 001 worked perfectly for CIBA too (Auth0's `/bc-authorize` with `application/x-www-form-urlencoded`). The result: a two-step consent flow that's stronger than either mechanism alone
 3. **Google login vs Connected Accounts** — Logging in with Google does NOT enable Token Vault. You need: enableConnectAccountEndpoint, My Account API audience, connection purpose set to "Auth + Connected Accounts," and MRRT enabled. This took significant debugging
 4. **Free Plan connection limit** — Two Token Vault connections maximum. We designed for exactly two (Google + Slack) and built capability toggles so users can manage both
 
@@ -51,15 +54,15 @@ The Token Vault integration uses direct token exchange rather than the `@auth0/a
 - **AI justifications** — Every suggested action explains WHY, making human-in-the-loop meaningful rather than ceremonial
 - **MCP as ecosystem security** — Turned one app's Token Vault integration into a reusable pattern for external AI agents (OpenClaw, Claude Desktop, Cursor)
 - **Two Token Vault providers** — Google + Slack, demonstrating the pattern's extensibility with identical integration code
+- **Two-step consent** — Inline approval (AI SDK) + CIBA Guardian push (Auth0) for high-value mutations — defense-in-depth at the identity layer
 - **Token lifecycle visualization** — Animated 6-stage pipeline makes the invisible security model visible for users and judges
-- **CIBA two-step consent** — Device-level approval via Auth0 Guardian for high-value actions, proving defense-in-depth at the identity layer
 
 ## What we learned
 
-- Security is a composition problem — no single mechanism is sufficient
+- Security is a composition problem — no single mechanism is sufficient. Our six-layer pipeline (CSRF → rate limit → capability filter → trust level → value step-up → CIBA device consent) demonstrates graduated authorization
 - Remove tools from the LLM entirely when disabled, don't check at runtime. The model produces cleaner behavior when it doesn't know about tools it can't use
-- Check your framework before building custom auth flows. AI SDK 6's `needsApproval` replaced hundreds of lines of custom code — then compose it with Auth0's CIBA for high-stakes cases
-- Auth0's trial plan provides everything you need: Token Vault, CIBA, Guardian push notifications
+- Layer your consent mechanisms: AI SDK `needsApproval` for inline approval + CIBA Guardian push for device-level consent. Neither alone is sufficient; together they provide both convenience and security
+- Auth0's Token Vault enables a composable auth pattern — the same `exchangeToken()` works across chat, Action Center, and MCP without any surface-specific auth code
 
 ## What's next for DealFlow AI
 

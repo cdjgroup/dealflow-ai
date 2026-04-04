@@ -175,6 +175,6 @@ All notable changes to this project will be documented in this file.
 - Vercel production deployment
 
 ### Architecture Decisions
-- Direct Auth0 /oauth/token calls instead of @auth0/ai-vercel SDK wrapper (incompatible with AI SDK v6)
+- Direct Auth0 /oauth/token calls instead of @auth0/ai-vercel SDK wrapper (SDK swallows exchange errors — see auth0-ai-js#175)
 - Upstash Redis via HTTP for all data (no PostgreSQL, Edge-compatible)
 - Claude Sonnet 4.6 as the LLM (configurable via ANTHROPIC_MODEL env var)

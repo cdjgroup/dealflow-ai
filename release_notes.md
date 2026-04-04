@@ -24,7 +24,7 @@ Device-level consent via Auth0 Guardian push notifications for high-value AI age
 ### Architecture
 
 - Direct HTTP to Auth0 `/bc-authorize` and `/oauth/token` (CIBA grant type `urn:openid:params:grant-type:ciba`)
-- Follows ADR 001 pattern: bypass `@auth0/ai` SDK wrapper, call endpoints directly
+- Follows ADR 001 pattern: direct HTTP for full error observability (SDK swallows errors — [auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175))
 - Form-urlencoded content type with `iss_sub` login_hint format per Auth0 SDK reference
 - Reuses existing TokenVaultInterrupt pattern for chat-side interrupt handling
 
