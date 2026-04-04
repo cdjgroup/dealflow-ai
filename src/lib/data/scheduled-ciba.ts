@@ -43,8 +43,13 @@ export async function getAllActiveScheduledSessions(): Promise<ScheduledCibaSess
       staleKeys.push(keys[i]);
       continue;
     }
-    const s = typeof raws[i] === "string" ? JSON.parse(raws[i]!) : raws[i];
-    sessions.push(s as ScheduledCibaSession);
+    try {
+      const s = typeof raws[i] === "string" ? JSON.parse(raws[i]!) : raws[i];
+      sessions.push(s as ScheduledCibaSession);
+    } catch {
+      console.error("Skipping malformed scheduled CIBA session at key:", keys[i]);
+      staleKeys.push(keys[i]);
+    }
   }
 
   if (staleKeys.length > 0) {

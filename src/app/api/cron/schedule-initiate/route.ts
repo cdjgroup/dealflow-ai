@@ -9,21 +9,21 @@ import {
   storeScheduledCibaSession,
   getScheduledCibaSession,
 } from "@/lib/data/scheduled-ciba";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
-function verifyCronSecret(req: Request): boolean {
-  return (
-    req.headers.get("authorization") ===
-    `Bearer ${process.env.CRON_SECRET}`
-  );
-}
+const MAX_USERS_PER_HOUR = 50;
 
 function getHourInTimezone(date: Date, timezone: string): number {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    hour12: false,
-    timeZone: timezone,
-  });
-  return parseInt(formatter.format(date), 10);
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: timezone,
+    });
+    return parseInt(formatter.format(date), 10);
+  } catch {
+    return -1; // Invalid timezone — no match
+  }
 }
 
 function sanitizeBindingMessage(msg: string): string {
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
-  const batchId = now.toISOString();
+  const batchId = `${now.toISOString().slice(0, 13)}:00:00.000Z`;
   const results: Array<{
     userId: string;
     status: string;
@@ -44,7 +44,8 @@ export async function GET(req: Request) {
   }> = [];
 
   for (const targetHour of [8, 12, 17]) {
-    const userIds = await getUsersForScheduleHour(targetHour);
+    const allUserIds = await getUsersForScheduleHour(targetHour);
+    const userIds = allUserIds.slice(0, MAX_USERS_PER_HOUR);
 
     for (const userId of userIds) {
       const settings = await getUserSettings(userId);
@@ -63,8 +64,7 @@ export async function GET(req: Request) {
       }
 
       // AC-13: Idempotency — skip if session already exists for this batch window
-      const hourKey = `${now.toISOString().slice(0, 13)}:00:00.000Z`;
-      const existing = await getScheduledCibaSession(userId, hourKey);
+      const existing = await getScheduledCibaSession(userId, batchId);
       if (existing) {
         results.push({ userId, status: "skipped-existing-session" });
         continue;
@@ -79,7 +79,7 @@ export async function GET(req: Request) {
         const cibaResult = await initiateCiba(userId, msg);
 
         await storeScheduledCibaSession({
-          batchId: hourKey,
+          batchId,
           userId,
           authReqId: cibaResult.authReqId,
           actionIds,

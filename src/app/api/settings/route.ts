@@ -57,7 +57,17 @@ const settingsSchema = z.object({
           })
         )
         .max(3),
-      timezone: z.string().max(64),
+      timezone: z.string().max(64).refine(
+        (tz) => {
+          try {
+            Intl.DateTimeFormat(undefined, { timeZone: tz });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: "Invalid IANA timezone identifier" }
+      ),
     })
     .optional(),
 });
@@ -107,6 +117,11 @@ export async function PUT(req: Request) {
       const refreshToken = session.tokenSet?.refreshToken;
       if (refreshToken) {
         await storeScheduleRefreshToken(user.sub, refreshToken);
+      } else {
+        console.warn(
+          "Schedule enabled for user %s but no refresh token in session",
+          user.sub
+        );
       }
     } else {
       await deleteScheduleRefreshToken(user.sub);

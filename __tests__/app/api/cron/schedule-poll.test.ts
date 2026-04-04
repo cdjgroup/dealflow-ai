@@ -40,6 +40,15 @@ vi.mock("@/lib/actions/executor", () => ({
 vi.mock("@/lib/data/audit", () => ({
   writeAuditEntry: (...args: unknown[]) => mockWriteAuditEntry(...args),
 }));
+vi.mock("@/lib/cron-auth", () => ({
+  verifyCronSecret: (req: Request) =>
+    req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`,
+}));
+
+const mockRedisSet = vi.fn().mockResolvedValue("OK");
+vi.mock("@/lib/redis", () => ({
+  getRedis: () => ({ set: mockRedisSet }),
+}));
 
 const { GET } = await import("@/app/api/cron/schedule-poll/route");
 

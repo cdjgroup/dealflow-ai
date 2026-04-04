@@ -41,14 +41,16 @@ export async function updateScheduleIndex(
 ): Promise<void> {
   const redis = getRedis();
   const p = redis.pipeline();
+  // Always sadd new hours (idempotent on Redis sets, self-heals index drift)
+  for (const h of newHours) {
+    if (VALID_HOURS.includes(h)) {
+      p.sadd(scheduleIndexKey(h), userId);
+    }
+  }
+  // Remove hours no longer selected
   for (const h of oldHours) {
     if (!newHours.includes(h)) {
       p.srem(scheduleIndexKey(h), userId);
-    }
-  }
-  for (const h of newHours) {
-    if (!oldHours.includes(h) && VALID_HOURS.includes(h)) {
-      p.sadd(scheduleIndexKey(h), userId);
     }
   }
   await p.exec();

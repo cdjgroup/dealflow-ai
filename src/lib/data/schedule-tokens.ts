@@ -22,7 +22,16 @@ export async function getScheduleRefreshToken(
   const redis = getRedis();
   const raw = await redis.get<string>(key(userId));
   if (!raw) return null;
-  return decrypt(raw);
+  try {
+    return decrypt(raw);
+  } catch (err) {
+    console.error(
+      "Failed to decrypt schedule refresh token for user %s — key rotation?",
+      userId,
+      err
+    );
+    return null;
+  }
 }
 
 export async function deleteScheduleRefreshToken(

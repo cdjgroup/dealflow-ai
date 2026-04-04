@@ -13,6 +13,8 @@ import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { verifyCronSecret } from "@/lib/cron-auth";
+import { getRedis } from "@/lib/redis";
 import type { SuggestedAction } from "@/lib/types/actions";
 
 const CONNECTION_MAP: Record<string, string> = {
@@ -21,13 +23,6 @@ const CONNECTION_MAP: Record<string, string> = {
   slack: "sign-in-with-slack",
 };
 
-function verifyCronSecret(req: Request): boolean {
-  return (
-    req.headers.get("authorization") ===
-    `Bearer ${process.env.CRON_SECRET}`
-  );
-}
-
 async function getTokenForAction(
   action: SuggestedAction,
   refreshToken: string
@@ -35,9 +30,29 @@ async function getTokenForAction(
   const connection = CONNECTION_MAP[action.type];
   const result = await exchangeTokenWithRefresh(connection, refreshToken);
   if ("error" in result) {
-    throw new Error(result.error);
+    console.error(`Token exchange failed for connection ${connection}:`, result.error);
+    throw new Error(
+      `Could not obtain ${action.type} access token. Re-enable the connection in Permissions.`
+    );
   }
   return result.token;
+}
+
+/**
+ * Claim exclusive execution of a batch using Redis SET NX.
+ * Prevents duplicate execution from overlapping cron invocations.
+ */
+async function claimExecution(
+  userId: string,
+  batchId: string
+): Promise<boolean> {
+  const redis = getRedis();
+  const result = await redis.set(
+    `ciba:executing:${userId}:${batchId}`,
+    "1",
+    { ex: 120, nx: true }
+  );
+  return result === "OK";
 }
 
 export async function GET(req: Request) {
@@ -59,6 +74,13 @@ export async function GET(req: Request) {
       const pollResult = await pollCiba(session.authReqId);
 
       if (pollResult.status === "approved") {
+        // Distributed lock: prevent duplicate execution from overlapping cron ticks
+        const claimed = await claimExecution(session.userId, session.batchId);
+        if (!claimed) {
+          results.push({ ...pick, status: "already-executing" });
+          continue;
+        }
+
         const refreshToken = await getScheduleRefreshToken(session.userId);
         if (!refreshToken) {
           await batchUpdateStatus(
@@ -73,7 +95,14 @@ export async function GET(req: Request) {
 
         for (const actionId of session.actionIds) {
           const action = await getAction(session.userId, actionId);
-          if (!action) continue;
+          if (!action) {
+            console.warn(
+              "Action %s not found during scheduled execution for user %s",
+              actionId,
+              session.userId
+            );
+            continue;
+          }
 
           await updateAction(session.userId, actionId, {
             status: "executing",
@@ -92,7 +121,9 @@ export async function GET(req: Request) {
               input: action.draft as unknown as Record<string, unknown>,
               result: "success",
               durationMs: 0,
-            }).catch(() => {});
+            }).catch((err) =>
+              console.error("Audit write failed for action", actionId, err)
+            );
           } catch (err) {
             const errorMessage =
               err instanceof Error ? err.message : "Execution failed";
@@ -107,7 +138,9 @@ export async function GET(req: Request) {
               input: action.draft as unknown as Record<string, unknown>,
               result: "error",
               durationMs: 0,
-            }).catch(() => {});
+            }).catch((err) =>
+              console.error("Audit write failed for action", actionId, err)
+            );
           }
         }
 

@@ -102,7 +102,7 @@ describe("settings schedule extensions", () => {
       expect(pipeline.srem).toHaveBeenCalledWith("schedule:idx:12", TEST_USER);
     });
 
-    it("only changes differing hours", async () => {
+    it("always adds new hours and only removes dropped ones", async () => {
       await updateScheduleIndex(TEST_USER, [8, 12], [8, 17]);
 
       const pipeline = mockPipeline.mock.results[0].value;
@@ -110,8 +110,8 @@ describe("settings schedule extensions", () => {
       expect(pipeline.srem).toHaveBeenCalledWith("schedule:idx:12", TEST_USER);
       // Add 17 (in new, not in old)
       expect(pipeline.sadd).toHaveBeenCalledWith("schedule:idx:17", TEST_USER);
-      // 8 unchanged — no sadd or srem for it
-      expect(pipeline.sadd).not.toHaveBeenCalledWith("schedule:idx:8", TEST_USER);
+      // 8 still added (idempotent — self-heals index drift)
+      expect(pipeline.sadd).toHaveBeenCalledWith("schedule:idx:8", TEST_USER);
       expect(pipeline.srem).not.toHaveBeenCalledWith("schedule:idx:8", TEST_USER);
     });
 

@@ -5,7 +5,14 @@ const ALG = "aes-256-gcm";
 function getKey(): Buffer {
   const b64 = process.env.TOKEN_ENCRYPTION_KEY;
   if (!b64) throw new Error("Missing TOKEN_ENCRYPTION_KEY environment variable");
-  return Buffer.from(b64, "base64").subarray(0, 32);
+  const key = Buffer.from(b64, "base64");
+  if (key.length < 32) {
+    throw new Error(
+      `TOKEN_ENCRYPTION_KEY must decode to at least 32 bytes (got ${key.length}). ` +
+      `Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+    );
+  }
+  return key.subarray(0, 32);
 }
 
 export function encrypt(plaintext: string): string {

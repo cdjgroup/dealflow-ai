@@ -27,6 +27,10 @@ vi.mock("@/lib/data/scheduled-ciba", () => ({
   getScheduledCibaSession: (...args: unknown[]) =>
     mockGetScheduledCibaSession(...args),
 }));
+vi.mock("@/lib/cron-auth", () => ({
+  verifyCronSecret: (req: Request) =>
+    req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`,
+}));
 
 const { GET } = await import(
   "@/app/api/cron/schedule-initiate/route"
