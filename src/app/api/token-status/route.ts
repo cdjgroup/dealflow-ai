@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { isConnectionDisabled } from "@/lib/data/connections";
+import { getPollingLimiter } from "@/lib/rate-limit";
 
 interface TokenStatus {
   connection: string;
@@ -25,6 +26,11 @@ export async function GET() {
   const user = await getUser();
   if (!user?.sub) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { success } = await getPollingLimiter().limit(user.sub);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const refreshToken = session.tokenSet?.refreshToken;

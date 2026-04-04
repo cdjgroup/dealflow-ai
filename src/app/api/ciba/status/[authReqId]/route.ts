@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { pollCiba } from "@/lib/ciba/poll";
 import { getRedis } from "@/lib/redis";
+import { getPollingLimiter } from "@/lib/rate-limit";
 
 export async function GET(
   _req: Request,
@@ -14,6 +15,11 @@ export async function GET(
   const user = await getUser();
   if (!user?.sub) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { success } = await getPollingLimiter().limit(user.sub);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const { authReqId } = await params;

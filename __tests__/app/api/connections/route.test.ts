@@ -32,6 +32,10 @@ vi.mock("@/lib/redis", () => ({
   }),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  getSensitiveLimiter: () => ({ limit: vi.fn().mockResolvedValue({ success: true }) }),
+}));
+
 import { DELETE, POST } from "@/app/api/connections/[connection]/route";
 
 function makeDeleteRequest() {
