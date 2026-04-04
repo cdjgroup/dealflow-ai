@@ -37,6 +37,8 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
+**Built in 4 days** (March 31 – April 4, 2026) with 146 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
+
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
 The Token Vault integration uses direct RFC 8693 token exchange rather than the `@auth0/ai-vercel` SDK wrapper. We found that the SDK swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)) — returning a misleading "Authorization required" interrupt instead of the actual Auth0 API error, making Token Vault setup nearly impossible to debug. Direct calls give us full error observability plus rich token metadata (scope, TTL, connection) that powers the lifecycle visualization. The same pattern works identically for both Google and Slack connections.
