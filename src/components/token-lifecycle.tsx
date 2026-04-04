@@ -33,7 +33,7 @@ export function TokenLifecycle({
   expiresIn,
   connection,
 }: TokenLifecycleProps) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const isComplete = state === "completed";
   const activeStage = isComplete ? STAGES.length - 1 : API_CALL_INDEX;
 
@@ -85,7 +85,7 @@ export function TokenLifecycle({
                         opacity: isActive ? 1 : 0.3,
                         scale: isCurrent ? 1.05 : 1,
                       }}
-                      transition={{ delay: i * 0.08, duration: 0.2 }}
+                      transition={{ delay: i * 0.3, duration: 0.4 }}
                       className="flex items-center gap-1 shrink-0"
                     >
                       <div
@@ -112,7 +112,7 @@ export function TokenLifecycle({
                           }`}
                           initial={{ scaleX: 0 }}
                           animate={{ scaleX: i < activeStage ? 1 : 0.5 }}
-                          transition={{ delay: i * 0.08 + 0.05, duration: 0.15 }}
+                          transition={{ delay: i * 0.3 + 0.15, duration: 0.3 }}
                         />
                       )}
                     </motion.div>
