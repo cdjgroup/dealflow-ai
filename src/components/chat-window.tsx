@@ -136,12 +136,12 @@ export function ChatWindow({ conversationId, onConversationCreated }: ChatWindow
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
-                className="text-muted-foreground mb-6 max-w-md"
+                className="text-muted-foreground mb-6 max-w-md mx-auto"
               >
                 Ask me about your pipeline, check your calendar, or draft a
                 follow-up email.
               </motion.p>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-wrap gap-2 justify-center max-w-lg mx-auto">
                 {suggestions.map((suggestion, i) => (
                   <motion.button
                     key={suggestion}

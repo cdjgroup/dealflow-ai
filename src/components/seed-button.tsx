@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function SeedButton() {
+export function SeedButton({ hasData = false }: { hasData?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -35,7 +35,7 @@ export function SeedButton() {
         disabled={loading}
         className="w-full bg-card hover:bg-secondary disabled:opacity-50 border border-border text-foreground/80 text-sm font-medium px-4 py-3 rounded-lg transition-colors"
       >
-        {loading ? "Seeding..." : "Load Demo Data"}
+        {loading ? "Seeding..." : hasData ? "Reseed Demo Data" : "Load Demo Data"}
       </button>
       {error && (
         <p className="text-destructive text-xs mt-2">{error}</p>

@@ -6,6 +6,7 @@ const stages = [
   { key: "proposal", label: "Proposal", color: "bg-primary" },
   { key: "negotiation", label: "Negotiation", color: "bg-chart-4" },
   { key: "closed-won", label: "Won", color: "bg-chart-5" },
+  { key: "closed-lost", label: "Lost", color: "bg-destructive" },
 ];
 
 export function DealFunnel({ deals }: { deals: Deal[] }) {

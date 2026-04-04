@@ -26,7 +26,7 @@ export default async function DashboardPage() {
         <PipelineMetrics deals={deals} />
         <DealFunnel deals={deals} />
         <DealList deals={deals} />
-        {deals.length === 0 && <SeedButton />}
+        <SeedButton hasData={deals.length > 0} />
       </div>
     </div>
   );
