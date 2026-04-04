@@ -28,7 +28,12 @@ export async function POST(req: Request) {
     const result = await initiateCiba(user.sub, bindingMessage);
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "CIBA initiation failed";
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error("CIBA initiation failed:", err);
+    // Sanitize error — Auth0 error_description may leak internal details
+    const raw = err instanceof Error ? err.message : "";
+    const userMessage = raw.includes("not enrolled")
+      ? "Device verification requires Auth0 Guardian enrollment on your phone"
+      : "Step-up authentication unavailable — please try again";
+    return NextResponse.json({ error: userMessage }, { status: 502 });
   }
 }

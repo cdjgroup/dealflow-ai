@@ -140,7 +140,11 @@ export async function POST(
             status: "ciba-pending",
           });
         } catch (err) {
-          const msg = err instanceof Error ? err.message : "CIBA initiation failed";
+          console.error("Action CIBA initiation failed:", err);
+          const raw = err instanceof Error ? err.message : "";
+          const msg = raw.includes("not enrolled")
+            ? "Device verification requires Auth0 Guardian enrollment"
+            : "Step-up authentication unavailable";
           return NextResponse.json({ error: msg }, { status: 502 });
         }
       }

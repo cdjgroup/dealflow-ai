@@ -124,7 +124,9 @@ export function ActionList({ initialActions }: Props) {
         // Handle CIBA step-up response
         if (data.cibaRequired && data.authReqId) {
           updateLocal(id, { status: "ciba-pending" as "approved" });
-          pollCibaStatus(id, data.authReqId, data.interval || 5);
+          pollCibaStatus(id, data.authReqId, data.interval || 5).catch(() => {
+            updateLocal(id, { status: "failed", errorMessage: "Device verification failed" });
+          });
           return;
         }
 
