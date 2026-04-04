@@ -1,4 +1,4 @@
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { seedDemoData } from "@/lib/data/crm";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/api-guard";
@@ -8,21 +8,10 @@ export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json(
-      { error: "Invalid session: missing user ID" },
-      { status: 401 }
-    );
-  }
-  const userId = user.sub;
-
-  const { success } = await getRateLimiter().limit(userId);
+  const { success } = await getRateLimiter().limit(auth.userId);
   if (!success) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
@@ -31,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await seedDemoData(userId);
+    const result = await seedDemoData(auth.userId);
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     console.error("Seed data error:", err);

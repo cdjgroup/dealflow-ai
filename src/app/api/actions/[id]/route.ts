@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { getAction, updateAction } from "@/lib/data/actions";
 import { getUserSettings } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
@@ -27,14 +27,8 @@ export async function PUT(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
 
@@ -53,14 +47,14 @@ export async function PUT(
     );
   }
 
-  const existing = await getAction(user.sub, id);
+  const existing = await getAction(auth.userId, id);
   if (!existing) {
     return NextResponse.json({ error: "Action not found" }, { status: 404 });
   }
 
   // Block approval if capability is disabled or trust is "never"
   if (parsed.data.status === "approved") {
-    const settings = await getUserSettings(user.sub);
+    const settings = await getUserSettings(auth.userId);
     const mapping = ACTION_CAPABILITY_MAP[existing.type];
     if (!settings.capabilities[mapping.capability]) {
       return NextResponse.json(
@@ -76,6 +70,6 @@ export async function PUT(
     }
   }
 
-  const updated = await updateAction(user.sub, id, parsed.data as Parameters<typeof updateAction>[2]);
+  const updated = await updateAction(auth.userId, id, parsed.data as Parameters<typeof updateAction>[2]);
   return NextResponse.json({ action: updated });
 }

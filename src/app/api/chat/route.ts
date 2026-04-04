@@ -1,7 +1,7 @@
 import { streamText, stepCountIs, convertToModelMessages } from "ai";
 import type { Tool } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { checkCalendar } from "@/lib/tools/calendar";
 import { draftEmail, searchEmails } from "@/lib/tools/gmail";
 import { createCrmTools } from "@/lib/tools/crm";
@@ -219,19 +219,9 @@ export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json(
-      { error: "Invalid session: missing user ID" },
-      { status: 401 }
-    );
-  }
-  const userId = user.sub;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const userId = auth.userId;
 
   const { success } = await getRateLimiter().limit(userId);
   if (!success) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { getAction, updateAction } from "@/lib/data/actions";
 import { getDeal } from "@/lib/data/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
@@ -26,22 +26,16 @@ export async function POST(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success } = await getRateLimiter().limit(user.sub);
+  const { success } = await getRateLimiter().limit(auth.userId);
   if (!success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const { id } = await params;
-  const action = await getAction(user.sub, id);
+  const action = await getAction(auth.userId, id);
   if (!action) {
     return NextResponse.json({ error: "Action not found" }, { status: 404 });
   }
@@ -54,7 +48,7 @@ export async function POST(
   }
 
   // Check capability toggle and trust level (same controls as chat tools)
-  const settings = await getUserSettings(user.sub);
+  const settings = await getUserSettings(auth.userId);
   const mapping = ACTION_TOOL_MAP[action.type];
   if (!settings.capabilities[mapping.capability]) {
     return NextResponse.json(
@@ -71,7 +65,7 @@ export async function POST(
 
   // C1: CIBA step-up check for high-value actions
   const HIGH_VALUE_THRESHOLD = 50_000;
-  const deal = action.dealId ? await getDeal(user.sub, action.dealId) : null;
+  const deal = action.dealId ? await getDeal(auth.userId, action.dealId) : null;
   const dealValue = deal?.value ?? 0;
   const cibaRequired = dealValue > HIGH_VALUE_THRESHOLD;
 
@@ -80,15 +74,15 @@ export async function POST(
     const cibaToolKey = `action:${action.type}:${id}`;
 
     // Check for existing CIBA session
-    const existing = await getCibaSession(user.sub, cibaToolKey);
+    const existing = await getCibaSession(auth.userId, cibaToolKey);
 
     if (existing?.status === "approved") {
-      await deleteCibaSession(user.sub, cibaToolKey);
+      await deleteCibaSession(auth.userId, cibaToolKey);
       // Fall through to execution
     } else if (existing?.status === "pending") {
       const pollResult = await pollCiba(existing.authReqId);
       if (pollResult.status === "approved") {
-        await deleteCibaSession(user.sub, cibaToolKey);
+        await deleteCibaSession(auth.userId, cibaToolKey);
         // Fall through to execution
       } else if (pollResult.status === "pending") {
         const remainingSeconds = Math.max(0, Math.floor(
@@ -104,8 +98,8 @@ export async function POST(
         });
       } else {
         // Denied/expired/error — clean up and report
-        await deleteCibaSession(user.sub, cibaToolKey);
-        await updateAction(user.sub, id, {
+        await deleteCibaSession(auth.userId, cibaToolKey);
+        await updateAction(auth.userId, id, {
           status: "failed",
           errorMessage: `CIBA authorization ${pollResult.status}: ${pollResult.error || ""}`,
         });
@@ -116,16 +110,16 @@ export async function POST(
       }
     } else {
       // No session, or stale (denied/expired/error) — always initiate new CIBA
-      if (existing) await deleteCibaSession(user.sub, cibaToolKey);
+      if (existing) await deleteCibaSession(auth.userId, cibaToolKey);
 
       try {
         const dealName = deal?.name || action.dealName || "deal";
         const bindingMessage = `Approve ${action.type} for $${dealValue.toLocaleString()} deal: ${dealName}`.slice(0, 64);
-        const cibaResult = await initiateCiba(user.sub, bindingMessage);
+        const cibaResult = await initiateCiba(auth.userId, bindingMessage);
 
         await storeCibaSession({
           authReqId: cibaResult.authReqId,
-          userId: user.sub,
+          userId: auth.userId,
           bindingMessage: cibaResult.bindingMessage,
           toolName: cibaToolKey,
           expiresAt: new Date(Date.now() + cibaResult.expiresIn * 1000).toISOString(),
@@ -134,7 +128,7 @@ export async function POST(
           createdAt: new Date().toISOString(),
         });
 
-        await updateAction(user.sub, id, { status: "ciba-pending" });
+        await updateAction(auth.userId, id, { status: "ciba-pending" });
 
         return NextResponse.json({
           cibaRequired: true,
@@ -156,18 +150,18 @@ export async function POST(
   }
 
   // Mark as executing
-  await updateAction(user.sub, id, { status: "executing" });
+  await updateAction(auth.userId, id, { status: "executing" });
 
   const startTime = Date.now();
   try {
     const result = await executeAction(action);
 
-    const updated = await updateAction(user.sub, id, {
+    const updated = await updateAction(auth.userId, id, {
       status: "sent",
     });
 
     // Fire-and-forget audit entry
-    writeAuditEntry(user.sub, {
+    writeAuditEntry(auth.userId, {
       threadId: `action:${action.id}`,
       toolName: `action:${action.type}`,
       input: action.draft as unknown as Record<string, unknown>,
@@ -180,12 +174,12 @@ export async function POST(
     const errorMessage =
       err instanceof Error ? err.message : "Execution failed";
 
-    const updated = await updateAction(user.sub, id, {
+    const updated = await updateAction(auth.userId, id, {
       status: "failed",
       errorMessage,
     });
 
-    writeAuditEntry(user.sub, {
+    writeAuditEntry(auth.userId, {
       threadId: `action:${action.id}`,
       toolName: `action:${action.type}`,
       input: action.draft as unknown as Record<string, unknown>,

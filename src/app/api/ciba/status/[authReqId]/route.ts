@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { pollCiba } from "@/lib/ciba/poll";
 import { getRedis } from "@/lib/redis";
 import { getPollingLimiter } from "@/lib/rate-limit";
@@ -8,16 +8,10 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ authReqId: string }> }
 ) {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success } = await getPollingLimiter().limit(user.sub);
+  const { success } = await getPollingLimiter().limit(auth.userId);
   if (!success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -29,7 +23,7 @@ export async function GET(
 
   // Verify the requesting user owns this CIBA session
   const redis = getRedis();
-  const keys = await redis.keys(`ciba:${user.sub}:*`);
+  const keys = await redis.keys(`ciba:${auth.userId}:*`);
   let ownsSession = false;
   for (const key of keys) {
     const raw = await redis.get<string>(key);

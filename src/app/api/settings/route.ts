@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { getUserSettings, updateUserSettings } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 
 export async function GET() {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const settings = await getUserSettings(user.sub);
+  const settings = await getUserSettings(auth.userId);
   return NextResponse.json(settings);
 }
 
@@ -45,14 +39,8 @@ export async function PUT(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   let body: unknown;
   try {
@@ -69,6 +57,6 @@ export async function PUT(req: Request) {
     );
   }
 
-  const updated = await updateUserSettings(user.sub, parsed.data);
+  const updated = await updateUserSettings(auth.userId, parsed.data);
   return NextResponse.json(updated);
 }

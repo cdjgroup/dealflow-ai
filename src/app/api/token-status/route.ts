@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { auth0 } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { isConnectionDisabled } from "@/lib/data/connections";
 import { getPollingLimiter } from "@/lib/rate-limit";
@@ -19,21 +20,17 @@ interface TokenStatus {
  * exposing the actual tokens. Respects user-set disabled flags.
  */
 export async function GET() {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success } = await getPollingLimiter().limit(user.sub);
+  const { success } = await getPollingLimiter().limit(auth.userId);
   if (!success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
-  const refreshToken = session.tokenSet?.refreshToken;
+  // Need session for refresh token (requireAuth only extracts userId)
+  const session = await auth0.getSession();
+  const refreshToken = session?.tokenSet?.refreshToken;
   if (!refreshToken) {
     return NextResponse.json([
       {
@@ -69,7 +66,7 @@ export async function GET() {
   const results: TokenStatus[] = await Promise.all(
     connections.map(async ({ connection, provider, scopes }) => {
       // Check disabled flag first — skip token exchange if user disconnected
-      const disabled = await isConnectionDisabled(user.sub!, connection);
+      const disabled = await isConnectionDisabled(auth.userId, connection);
       if (disabled) {
         return {
           connection,

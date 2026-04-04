@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
 import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { initiateCiba } from "@/lib/ciba/authorize";
@@ -8,16 +8,10 @@ export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
-  const { success } = await getSensitiveLimiter().limit(user.sub);
+  const { success } = await getSensitiveLimiter().limit(auth.userId);
   if (!success) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -38,7 +32,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await initiateCiba(user.sub, bindingMessage);
+    const result = await initiateCiba(auth.userId, bindingMessage);
     return NextResponse.json(result);
   } catch (err) {
     console.error("CIBA initiation failed:", err);

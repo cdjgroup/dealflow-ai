@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
 import {
   loadConversation,
@@ -11,17 +11,11 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
-  const conversation = await loadConversation(user.sub, id);
+  const conversation = await loadConversation(auth.userId, id);
   if (!conversation) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -35,14 +29,8 @@ export async function PUT(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
   let body: { messages?: unknown };
@@ -59,7 +47,7 @@ export async function PUT(
     );
   }
 
-  await saveConversation(user.sub, id, body.messages);
+  await saveConversation(auth.userId, id, body.messages);
   return NextResponse.json({ success: true });
 }
 
@@ -70,16 +58,10 @@ export async function DELETE(
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
-  await deleteConversation(user.sub, id);
+  await deleteConversation(auth.userId, id);
   return NextResponse.json({ success: true });
 }

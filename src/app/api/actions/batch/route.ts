@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { batchUpdateStatus } from "@/lib/data/actions";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
@@ -13,14 +13,8 @@ export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
   if (csrfError) return csrfError;
 
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   let body: unknown;
   try {
@@ -38,7 +32,7 @@ export async function POST(req: Request) {
   }
 
   const actions = await batchUpdateStatus(
-    user.sub,
+    auth.userId,
     parsed.data.actionIds,
     parsed.data.status
   );

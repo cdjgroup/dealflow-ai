@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
-import { auth0, getUser } from "@/lib/auth0";
+import { requireAuth } from "@/lib/auth-guard";
 import { getAuditLog } from "@/lib/data/audit";
 
 export async function GET(req: Request) {
-  const session = await auth0.getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const user = await getUser();
-  if (!user?.sub) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const url = new URL(req.url);
   const rawLimit = parseInt(url.searchParams.get("limit") || "50", 10);
@@ -22,6 +16,6 @@ export async function GET(req: Request) {
   const startDate = url.searchParams.get("startDate") || undefined;
   const endDate = url.searchParams.get("endDate") || undefined;
 
-  const log = await getAuditLog(user.sub, { limit, toolName, result, startDate, endDate });
+  const log = await getAuditLog(auth.userId, { limit, toolName, result, startDate, endDate });
   return NextResponse.json(log);
 }
