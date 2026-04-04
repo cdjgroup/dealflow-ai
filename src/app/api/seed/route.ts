@@ -1,6 +1,5 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { seedDemoData } from "@/lib/data/crm";
-import { seedActions } from "@/lib/data/actions";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { checkCsrf } from "@/lib/api-guard";
 import { NextResponse } from "next/server";
@@ -33,8 +32,7 @@ export async function POST(req: Request) {
 
   try {
     const result = await seedDemoData(userId);
-    const actionCount = await seedActions(userId);
-    return NextResponse.json({ success: true, ...result, actions: actionCount });
+    return NextResponse.json({ success: true, ...result });
   } catch (err) {
     console.error("Seed data error:", err);
     return NextResponse.json(
