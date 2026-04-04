@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { checkCsrf } from "@/lib/api-guard";
+import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { disableConnection, enableConnection } from "@/lib/data/connections";
 
 const ALLOWED_CONNECTIONS = ["google-oauth2", "sign-in-with-slack"];
@@ -25,6 +26,11 @@ export async function DELETE(
   const user = await getUser();
   if (!user?.sub) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { success: rlOk } = await getSensitiveLimiter().limit(user.sub);
+  if (!rlOk) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const { connection } = await params;
@@ -76,6 +82,11 @@ export async function POST(
   const user = await getUser();
   if (!user?.sub) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { success: rlOk } = await getSensitiveLimiter().limit(user.sub);
+  if (!rlOk) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const { connection } = await params;

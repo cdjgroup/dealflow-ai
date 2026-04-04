@@ -1,71 +1,59 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { checkCalendar } from "@/lib/tools/calendar";
-import { draftEmail, searchEmails } from "@/lib/tools/gmail";
-import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
+import { searchEmails } from "@/lib/tools/gmail";
+import { listSlackChannels } from "@/lib/tools/slack";
 import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 
-// Tools that require approval in the chat UI are excluded from MCP
-// because MCP has no interactive approval flow.
-const APPROVAL_REQUIRED_TOOLS = new Set([
-  "draftEmail",
-  "sendSlackMessage",
-  "delegateResearch",
-]);
+// CRM read-only tool names exposed via MCP
+const CRM_READ_TOOLS = new Set(["listDeals", "getDealDetails", "searchContacts"]);
+
+type AiTool = {
+  description?: string;
+  inputSchema: z.ZodObject<z.ZodRawShape>;
+  execute?: (params: never, ctx: never) => unknown;
+};
 
 interface ToolEntry {
   name: string;
   description: string;
   schema: z.ZodObject<z.ZodRawShape>;
-  execute: (params: Record<string, unknown>) => Promise<unknown>;
+  isCrmTool: boolean;
+  tool: AiTool;
 }
 
 /**
  * Build the list of tools safe for MCP exposure.
- * Excludes tools requiring approval (no approval UI in MCP).
- * Uses a placeholder userId for CRM tools — real userId comes at call time.
+ * Non-CRM tools (calendar, gmail search, slack list) are stateless.
+ * CRM tools are created per-request with the authenticated userId.
  */
 function getMcpSafeTools(): ToolEntry[] {
-  // AI SDK tool objects store schema and execute on the object
-  // We extract what we need with explicit type access
-  type AiTool = {
-    description?: string;
-    inputSchema: z.ZodObject<z.ZodRawShape>;
-    execute?: (params: never, ctx: never) => unknown;
-  };
+  const toolDefs: ToolEntry[] = [
+    { name: "checkCalendar", tool: checkCalendar as unknown as AiTool, isCrmTool: false },
+    { name: "searchEmails", tool: searchEmails as unknown as AiTool, isCrmTool: false },
+    { name: "listSlackChannels", tool: listSlackChannels as unknown as AiTool, isCrmTool: false },
+  ].map((t) => ({
+    ...t,
+    description: t.tool.description || t.name,
+    schema: t.tool.inputSchema,
+  }));
 
-  const toolDefs: Array<{ name: string; tool: AiTool }> = [
-    { name: "checkCalendar", tool: checkCalendar as unknown as AiTool },
-    { name: "searchEmails", tool: searchEmails as unknown as AiTool },
-    { name: "listSlackChannels", tool: listSlackChannels as unknown as AiTool },
-  ];
-
-  // CRM read-only tools (safe for MCP — no approval needed)
-  const crmTools = createCrmTools("mcp-placeholder");
-  for (const [name, t] of Object.entries(crmTools)) {
-    if (APPROVAL_REQUIRED_TOOLS.has(name)) continue;
-    // CRM write tools (createDeal, updateDeal, etc.) may need approval
-    // for high-value operations — exclude all CRM writes from MCP for safety
-    if (["createDeal", "updateDeal", "createContact", "logActivity"].includes(name)) continue;
-    toolDefs.push({ name, tool: t as unknown as AiTool });
-  }
-
-  return toolDefs
-    .filter(({ name }) => !APPROVAL_REQUIRED_TOOLS.has(name))
-    .map(({ name, tool }) => ({
+  // Register CRM read-only tool schemas (execution uses per-request userId)
+  const schemaCrmTools = createCrmTools("schema-only");
+  for (const [name, t] of Object.entries(schemaCrmTools)) {
+    if (!CRM_READ_TOOLS.has(name)) continue;
+    const tool = t as unknown as AiTool;
+    toolDefs.push({
       name,
       description: tool.description || name,
       schema: tool.inputSchema,
-      execute: async (params: Record<string, unknown>) => {
-        const result = await tool.execute!(params as never, {
-          toolCallId: "mcp",
-          messages: [],
-          abortSignal: AbortSignal.timeout(55000),
-        } as never);
-        return result;
-      },
-    }));
+      isCrmTool: true,
+      tool,
+    });
+  }
+
+  return toolDefs;
 }
 
 /**
@@ -75,28 +63,49 @@ function getMcpSafeTools(): ToolEntry[] {
  * (external actions, CRM writes, delegation) are excluded because MCP
  * has no interactive approval flow. This mirrors filterToolsByCapabilities
  * and attachApprovalChecks from the chat route.
+ *
+ * CRM tools are created per-request using the authenticated userId from
+ * the MCP auth context (extra.authInfo.clientId).
  */
 export function adaptToolsForMcp() {
   return async (server: McpServer) => {
     const tools = getMcpSafeTools();
 
-    for (const tool of tools) {
+    for (const toolEntry of tools) {
       server.registerTool(
-        tool.name,
+        toolEntry.name,
         {
-          description: tool.description,
-          inputSchema: tool.schema,
+          description: toolEntry.description,
+          inputSchema: toolEntry.schema,
         },
-        async (args: unknown) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (args: unknown, extra: any) => {
           const params = (args ?? {}) as Record<string, unknown>;
+          const userId = extra?.authInfo?.clientId || "mcp-anonymous";
           const start = Date.now();
           try {
-            const result = await tool.execute(params);
+            let result: unknown;
+            if (toolEntry.isCrmTool) {
+              // Create CRM tools with the authenticated userId
+              const crmTools = createCrmTools(userId);
+              const crmTool = (crmTools as Record<string, unknown>)[toolEntry.name] as AiTool;
+              result = await crmTool.execute!(params as never, {
+                toolCallId: "mcp",
+                messages: [],
+                abortSignal: AbortSignal.timeout(55000),
+              } as never);
+            } else {
+              result = await toolEntry.tool.execute!(params as never, {
+                toolCallId: "mcp",
+                messages: [],
+                abortSignal: AbortSignal.timeout(55000),
+              } as never);
+            }
             const durationMs = Date.now() - start;
 
-            writeAuditEntry("mcp-authenticated", {
+            writeAuditEntry(userId, {
               threadId: "mcp",
-              toolName: tool.name,
+              toolName: toolEntry.name,
               input: params,
               result: "success",
               durationMs,
@@ -114,9 +123,9 @@ export function adaptToolsForMcp() {
             };
           } catch (err) {
             const durationMs = Date.now() - start;
-            writeAuditEntry("mcp-authenticated", {
+            writeAuditEntry(userId, {
               threadId: "mcp",
-              toolName: tool.name,
+              toolName: toolEntry.name,
               input: params,
               result: "error",
               errorMessage: err instanceof Error ? err.message : "Unknown error",

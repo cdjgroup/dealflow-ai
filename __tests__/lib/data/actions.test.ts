@@ -41,7 +41,6 @@ const {
   updateAction,
   batchUpdateStatus,
   getPendingActionCount,
-  seedActions,
 } = await import("@/lib/data/actions");
 
 describe("Actions Data Layer", () => {
@@ -350,34 +349,4 @@ describe("Actions Data Layer", () => {
     });
   });
 
-  // --- seedActions ---
-
-  describe("seedActions", () => {
-    it("should create 5 demo actions via pipeline", async () => {
-      const count = await seedActions("user1");
-
-      expect(count).toBe(5);
-      expect(mockPipeline).toHaveBeenCalled();
-
-      const pipeline = mockPipeline.mock.results[0].value;
-      expect(pipeline.exec).toHaveBeenCalled();
-
-      const setCalls = pipeline.set.mock.calls;
-      const saddCalls = pipeline.sadd.mock.calls;
-
-      const actionSets = setCalls.filter((c: string[]) =>
-        c[0].includes(":action:")
-      );
-      expect(actionSets).toHaveLength(5);
-      expect(saddCalls).toHaveLength(5);
-
-      // Verify actions reference existing seed deal IDs
-      for (const call of actionSets) {
-        const action = JSON.parse(call[1] as string) as SuggestedAction;
-        expect(["d1", "d2", "d3", "d4"]).toContain(action.dealId);
-        expect(["email", "calendar", "slack"]).toContain(action.type);
-        expect(action.status).toBe("pending");
-      }
-    });
-  });
 });

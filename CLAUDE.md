@@ -33,7 +33,7 @@
 4. Auth0 Token Vault returns short-lived Google access tokens
 5. Tools call Google Calendar / Gmail APIs with those tokens
 
-**Key Insight:** `@auth0/ai-vercel` SDK wrapper is incompatible with AI SDK v6. The wrapper's `protect` method silently throws instead of passing tokens to the tool's `execute` function. Fix: bypass the SDK and call Auth0's token exchange endpoint directly.
+**Key Insight:** The `@auth0/ai-vercel` SDK wrapper swallows token exchange errors — when a federated connection exchange fails, it returns a misleading "Authorization required" interrupt instead of the actual Auth0 API error (see [auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)). This made Token Vault debugging nearly impossible. Fix: call Auth0's `/oauth/token` endpoint directly for full error observability and richer token metadata (scope, TTL, connection).
 
 **Auth0 Dashboard Requirements:**
 - Google connection: Purpose = "Authentication and Connected Accounts for Token Vault"

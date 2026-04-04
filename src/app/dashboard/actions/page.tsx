@@ -33,8 +33,8 @@ export default async function ActionsPage() {
         <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
           <p className="mb-2">No suggested actions yet.</p>
           <p className="text-xs">
-            Seed demo data from the dashboard or ask the AI to analyze your
-            pipeline to generate suggestions.
+            Ask the AI to analyze your pipeline or suggest next steps to
+            generate actions here.
           </p>
         </div>
       ) : (

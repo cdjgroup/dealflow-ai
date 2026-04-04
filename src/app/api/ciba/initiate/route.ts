@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth0, getUser } from "@/lib/auth0";
 import { checkCsrf } from "@/lib/api-guard";
+import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { initiateCiba } from "@/lib/ciba/authorize";
 
 export async function POST(req: Request) {
@@ -16,15 +17,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { bindingMessage, toolName } = await req.json();
-    if (!bindingMessage || !toolName) {
-      return NextResponse.json(
-        { error: "bindingMessage and toolName are required" },
-        { status: 400 }
-      );
-    }
+  const { success } = await getSensitiveLimiter().limit(user.sub);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
 
+  let body: { bindingMessage?: string; toolName?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { bindingMessage, toolName } = body;
+  if (!bindingMessage || !toolName) {
+    return NextResponse.json(
+      { error: "bindingMessage and toolName are required" },
+      { status: 400 }
+    );
+  }
+
+  try {
     const result = await initiateCiba(user.sub, bindingMessage);
     return NextResponse.json(result);
   } catch (err) {

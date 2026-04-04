@@ -7,6 +7,7 @@ interface Props {
   activeFilter: ActionStatus | "all";
   onFilterChange: (filter: ActionStatus | "all") => void;
   onBatchApprove: () => void;
+  onClearAll: () => void;
 }
 
 const filters: { label: string; value: ActionStatus | "all" }[] = [
@@ -22,6 +23,7 @@ export function ActionFilters({
   activeFilter,
   onFilterChange,
   onBatchApprove,
+  onClearAll,
 }: Props) {
   const pendingCount = actions.filter((a) => a.status === "pending").length;
   const approvedCount = actions.filter((a) => a.status === "approved").length;
@@ -74,14 +76,24 @@ export function ActionFilters({
           })}
         </div>
 
-        {pendingCount > 0 && (
-          <button
-            onClick={onBatchApprove}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
-          >
-            Approve All Pending ({pendingCount})
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {pendingCount > 0 && (
+            <button
+              onClick={onBatchApprove}
+              className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+            >
+              Approve All Pending ({pendingCount})
+            </button>
+          )}
+          {actions.length > 0 && (
+            <button
+              onClick={onClearAll}
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -2,9 +2,9 @@
 
 Non-obvious design decisions and discoveries.
 
-## 001 — @auth0/ai-vercel SDK incompatible with AI SDK v6 (2026-04-02)
+## 001 — @auth0/ai-vercel SDK swallows token exchange errors (2026-04-02)
 
-The `@auth0/ai-vercel` v5.1.0 `withTokenVault()` wrapper silently fails with Vercel AI SDK v6. The wrapper's `protect` method throws before the tool's `execute` function runs, but the error is swallowed by the streaming response — no interrupt is thrown and no token is passed. Fix: call Auth0's `/oauth/token` endpoint directly using RFC 8693 federated connection access token exchange. The `Tool` type changed from `parameters` (zod/v3) to `inputSchema` (zod v4) in v6, and the wrapper's TypeScript types are incompatible.
+The `@auth0/ai-vercel` SDK's `TokenVaultAuthorizerBase` silently swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175), still open). When the token exchange HTTP call fails, the SDK returns `undefined` instead of throwing — then `validateToken()` throws a misleading `TokenVaultInterrupt` saying "Authorization required" when the real issue may be misconfigured credentials, wrong connection name, or expired refresh token. This made initial Token Vault setup extremely difficult to debug. Fix: call Auth0's `/oauth/token` endpoint directly using RFC 8693 federated connection access token exchange, which surfaces actual error messages. **Note:** The SDK added AI SDK v6 compatibility in v5.0.0 (Jan 29, 2026) — the version mismatch we initially hit is resolved, but error swallowing remains the primary reason for direct exchange.
 
 ## 002 — Google login ≠ Token Vault Connected Accounts (2026-04-02)
 

@@ -4,9 +4,6 @@ function key(userId: string): string {
   return `${userId}:disabled-connections`;
 }
 
-/**
- * Check if a connection has been disabled (disconnected) by the user.
- */
 export async function isConnectionDisabled(
   userId: string,
   connection: string
@@ -15,10 +12,6 @@ export async function isConnectionDisabled(
   return (await redis.sismember(key(userId), connection)) === 1;
 }
 
-/**
- * Mark a connection as disabled. Tools and token-status will refuse
- * to exchange tokens for this connection until re-enabled.
- */
 export async function disableConnection(
   userId: string,
   connection: string
@@ -27,9 +20,6 @@ export async function disableConnection(
   await redis.sadd(key(userId), connection);
 }
 
-/**
- * Re-enable a connection (e.g., after user clicks "Connect").
- */
 export async function enableConnection(
   userId: string,
   connection: string
@@ -38,9 +28,6 @@ export async function enableConnection(
   await redis.srem(key(userId), connection);
 }
 
-/**
- * Get all disabled connections for a user.
- */
 export async function getDisabledConnections(
   userId: string
 ): Promise<string[]> {

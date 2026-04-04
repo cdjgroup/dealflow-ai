@@ -107,11 +107,6 @@ Most AI agents get blanket access to your data. DealFlow AI demonstrates five au
                       └────────┬─────────┘
                                │
                       ┌────────▼─────────┐
-                      │ CIBA Step-Up     │  Guardian push notification
-                      │ (Device Auth)    │  for >$50K deals, stage changes
-                      └────────┬─────────┘
-                               │
-                      ┌────────▼─────────┐
                       │ Token Vault      │  RFC 8693 exchange
                       │ + Scope Metadata │  scope, TTL, connection tracked
                       └────────┬─────────┘
@@ -136,19 +131,6 @@ Most AI agents get blanket access to your data. DealFlow AI demonstrates five au
 | **Animation** | Framer Motion |
 
 ## Features
-
-### v0.5.0 — CIBA Step-Up Authentication
-
-Device-level consent for high-value actions via Auth0 Guardian push notifications. When the AI agent creates a deal >$50K or closes a deal as won, a two-step consent flow activates: inline approval in the app, then a push notification to the user's phone. The user approves on their Guardian app before the action executes. Same pattern banks use for wire transfers — defense in depth at the identity layer.
-
-- CibaWaitingCard with polling, countdown, and status transitions
-- Action Center integration with `ciba-pending` status
-- Direct HTTP to Auth0 `/bc-authorize` (ADR 004)
-- Redis-backed CIBA sessions prevent re-initiation
-
-### v0.4.0–v0.4.1 — Action Center + Permissions Redesign
-
-AI-suggested next steps queue at `/dashboard/actions`. The AI analyzes deal context and generates actionable suggestions (follow-up emails, demo meetings, Slack updates) with justification. Users review, edit inline, approve, and execute through Token Vault. Permissions page redesigned into unified integration cards per provider.
 
 ### v0.3.0 — Boundary-Pushing Auth
 
@@ -263,7 +245,7 @@ ANTHROPIC_MODEL=claude-sonnet-4-6
    - Type: Regular Web Application
    - Allowed Callback URLs: `{APP_BASE_URL}/auth/callback`
    - Allowed Logout URLs: `{APP_BASE_URL}`
-   - Grant Types: Authorization Code, Refresh Token, CIBA
+   - Grant Types: Authorization Code, Refresh Token
 
 2. **Token Vault (Connected Accounts):**
    - Enable "Connected Accounts" on your application
@@ -345,12 +327,6 @@ src/
       scope-map.ts          # TOOL_SCOPE_CONFIG (single source of truth)
     mcp/
       tool-adapter.ts  # AI SDK → MCP tool conversion
-    ciba/
-      authorize.ts       # Auth0 /bc-authorize (CIBA initiation)
-      poll.ts            # Auth0 /oauth/token (CIBA grant polling)
-      should-require.ts  # CIBA threshold check ($50K+, terminal stages)
-      session.ts         # Redis-backed CIBA session management
-      types.ts           # CIBA type definitions
     delegation.ts      # Redis-backed delegation token store
     token-exchange.ts  # Auth0 RFC 8693 exchange (+ scope metadata)
     types/
@@ -361,10 +337,12 @@ src/
 ## Testing
 
 ```bash
-npm test              # 290 tests across 33 files
+npm test              # 298 tests across 34 files
 npm run build         # TypeScript + Next.js production build
 npx playwright test   # E2E smoke tests
 ```
+
+Test coverage spans API routes (32), components (22), data layer (71), tools & approval logic (82), CIBA device consent (22), core library (46), and E2E smoke tests (8).
 
 ## License
 

@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { exchangeToken, buildTokenMeta } from "@/lib/token-exchange";
 import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
+import { resolveSlackChannelId } from "@/lib/api-utils";
 
 export const listSlackChannels = tool({
   description:
@@ -79,29 +80,11 @@ export const sendSlackMessage = tool({
     // If channel doesn't look like an ID (C...), resolve it by name
     let channelId = channel;
     if (!channel.startsWith("C")) {
-      const listRes = await fetch(
-        `https://slack.com/api/conversations.list?types=public_channel&limit=200`,
-        {
-          headers: { Authorization: `Bearer ${result.token}` },
-        }
-      );
-      const listData = await listRes.json();
-      if (!listData.ok) {
-        return {
-          error: `Could not resolve Slack channel "${channel}": ${listData.error ?? "channel lookup failed"}`,
-        };
+      const resolved = await resolveSlackChannelId(channel, result.token);
+      if ("error" in resolved) {
+        return { error: resolved.error + ". Use listSlackChannels to see available channels." };
       }
-      const found = (listData.channels || []).find(
-        (ch: { name: string }) =>
-          ch.name === channel || ch.name === channel.replace(/^#/, "")
-      );
-      if (found) {
-        channelId = found.id;
-      } else {
-        return {
-          error: `Slack channel "${channel}" not found. Use listSlackChannels to see available channels.`,
-        };
-      }
+      channelId = resolved.id;
     }
 
     const response = await fetch("https://slack.com/api/chat.postMessage", {

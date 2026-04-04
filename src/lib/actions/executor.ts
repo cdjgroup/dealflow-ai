@@ -1,4 +1,5 @@
 import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
+import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
 import type {
   SuggestedAction,
   EmailDraft,
@@ -68,19 +69,7 @@ async function executeEmail(
   draft: EmailDraft,
   token: string
 ): Promise<ExecutionResult> {
-  const rawMessage = [
-    `To: ${draft.to}`,
-    `Subject: ${draft.subject}`,
-    `Content-Type: text/plain; charset=utf-8`,
-    "",
-    draft.body,
-  ].join("\r\n");
-
-  const encodedMessage = Buffer.from(rawMessage)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  const encodedMessage = buildRawEmail(draft.to, draft.subject, draft.body);
 
   const response = await fetch(
     "https://www.googleapis.com/gmail/v1/users/me/drafts",
@@ -116,10 +105,14 @@ async function executeCalendar(
   );
   const endDateTime = endDate.toISOString().replace("Z", "");
 
+  // Use the draft's timezone if provided, otherwise default to UTC.
+  // Intl.DateTimeFormat() returns the server's timezone (UTC on Vercel),
+  // not the user's timezone, so we cannot rely on it.
+  const timeZone = draft.timeZone || "UTC";
   const event = {
     summary: draft.title,
-    start: { dateTime: startDateTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-    end: { dateTime: endDateTime, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    start: { dateTime: startDateTime, timeZone },
+    end: { dateTime: endDateTime, timeZone },
     attendees: draft.attendees.map((email) => ({ email })),
     description: draft.notes || "",
   };
@@ -153,29 +146,9 @@ async function executeSlack(
   draft: SlackDraft,
   token: string
 ): Promise<ExecutionResult> {
-  const channel = draft.channel.replace(/^#/, "");
-
-  const listRes = await fetch(
-    "https://slack.com/api/conversations.list?types=public_channel&limit=200",
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-
-  if (!listRes.ok) {
-    throw new Error(sanitizeApiError(listRes.status, "Slack channel lookup"));
-  }
-
-  const listData = await listRes.json();
-  if (!listData.ok) {
-    throw new Error(`Slack API error: ${listData.error}`);
-  }
-
-  const found = (listData.channels || []).find(
-    (ch: { name: string }) => ch.name === channel
-  );
-  if (!found) {
-    throw new Error(
-      `Slack channel "${draft.channel}" not found. Check the channel name.`
-    );
+  const resolved = await resolveSlackChannelId(draft.channel, token);
+  if ("error" in resolved) {
+    throw new Error(resolved.error);
   }
 
   const response = await fetch("https://slack.com/api/chat.postMessage", {
@@ -184,7 +157,7 @@ async function executeSlack(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ channel: found.id, text: draft.message }),
+    body: JSON.stringify({ channel: resolved.id, text: draft.message }),
   });
 
   if (!response.ok) {
@@ -198,7 +171,7 @@ async function executeSlack(
 
   return {
     success: true,
-    message: `Message sent to #${channel}`,
+    message: `Message sent to #${draft.channel}`,
     channel: data.channel,
     timestamp: data.ts,
   };

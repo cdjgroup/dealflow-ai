@@ -1,16 +1,33 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { getRedis } from "@/lib/redis";
 
-let rateLimiter: Ratelimit | null = null;
+const limiters = new Map<string, Ratelimit>();
 
-// 10 requests per minute per user
-export function getRateLimiter(): Ratelimit {
-  if (!rateLimiter) {
-    rateLimiter = new Ratelimit({
+function create(prefix: string, requests: number, window: string): Ratelimit {
+  const key = `dealflow:rl:${prefix}`;
+  let limiter = limiters.get(key);
+  if (!limiter) {
+    limiter = new Ratelimit({
       redis: getRedis(),
-      limiter: Ratelimit.slidingWindow(10, "1 m"),
-      prefix: "dealflow:ratelimit",
+      limiter: Ratelimit.slidingWindow(requests, window as "1 m"),
+      prefix: key,
     });
+    limiters.set(key, limiter);
   }
-  return rateLimiter;
+  return limiter;
+}
+
+// 10 req/min — AI chat, seed, action execute, batch operations
+export function getRateLimiter(): Ratelimit {
+  return create("default", 10, "1 m");
+}
+
+// 30 req/min — polling endpoints (CIBA status, token status)
+export function getPollingLimiter(): Ratelimit {
+  return create("poll", 30, "1 m");
+}
+
+// 5 req/min — sensitive operations (CIBA initiate, connection changes)
+export function getSensitiveLimiter(): Ratelimit {
+  return create("sensitive", 5, "1 m");
 }

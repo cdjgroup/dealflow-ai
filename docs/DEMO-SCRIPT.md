@@ -21,53 +21,55 @@
    - Token lifecycle animation appears (6 stages: AI Decides → Token Exchange → Scoped Token → API Call → Response → Token Expires)
    - "Auth0 exchanges a refresh token for a short-lived Google access token. The AI gets a scoped token, never credentials."
 
-2. Type: **"Analyze my pipeline and suggest next steps"**
+2. Type: **"I need to follow up with Sarah Chen about the Acme deal — check what we last discussed, find a time that works, and draft an email"**
+   - AI chains: `getDealDetails` → `searchEmails` → `checkCalendar` → `draftEmail` (4 tools, one prompt)
+   - Token lifecycle plays for each external API call
+   - "One prompt, four tools. The agent reasoned through the workflow — deal context, email history, calendar availability — then composed a follow-up. Each external call went through Token Vault."
+   - Approval card appears for draftEmail → approve it
+   - "The agent planned the whole chain autonomously, but paused before the sensitive action. That's graduated authorization."
+
+3. Type: **"Analyze my pipeline and suggest next steps"**
    - AI calls `analyzePipeline`, creates suggestions
-   - "The AI read 8 deals across the full pipeline — including a $120K closed-won and a lost deal — and generated prioritized action items."
+   - "The AI read 8 deals across the full pipeline and generated prioritized action items for the Action Center."
 
 ## Act 2: Action Center — Review Before Execution (1 min)
 
 > "Authorized to Act means the user sees what the AI wants to do, why, and decides whether it happens."
 
-3. **Click Actions** in nav — show the Action Center
+4. **Click Actions** in nav — show the Action Center
    - Point at a card: "Each suggestion has a justification — the AI explains its reasoning."
    - Point at priorities: "High priority for stale high-value deals, medium for routine follow-ups."
 
-4. **Click Edit** on an email action → change the subject → Save
+5. **Click Edit** on an email action → change the subject → Save
    - "The user can customize every draft. This isn't rubber-stamping — it's informed consent."
 
-5. **Click Approve → Execute** on one email action
+6. **Click Approve → Execute** on one email action
    - Watch: Approved (blue) → Executing (pulse) → Completed (green)
    - "That draft just landed in Gmail through Token Vault. Same OAuth flow as chat, different surface."
 
-## Act 3: Two-Step Consent + Trust Controls (45 sec)
+## Act 3: Trust Controls & Security (45 sec)
 
-> "High-value actions get device-level verification — like a bank wire transfer."
+> "The same authorization model governs every surface — chat, Action Center, and external agents."
 
-6. **Type in chat**: "Create a deal for Acme Corp worth $75,000"
-   - Inline approval card appears → click **Approve**
-   - CIBA card appears: "Device Verification Required" with phone icon + countdown
-   - **Show phone**: Guardian push notification arrives → tap Approve
-   - Deal created
-   - "Two-step consent. The app asks 'are you sure', then Auth0 independently verifies on a separate device."
+7. **Switch to Permissions tab** → disable Gmail (toggle off or trust to "never")
 
-7. **Quick contrast**: "Create a deal for SmallCo worth $10,000"
-   - Only inline approval (no CIBA push)
-   - "Routine actions don't need device verification. The agent is smart about when to escalate."
+8. **Switch back to Actions** → try to Approve another email action
+   - **Blocked**: "Cannot approve: gmail is disabled"
+   - "Same control, consistent everywhere. The user's decision propagates to every surface."
 
-8. **Quick hits** (say while navigating, don't pause):
-   - Click "Full audit log →": "Every action logged — including CIBA approval status"
-   - Click "MCP" in nav: "External AI agents use the same secure pipeline via MCP"
+9. **Quick hits** (say while navigating, don't pause):
+   - Re-enable Gmail
+   - Click "Full audit log →": "Every action — chat and Action Center — logged with parameters, duration, status"
+   - Click "MCP" in nav: "External AI agents like OpenClaw can discover and use these same tools through MCP. Same Token Vault pipeline, same audit trail. This isn't just one app's security — it's a reusable pattern for the AI agent ecosystem."
 
 ## Act 4: Closing (30 sec)
 
 > Deliver standing at the Permissions page or MCP Explorer.
 
-"DealFlow AI demonstrates four levels of 'Authorized to Act':
+"DealFlow AI demonstrates three levels of 'Authorized to Act':
 1. **Per-tool** — capability toggles, trust levels, step-up approval
-2. **Per-device** — CIBA Guardian push for high-value actions (two-step consent)
-3. **Per-action** — the Action Center queues AI suggestions for human review
-4. **Per-agent** — MCP gives external agents the same secure, audited access
+2. **Per-action** — the Action Center queues AI suggestions for human review
+3. **Per-agent** — MCP gives external agents the same secure, audited access
 
 All through Auth0 Token Vault. The AI never stores credentials. Every action is auditable. The user is always in control."
 
@@ -77,9 +79,9 @@ All through Auth0 Token Vault. The AI never stores credentials. Every action is 
 
 | Act | Content | Target |
 |-----|---------|--------|
-| 1 | Chat + pipeline analysis | 0:00–0:45 |
-| 2 | Action Center review + execute | 0:45–1:45 |
-| 3 | Trust controls + audit + MCP | 1:45–2:30 |
+| 1 | Multi-step orchestration + pipeline analysis | 0:00–1:00 |
+| 2 | Action Center review + execute | 1:00–1:50 |
+| 3 | Trust controls + audit + MCP | 1:50–2:30 |
 | 4 | Closing statement | 2:30–3:00 |
 
 ## If something breaks

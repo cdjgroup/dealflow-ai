@@ -28,6 +28,8 @@ AI agent autonomously proposes and executes pending actions on a user-defined sc
 - **Offline access pattern**: Refresh token stored at opt-in (RFC 6749/9700 compliant), exchanged at cron time via `exchangeTokenWithRefresh()`. CIBA token is proof of consent only (scoped to `openid`).
 - **Redis key design**: `schedule:idx:{hour}` (user index), `ciba:scheduled:{userId}:{batchId}` (session with 10min TTL), `schedule:ciba:active` (active sessions index), `{userId}:schedule:refresh-token` (encrypted, 90-day TTL)
 - **Idempotency**: Hour-truncated batch IDs prevent duplicate CIBA pushes. SET NX execution lock prevents duplicate action execution.
+- Direct HTTP to Auth0 `/bc-authorize` and `/oauth/token` (CIBA grant type `urn:openid:params:grant-type:ciba`)
+- Follows ADR 001 pattern: direct HTTP for full error observability (SDK swallows errors — [auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175))
 
 ### Deployment
 

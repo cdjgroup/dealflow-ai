@@ -5,6 +5,7 @@ import { getDeal } from "@/lib/data/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { getUserSettings } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
+import { getRateLimiter } from "@/lib/rate-limit";
 import { executeAction } from "@/lib/actions/executor";
 import { initiateCiba } from "@/lib/ciba/authorize";
 import { pollCiba } from "@/lib/ciba/poll";
@@ -32,6 +33,11 @@ export async function POST(
   const user = await getUser();
   if (!user?.sub) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { success } = await getRateLimiter().limit(user.sub);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
   const { id } = await params;
@@ -128,7 +134,7 @@ export async function POST(
           createdAt: new Date().toISOString(),
         });
 
-        await updateAction(user.sub, id, { status: "ciba-pending" as "approved" });
+        await updateAction(user.sub, id, { status: "ciba-pending" });
 
         return NextResponse.json({
           cibaRequired: true,

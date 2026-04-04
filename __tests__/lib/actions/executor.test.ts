@@ -8,6 +8,12 @@ vi.mock("@/lib/token-exchange", () => ({
   sanitizeApiError: (status: number, label: string) => `${label}: failed (${status})`,
 }));
 
+// Mock api-utils (buildRawEmail, resolveSlackChannelId)
+vi.mock("@/lib/api-utils", () => ({
+  buildRawEmail: (_to: string, _subject: string, _body: string) => "base64encodedmessage",
+  resolveSlackChannelId: async (_channel: string, _token: string) => ({ id: "C123" }),
+}));
+
 // Mock fetch for Google/Slack APIs
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -135,15 +141,7 @@ describe("executor", () => {
     });
 
     it("AC-5: executes slack action with provided token", async () => {
-      // First call: conversations.list
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          ok: true,
-          channels: [{ name: "sales", id: "C123" }],
-        }),
-      });
-      // Second call: chat.postMessage
+      // resolveSlackChannelId is mocked — only chat.postMessage goes through fetch
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ok: true, channel: "C123", ts: "12345" }),
