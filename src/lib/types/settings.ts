@@ -12,6 +12,11 @@ export interface UserSettings {
     crmWrite: boolean;
   };
   toolTrust: Record<string, TrustLevel>;
+  schedule: {
+    enabled: boolean;
+    hours: number[];
+    timezone: string;
+  };
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -26,4 +31,9 @@ export const DEFAULT_SETTINGS: UserSettings = {
     crmWrite: false,
   },
   toolTrust: {},
+  schedule: {
+    enabled: false,
+    hours: [],
+    timezone: "UTC",
+  },
 };

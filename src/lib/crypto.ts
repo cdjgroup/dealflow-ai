@@ -1,0 +1,30 @@
+import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+
+const ALG = "aes-256-gcm";
+
+function getKey(): Buffer {
+  const b64 = process.env.TOKEN_ENCRYPTION_KEY;
+  if (!b64) throw new Error("Missing TOKEN_ENCRYPTION_KEY environment variable");
+  return Buffer.from(b64, "base64").subarray(0, 32);
+}
+
+export function encrypt(plaintext: string): string {
+  const key = getKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(ALG, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  // Layout: [12-byte IV][16-byte auth tag][ciphertext]
+  return Buffer.concat([iv, tag, encrypted]).toString("base64");
+}
+
+export function decrypt(ciphertext: string): string {
+  const key = getKey();
+  const buf = Buffer.from(ciphertext, "base64");
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const encrypted = buf.subarray(28);
+  const decipher = createDecipheriv(ALG, key, iv);
+  decipher.setAuthTag(tag);
+  return decipher.update(encrypted, undefined, "utf8") + decipher.final("utf8");
+}
