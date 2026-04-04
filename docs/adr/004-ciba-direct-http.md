@@ -7,7 +7,7 @@
 
 DealFlow AI needs device-level step-up authentication for high-value actions ($50K+ deals, terminal stage changes). Auth0 supports CIBA (Client-Initiated Backchannel Authentication) which sends push notifications to the user's phone via Guardian for out-of-band approval.
 
-The `@auth0/ai` package (v6.0.0, installed as a dependency) provides `withAsyncAuthorization()` — a tool wrapper that manages the CIBA lifecycle (initiate, poll, interrupt/resume, store). However, ADR 001 established that the `@auth0/ai-vercel` SDK wrapper is incompatible with AI SDK v6's tool execution model. The `withAsyncAuthorization()` wrapper follows the same architectural pattern (intercepting tool execution via higher-order functions) and carries similar compatibility risk.
+The `@auth0/ai` package (v6.0.0, installed as a dependency) provides `withAsyncAuthorization()` — a tool wrapper that manages the CIBA lifecycle (initiate, poll, interrupt/resume, store). However, ADR 001 established that the `@auth0/ai` SDK wrappers swallow errors from Auth0 API calls ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)), making failures difficult to debug. The `withAsyncAuthorization()` wrapper follows the same architectural pattern (intercepting tool execution via higher-order functions) and carries similar error observability risk.
 
 Three approaches were evaluated:
 1. **Minimal**: Direct HTTP, chat only, reuse TokenVaultInterrupt pattern
@@ -40,4 +40,4 @@ Integrate via the existing interrupt pattern: JSON error thrown from tool execut
 
 ### Neutral
 - The `@auth0/ai` package remains installed (used by other dependencies) but CIBA-specific features are unused
-- If Auth0 fixes SDK v6 compatibility, migration path is straightforward — replace direct HTTP calls with SDK wrapper
+- If Auth0 fixes SDK error handling (#175), migration path is straightforward — replace direct HTTP calls with SDK wrapper
