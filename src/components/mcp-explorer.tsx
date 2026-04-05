@@ -30,7 +30,7 @@ const CLIENT_CONFIGS = {
     label: "Claude Desktop / Cursor",
     config: `{
   "mcpServers": {
-    "dealflow-ai": {
+    "dealflow": {
       "url": "https://dealflow-ai-seven.vercel.app/api/mcp"
     }
   }
@@ -42,12 +42,12 @@ const CLIENT_CONFIGS = {
   "mcp_servers": [{
     "type": "url",
     "url": "https://dealflow-ai-seven.vercel.app/api/mcp",
-    "name": "dealflow-ai",
+    "name": "dealflow",
     "authorization_token": "<your-api-key>"
   }],
   "tools": [{
     "type": "mcp_toolset",
-    "mcp_server_name": "dealflow-ai"
+    "mcp_server_name": "dealflow"
   }]
 }`,
   },
@@ -632,7 +632,7 @@ export function McpExplorer() {
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">3.</span>
             <p>
-              DealFlow AI validates the key, applies your per-client policy (tool allowlist + rate limit),
+              DealFlow validates the key, applies your per-client policy (tool allowlist + rate limit),
               and enforces the trust tier.
             </p>
           </div>

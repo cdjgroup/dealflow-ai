@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI's `analyzePipeline` tool generates suggested actions (emails, calendar events, Slack messages) for the user's sales pipeline. Originally, these suggestions were produced by hardcoded heuristic rules — template strings with interpolated deal data. This undermined the "AI suggests actions" narrative: a judge examining the output would see static patterns, not genuine AI reasoning.
+DealFlow's `analyzePipeline` tool generates suggested actions (emails, calendar events, Slack messages) for the user's sales pipeline. Originally, these suggestions were produced by hardcoded heuristic rules — template strings with interpolated deal data. This undermined the "AI suggests actions" narrative: a judge examining the output would see static patterns, not genuine AI reasoning.
 
 To make suggestions truly AI-generated, the tool needed to call Claude (Haiku) as a subagent within the tool's `execute` handler. The AI SDK v6 officially supports this as the "subagent" pattern ([ai-sdk.dev/docs/agents/subagents](https://ai-sdk.dev/docs/agents/subagents)) — calling `generateText()` inside a tool that's being orchestrated by an outer `streamText()`.
 

@@ -12,11 +12,11 @@ export const GLOSSARY: Record<string, string> = {
   "short-lived-token":
     "An access token that expires quickly (typically minutes). The AI agent receives these via token exchange — if compromised, exposure is limited by the short lifetime.",
   "rfc-8693":
-    "The OAuth 2.0 Token Exchange standard. DealFlow AI uses this to exchange a user's refresh token for a short-lived access token scoped to a specific API (Google Calendar, Gmail, Slack).",
+    "The OAuth 2.0 Token Exchange standard. DealFlow uses this to exchange a user's refresh token for a short-lived access token scoped to a specific API (Google Calendar, Gmail, Slack).",
   "needs-approval":
     "A tool flag that triggers user confirmation before execution. Used for external actions (email, Slack) and high-value CRM operations.",
   ciba: "Client Initiated Backchannel Authentication — Auth0 Guardian sends a push notification to your phone for device-level consent. Used for high-value chat actions (deals >$50K) and batch scheduled execution.",
-  mcp: "Model Context Protocol — an open standard that lets external AI agents (Claude Desktop, Cursor, OpenClaw) discover and invoke DealFlow AI's tools via the /api/mcp endpoint. Same Token Vault pipeline, same audit trail.",
+  mcp: "Model Context Protocol — an open standard that lets external AI agents (Claude Desktop, Cursor, OpenClaw) discover and invoke DealFlow's tools via the /api/mcp endpoint. Same Token Vault pipeline, same audit trail.",
   "confidence-routing":
     "AI confidence scores (0.0–1.0) drive action routing. High confidence (≥85%) auto-approves; low confidence (≤50%) forces manual review. The middle band defers to your autonomy setting.",
   "trust-calibration":

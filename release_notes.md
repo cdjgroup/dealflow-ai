@@ -1,6 +1,6 @@
 # Release Notes — v0.6.4
 
-## DealFlow AI: Confidence Routing Overhaul + Light Mode
+## DealFlow: Confidence Routing Overhaul + Light Mode
 
 Redesigned confidence routing controls (Stripe Radar pattern), enable/disable toggle, Guardian notification priority selector, and comprehensive light mode fixes.
 

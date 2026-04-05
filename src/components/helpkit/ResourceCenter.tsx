@@ -36,7 +36,7 @@ export function ResourceCenter() {
         <SheetHeader>
           <SheetTitle>Help & Resources</SheetTitle>
           <SheetDescription>
-            Guides, quick actions, and glossary for DealFlow AI.
+            Guides, quick actions, and glossary for DealFlow.
           </SheetDescription>
         </SheetHeader>
 

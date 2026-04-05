@@ -1,4 +1,4 @@
-# Copilot Instructions — DealFlow AI
+# Copilot Instructions — DealFlow
 
 ## Project
 AI sales agent using Auth0 Token Vault for secure Google Calendar/Gmail access. Next.js 16 + Claude Sonnet 4.6 + Upstash Redis.

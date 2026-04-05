@@ -1,4 +1,4 @@
-# Devpost Submission Text — DealFlow AI
+# Devpost Submission Text — DealFlow
 
 ## Inspiration
 
@@ -6,7 +6,7 @@ Most AI agent demos show an impressive chat interface — but give users zero co
 
 ## What it does
 
-DealFlow AI is an AI sales agent that manages your pipeline, checks your Google Calendar, drafts Gmail follow-ups, and sends Slack team updates — all secured through Auth0 Token Vault.
+DealFlow is an AI sales agent that manages your pipeline, checks your Google Calendar, drafts Gmail follow-ups, and sends Slack team updates — all secured through Auth0 Token Vault.
 
 What makes it different is the security and control model — a **policy-driven authorization framework** where every tool invocation passes through a layered decision pipeline:
 
@@ -75,7 +75,7 @@ The Token Vault integration uses direct RFC 8693 token exchange rather than the 
 
 ## EU AI Act Compliance
 
-DealFlow AI self-classifies as **Limited Risk** under the EU AI Act (Article 50 — transparency obligations). An AI sales agent that drafts emails and manages calendars is a productivity tool, not a high-risk system under Annex III (which covers employment decisions, credit scoring, law enforcement, etc.).
+DealFlow self-classifies as **Limited Risk** under the EU AI Act (Article 50 — transparency obligations). An AI sales agent that drafts emails and manages calendars is a productivity tool, not a high-risk system under Annex III (which covers employment decisions, credit scoring, law enforcement, etc.).
 
 Our existing architecture already satisfies the Act's core requirements:
 
@@ -99,7 +99,7 @@ The six-layer authorization pipeline (CSRF → rate limit → capability filter 
 - Batch your consent mechanisms: per-action CIBA creates notification fatigue. One scheduled Guardian push for a batch of actions, with the token lifetime as the execution boundary, is both more usable and more secure
 - Auth0's Token Vault enables a composable auth pattern — the same `exchangeToken()` works across chat, Action Center, and MCP without any surface-specific auth code
 
-## What's next for DealFlow AI
+## What's next for DealFlow
 
 - **Expanded scheduling options** — Additional schedule frequencies and per-action-type scheduling policies
 - **Incremental authorization** — Request additional OAuth scopes only when needed

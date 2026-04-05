@@ -1,9 +1,9 @@
-# DealFlow AI — Demo Script
+# DealFlow — Demo Script
 
 > 3-minute max. Every second counts. Lead with wow, not setup.
 >
 > **Thesis (say this or a variant within 30 seconds):**
-> "DealFlow AI implements graduated trust for AI agents — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline."
+> "DealFlow implements graduated trust for AI agents — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline."
 
 ## Setup (before recording)
 
@@ -25,7 +25,7 @@
 
 **Show the Action Center screen** — 5 AI-suggested actions with justification text, priority badges, and confidence scores visible.
 
-> "Most AI agents act first and apologize later. DealFlow AI suggests first and lets you decide."
+> "Most AI agents act first and apologize later. DealFlow suggests first and lets you decide."
 
 Point at a card:
 > "The AI analyzed my sales pipeline and generated five next steps. Each one explains why — 'Acme deal inactive 7 days, $150K in qualified stage, follow-up keeps momentum.' Every draft is editable. Nothing executes until I say so."
@@ -86,6 +86,7 @@ AI calls `analyzePipeline`, creates new suggestions in Action Center.
 Point at confidence indicators on action cards:
 > "The AI scores its own confidence. Above 85%, auto-approved. Below 50%, forced to manual review regardless of the user's autonomy setting. The AI's uncertainty becomes a routing signal."
 
+<<<<<<< HEAD
 ### MCP Ecosystem (20 sec)
 **Click MCP** in nav → show MCP Explorer with per-client policies.
 > "External AI agents connect through our MCP endpoint — same Token Vault pipeline, same audit trail. Each agent gets its own policy: 'Cursor' gets full read access, 'CI Pipeline' gets CRM only, with parameter constraints that restrict what queries it can run."
@@ -100,7 +101,7 @@ Point at confidence indicators on action cards:
 
 > Deliver standing at the MCP Explorer or Audit page.
 
-"DealFlow AI demonstrates **graduated trust** for AI agents:
+"DealFlow demonstrates **graduated trust** for AI agents:
 
 1. **Per-tool** — capability toggles, trust levels, confidence routing
 2. **Per-action** — AI suggests with justification, user reviews and edits before execution

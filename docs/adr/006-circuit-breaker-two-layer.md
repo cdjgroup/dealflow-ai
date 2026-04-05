@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI's chat endpoint lets Claude call tools in a loop (up to 7 steps per request, via `stopWhen: stepCountIs(7)`). If the model goes haywire — calling `searchEmails` repeatedly or alternating between tools in an infinite analysis loop — the only protection was a global 10 req/min rate limit at the HTTP level, which counts the *chat request* as 1 call regardless of how many tools fire inside it.
+DealFlow's chat endpoint lets Claude call tools in a loop (up to 7 steps per request, via `stopWhen: stepCountIs(7)`). If the model goes haywire — calling `searchEmails` repeatedly or alternating between tools in an infinite analysis loop — the only protection was a global 10 req/min rate limit at the HTTP level, which counts the *chat request* as 1 call regardless of how many tools fire inside it.
 
 The audit trail already captures every tool call, but monitoring alone doesn't prevent abuse. Token Vault tokens are valid until expiry, and capability toggles are per-tool ON/OFF — neither provides real-time anomaly-based protection.
 

@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI exposes an MCP (Model Context Protocol) server so external AI agents (Cursor, Windsurf, CI pipelines) can call read-only tools. Before v0.6.0, all MCP clients shared identical access — any valid Auth0 bearer token granted the same tool set with the same rate limits. There was no way to give Cursor IDE full CRM + calendar access while restricting a CI pipeline to CRM-only reads.
+DealFlow exposes an MCP (Model Context Protocol) server so external AI agents (Cursor, Windsurf, CI pipelines) can call read-only tools. Before v0.6.0, all MCP clients shared identical access — any valid Auth0 bearer token granted the same tool set with the same rate limits. There was no way to give Cursor IDE full CRM + calendar access while restricting a CI pipeline to CRM-only reads.
 
 The MCP specification (2025-03-26) defines no per-client policy mechanism. The protocol handles tool discovery (`tools/list`) and execution (`tools/call`) but has no concept of client identity, trust tiers, or per-client tool filtering. Authentication is delegated to the transport layer, which provides a single `AuthInfo` object — useful for identifying *who* the caller is, but not for expressing *what* they should be allowed to do.
 

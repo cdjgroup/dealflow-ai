@@ -1,4 +1,4 @@
-# DealFlow AI — Devpost Submission
+# DealFlow — Devpost Submission
 
 > Condensed submission text for Devpost form fields. See `docs/DEVPOST-DRAFT.md` for the full internal draft with screenshots checklist and extended details.
 
@@ -6,11 +6,11 @@
 
 ## Inspiration
 
-AI agents that draft emails, schedule meetings, and post Slack updates are powerful — but dangerous without guardrails. Most AI agent frameworks treat authorization as an afterthought. We built DealFlow AI to prove an AI sales agent can be both powerful AND trustworthy: suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI never touches credentials. Then we went further — exposing the same secure pipeline to external AI agents via MCP, turning one app's security into a reusable pattern for the AI agent ecosystem.
+AI agents that draft emails, schedule meetings, and post Slack updates are powerful — but dangerous without guardrails. Most AI agent frameworks treat authorization as an afterthought. We built DealFlow to prove an AI sales agent can be both powerful AND trustworthy: suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI never touches credentials. Then we went further — exposing the same secure pipeline to external AI agents via MCP, turning one app's security into a reusable pattern for the AI agent ecosystem.
 
 ## What it does
 
-DealFlow AI is an AI sales assistant with a **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline.
+DealFlow is an AI sales assistant with a **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline.
 
 | Surface | Trust | Consent | Use Case |
 |---------|-------|---------|----------|
@@ -78,11 +78,11 @@ Auth0, Token Vault, CIBA, Next.js, React, TypeScript, Vercel AI SDK, Claude, Ups
 
 Every entry in this hackathon integrates Auth0 Token Vault. That's table stakes — Token Vault handles the hard problem of credential management. But Token Vault answers "how does an AI agent get my credentials?" The harder question is: **"How do I control what happens with those credentials across a growing ecosystem of AI interfaces?"**
 
-We spent five days building DealFlow AI and discovered that the answer isn't a single mechanism — it's a spectrum. We call it **graduated trust**.
+We spent five days building DealFlow and discovered that the answer isn't a single mechanism — it's a spectrum. We call it **graduated trust**.
 
 **The problem with binary authorization.** Most AI agent frameworks offer two modes: the agent can act, or it can't. But real-world authorization is contextual. When I'm in a chat with the AI, I want it to check my calendar immediately (low risk) but pause before emailing a client (high risk). When I've scheduled the AI to review my pipeline overnight, I want one phone approval for the whole batch, not 12 separate prompts. When an external agent queries my CRM via MCP, I want read access but not write access — unless it goes through CIBA device consent.
 
-**Four trust levels, one pipeline.** DealFlow AI implements four distinct trust levels across three execution surfaces, all sharing one Auth0 Token Vault pipeline:
+**Four trust levels, one pipeline.** DealFlow implements four distinct trust levels across three execution surfaces, all sharing one Auth0 Token Vault pipeline:
 
 - **Action Center (low trust)**: The AI suggests actions with confidence scores and justification. The user reviews every suggestion, edits drafts inline, and approves individually. Nothing executes without explicit consent.
 - **Chat (medium trust)**: The user directs the AI in real-time. Most operations proceed immediately, but sensitive actions (>$50K deals, terminal stages) trigger step-up approval via AI SDK's `needsApproval`.
@@ -112,5 +112,5 @@ These aren't complaints. They're the kind of findings that help the Auth0 commun
 
 ---
 
-*DealFlow AI: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 5 days.*
+*DealFlow: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 5 days.*
 *Live: https://dealflow-ai-seven.vercel.app | Code: https://github.com/cdjgroup/dealflow-ai*
