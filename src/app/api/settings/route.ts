@@ -42,6 +42,9 @@ const settingsSchema = z.object({
       message: "toolTrust cannot contain more than 20 entries",
     })
     .optional(),
+  autonomyLevel: z
+    .union([z.literal(1), z.literal(2), z.literal(3)])
+    .optional(),
   schedule: z
     .object({
       enabled: z.boolean(),

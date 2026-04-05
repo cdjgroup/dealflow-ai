@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { getDeals, getContacts, getActivities } from "@/lib/data/crm";
 import { createAction, getActions } from "@/lib/data/actions";
+import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 
 interface SuggestionInput {
@@ -33,10 +34,11 @@ export function createAnalyzePipelineTool(userId: string) {
         ),
     }),
     execute: async ({ focus }: { focus: string }) => {
-      const [deals, contacts, existingActions] = await Promise.all([
+      const [deals, contacts, existingActions, settings] = await Promise.all([
         getDeals(userId),
         getContacts(userId),
         getActions(userId),
+        getUserSettings(userId),
       ]);
 
       if (deals.length === 0) {
@@ -143,9 +145,14 @@ export function createAnalyzePipelineTool(userId: string) {
       }
 
       // Create actions in Redis
+      // Autonomy gate: level 2+ auto-approves high/medium priority actions
       let created = 0;
       for (const suggestion of suggestions) {
-        await createAction(userId, { ...suggestion, status: "pending" });
+        const initialStatus =
+          settings.autonomyLevel >= 2 && suggestion.priority !== "low"
+            ? "approved"
+            : "pending";
+        await createAction(userId, { ...suggestion, status: initialStatus });
         created++;
       }
 
