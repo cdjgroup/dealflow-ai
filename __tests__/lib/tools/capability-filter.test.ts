@@ -15,6 +15,7 @@ const ALL_TOOLS: Record<string, Tool> = {
   createContact: mockTool,
   logActivity: mockTool,
   checkCalendar: mockTool,
+  createCalendarEvent: mockTool,
   draftEmail: mockTool,
   searchEmails: mockTool,
   listSlackChannels: mockTool,
@@ -34,7 +35,7 @@ describe("filterToolsByCapabilities", () => {
       },
     };
     const result = filterToolsByCapabilities(ALL_TOOLS, settings);
-    expect(Object.keys(result)).toHaveLength(12);
+    expect(Object.keys(result)).toHaveLength(13);
   });
 
   it("removes Gmail tools when gmail disabled", () => {
@@ -48,13 +49,14 @@ describe("filterToolsByCapabilities", () => {
     expect(result).toHaveProperty("checkCalendar");
   });
 
-  it("removes calendar tool when calendar disabled", () => {
+  it("removes calendar tools when calendar disabled", () => {
     const settings: UserSettings = {
       ...DEFAULT_SETTINGS,
       capabilities: { ...DEFAULT_SETTINGS.capabilities, calendar: false },
     };
     const result = filterToolsByCapabilities(ALL_TOOLS, settings);
     expect(result).not.toHaveProperty("checkCalendar");
+    expect(result).not.toHaveProperty("createCalendarEvent");
     expect(result).toHaveProperty("draftEmail");
   });
 

@@ -13,6 +13,7 @@ const TOOL_CATEGORIES: Record<string, keyof UserSettings["capabilities"]> = {
   logActivity: "crmWrite",
   // Calendar
   checkCalendar: "calendar",
+  createCalendarEvent: "calendar",
   // Gmail
   draftEmail: "gmail",
   searchEmails: "gmail",

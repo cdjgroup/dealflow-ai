@@ -90,6 +90,16 @@ const ALL_TOOLS: ToolInfo[] = [
     provider: "Google",
     guardrails: ["Read-only access", "Short-lived token"],
   },
+  {
+    name: "createCalendarEvent",
+    label: "Create Event",
+    icon: "\uD83D\uDCC5",
+    scope: "write",
+    source: "token-vault",
+    category: "calendar",
+    provider: "Google",
+    guardrails: ["Always requires approval", "Short-lived token"],
+  },
   // Gmail
   {
     name: "draftEmail",
@@ -135,7 +145,7 @@ const ALL_TOOLS: ToolInfo[] = [
 ];
 
 const CANNOT_DO = [
-  "Send emails directly (always drafts)",
+  "Send emails directly (always creates drafts)",
   "Access data from other users",
   "Store or see your OAuth passwords",
   "Execute actions on disabled capabilities",

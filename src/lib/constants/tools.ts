@@ -1,5 +1,6 @@
 export const toolIcons: Record<string, string> = {
   checkCalendar: "📅",
+  createCalendarEvent: "📅",
   draftEmail: "✉️",
   searchEmails: "🔍",
   listDeals: "📊",
@@ -16,6 +17,7 @@ export const toolIcons: Record<string, string> = {
 /** Token Vault tools use external OAuth — higher risk tier */
 export const TOKEN_VAULT_TOOLS = new Set([
   "checkCalendar",
+  "createCalendarEvent",
   "draftEmail",
   "searchEmails",
   "listSlackChannels",
@@ -28,6 +30,7 @@ export const WRITE_TOOLS = new Set([
   "updateDeal",
   "createContact",
   "logActivity",
+  "createCalendarEvent",
   "draftEmail",
   "sendSlackMessage",
 ]);
@@ -35,6 +38,7 @@ export const WRITE_TOOLS = new Set([
 /** Human-readable tool names for UI display */
 export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   checkCalendar: "View Calendar",
+  createCalendarEvent: "Create Event",
   draftEmail: "Draft Email",
   searchEmails: "Search Emails",
   listDeals: "List Deals",

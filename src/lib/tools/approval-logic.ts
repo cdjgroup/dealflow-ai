@@ -12,6 +12,7 @@ const CRM_WRITE_TOOLS = new Set([
 
 // External action tools always require approval (sends data outside the app)
 const EXTERNAL_ACTION_TOOLS = new Set([
+  "createCalendarEvent",
   "draftEmail",
   "sendSlackMessage",
   "delegateResearch",
