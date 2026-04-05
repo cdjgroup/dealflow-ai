@@ -6,9 +6,9 @@ import type { McpClient } from "@/lib/types/policy";
 import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
 
 const TRUST_TIER_STYLES: Record<string, { label: string; color: string; bg: string }> = {
-  full: { label: "Full Access", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-  standard: { label: "Standard", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-  restricted: { label: "Restricted", color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+  full: { label: "Full Access", color: "text-emerald-600", bg: "bg-emerald-500/15 border-emerald-500/20" },
+  standard: { label: "Standard", color: "text-blue-600", bg: "bg-blue-500/15 border-blue-500/20" },
+  restricted: { label: "Restricted", color: "text-amber-700", bg: "bg-amber-500/15 border-amber-500/20" },
   readonly: { label: "Read Only", color: "text-muted-foreground", bg: "bg-muted/50 border-border" },
 };
 
@@ -74,7 +74,7 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
                   key={tool}
                   className={`text-[10px] rounded px-1.5 py-0.5 ${
                     allowed
-                      ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+                      ? "text-emerald-600 bg-emerald-500/15 border border-emerald-500/20"
                       : "text-muted-foreground/40 bg-muted/30 line-through"
                   }`}
                 >
@@ -100,16 +100,16 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="text-[10px] text-red-400 hover:text-red-300 transition-colors ml-auto"
+              className="text-[10px] text-red-600 hover:text-red-500 transition-colors ml-auto"
             >
               Delete
             </button>
           ) : (
             <div className="flex items-center gap-1 ml-auto">
-              <span className="text-[10px] text-red-400">Confirm?</span>
+              <span className="text-[10px] text-red-600">Confirm?</span>
               <button
                 onClick={() => onDelete(client.id)}
-                className="text-[10px] text-red-400 font-medium hover:text-red-300"
+                className="text-[10px] text-red-600 font-medium hover:text-red-500"
               >
                 Yes
               </button>

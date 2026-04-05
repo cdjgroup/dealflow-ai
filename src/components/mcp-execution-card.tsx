@@ -80,11 +80,11 @@ export function McpExecutionCard({
       {phase === "success" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+            <span className="text-[10px] rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
               Success
             </span>
             {cibaRequired && (
-              <span className="text-[10px] rounded-full border px-2.5 py-1 border-blue-500/30 bg-blue-500/10 text-blue-400">
+              <span className="text-[10px] rounded-full border px-2.5 py-1 border-blue-500/30 bg-blue-500/15 text-blue-600">
                 CIBA Approved
               </span>
             )}
@@ -109,11 +109,11 @@ export function McpExecutionCard({
       {phase === "error" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] rounded-full border px-2.5 py-1 border-red-500/30 bg-red-500/10 text-red-400">
+            <span className="text-[10px] rounded-full border px-2.5 py-1 border-red-500/30 bg-red-500/15 text-red-600">
               Failed
             </span>
             {cibaRequired && (
-              <span className="text-[10px] rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/10 text-amber-400">
+              <span className="text-[10px] rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/15 text-amber-700">
                 Write Tool (CIBA)
               </span>
             )}
@@ -123,7 +123,7 @@ export function McpExecutionCard({
               </span>
             )}
           </div>
-          <div className="text-xs text-red-400/90 bg-red-500/5 border border-red-500/20 rounded-md p-3">
+          <div className="text-xs text-red-600/90 bg-red-500/15 border border-red-500/20 rounded-md p-3">
             {error || "Unknown error"}
           </div>
         </div>

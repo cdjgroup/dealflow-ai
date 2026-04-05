@@ -4,6 +4,7 @@ export type TrustLevel = "always" | "ask" | "never";
 export type AutonomyLevel = 1 | 2 | 3;
 
 export interface ConfidenceThresholds {
+  enabled?: boolean;     // toggle confidence-based routing (defaults to true)
   autoApprove: number;   // 0.0-1.0, actions above this auto-approve
   requireReview: number; // 0.0-1.0, actions below this always pending
 }
@@ -68,6 +69,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
   autonomyLevel: 1,
   confidenceThresholds: {
+    enabled: true,
     autoApprove: 0.85,
     requireReview: 0.5,
   },

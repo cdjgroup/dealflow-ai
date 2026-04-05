@@ -10,6 +10,7 @@ import { draftSchema } from "@/lib/schemas/action-draft";
 import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
 
 const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
+  enabled: true,
   autoApprove: 0.85,
   requireReview: 0.5,
 };
@@ -20,6 +21,11 @@ export function resolveInitialStatus(
 ): "approved" | "pending" {
   const thresholds = settings.confidenceThresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS;
   const { confidence, priority } = suggestion;
+
+  // When confidence routing is disabled, skip to autonomy-level routing
+  if (thresholds.enabled === false) {
+    return settings.autonomyLevel >= 2 && priority !== "low" ? "approved" : "pending";
+  }
 
   if (confidence !== undefined) {
     if (confidence >= thresholds.autoApprove) return "approved";

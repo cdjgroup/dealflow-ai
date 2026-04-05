@@ -70,6 +70,7 @@ const settingsSchema = z.object({
     .optional(),
   confidenceThresholds: z
     .object({
+      enabled: z.boolean().optional(),
       autoApprove: z.number().min(0).max(1),
       requireReview: z.number().min(0).max(1),
     })
