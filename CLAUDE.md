@@ -65,14 +65,26 @@
 
 ---
 
+## Scheduled Action Review (v0.5.1)
+
+Autonomous batch execution with CIBA consent — the AI agent executes actions on a schedule with device-level approval.
+
+- **Schedule**: Users opt into 8am/12pm/5pm review via checkboxes in Action Center
+- **Batch CIBA**: One Guardian push for all high/medium priority pending actions (e.g., "DealFlow: 5 actions - 3 email, 2 calendar")
+- **Time-Boxed Execution**: Approval grants a token with expiry — all actions execute within that window
+- **Priority Filter**: Only high and medium priority actions included; low priority stays for manual review
+- **Run Now**: On-demand trigger button for immediate batch execution (testing/demos)
+- **Cron Design**: Two-phase Vercel cron — hourly initiate (finds users, sends CIBA) + per-minute poll (checks approval, executes)
+- **Offline Tokens**: User's Auth0 refresh token stored encrypted (AES-256-GCM) at opt-in for cron token exchange
+- **Auth0 Config Required**: CIBA grant type enabled, Guardian push factor, user enrolled in MFA
+
 ## CIBA Step-Up Authentication (v0.5.0)
 
-Device-level consent via Auth0 Guardian push notifications for high-value actions.
+Device-level consent via Auth0 Guardian push notifications for high-value chat actions.
 
 - **Trigger**: createDeal >$50K, updateDeal to closed-won/closed-lost
 - **Two-Step Consent**: Inline approval card (app-level) → CIBA push notification (device-level)
 - **Chat Flow**: Tool executes → CIBA wrapper detects threshold → Auth0 /bc-authorize → Guardian push → CibaWaitingCard polls → phone approval → tool completes
-- **Action Center Flow**: Execute → CIBA check via deal value lookup → ciba-pending status → phone approval → action executes
 - **Session Management**: Redis-keyed (`ciba:{userId}:{toolName}`) with TTL, prevents re-initiation on regenerate
 - **Auth0 Config Required**: CIBA grant type enabled, Guardian push factor, user enrolled in MFA
 
@@ -86,7 +98,8 @@ AI agent suggests next steps based on CRM deal context. Actions are queued at `/
 - **User Flow**: AI suggests → user reviews justification → edits draft inline → approves → executes via Token Vault
 - **Batch Approve**: Approve all pending actions at once
 - **Execution**: Direct API calls through Token Vault OAuth exchange (same auth flow as AI tools)
-- **Seeded Data**: 5 demo actions tied to existing deals (created via seed endpoint)
+- **Seeded Data**: Demo actions tied to existing deals (created via seed endpoint)
+- **Reseed Demo Data**: Resets CRM data and onboarding checklist for demo purposes
 - **Nav Badge**: Pending action count shown in navigation
 - **Status Progression**: Pending (amber) → Approved (blue) → Executing (pulse) → Sent (green) / Failed (red)
 
