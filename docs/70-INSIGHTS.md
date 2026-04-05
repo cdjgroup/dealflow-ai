@@ -61,3 +61,15 @@ Auth0's CIBA implementation (`/bc-authorize`) does not require a user HTTP sessi
 ## 014 — Vercel cron requires two-phase design for CIBA polling (2026-04-04)
 
 Vercel serverless functions can't poll for 5+ minutes (CIBA timeout). Solution: separate the initiation (hourly cron sends CIBA push) from polling (per-minute cron checks Auth0, executes on approval). This maps naturally to the CIBA spec's async model. Key constraint: Hobby plan = daily minimum/hourly precision; Pro plan = per-minute. Vercel delivers cron events at-least-once, so idempotency guards (hour-truncated batch IDs, SET NX execution locks) are essential.
+
+## 015 — Batch CIBA beats per-action CIBA for AI agent consent (2026-04-05)
+
+Per-action CIBA (one Guardian push per action) creates notification fatigue. With 5+ pending actions, the user gets bombarded with push notifications. Worse, Auth0 Guardian only processes one CIBA push per user at a time — subsequent pushes are silently queued or overridden. The fix: batch all high/medium priority actions into a single CIBA request. The binding message describes the batch ("DealFlow: 5 actions - 3 email, 2 calendar"), the user approves once, and all actions execute within the CIBA token's expiry window. The token lifetime is the natural execution boundary — time-boxed delegation, not open-ended authorization.
+
+## 016 — CIBA binding_message character restrictions are strict (2026-04-05)
+
+Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#` characters. Email addresses (containing `@`) are rejected with a validation error. This isn't documented prominently — discovered via runtime error. Fix: sanitize with `/[^\w\s+\-_.,:#]/g` and use contact names instead of email addresses in messages. The 64-character limit also requires careful message construction: prioritize action type counts over individual details.
+
+## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
+
+React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
