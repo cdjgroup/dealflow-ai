@@ -172,6 +172,7 @@ async function executeSlack(
       channel_not_found: `Slack channel #${draft.channel} not found or was deleted`,
       not_authed: "Slack token expired. Reconnect Slack in Permissions.",
       invalid_auth: "Slack token invalid. Reconnect Slack in Permissions.",
+      missing_scope: "Slack connection is missing required permissions. Disconnect and reconnect Slack in Permissions to grant the correct scopes.",
     };
     throw new Error(friendly[data.error] || `Slack API error: ${data.error}`);
   }
