@@ -38,11 +38,11 @@ export async function resolveSlackChannelId(
 ): Promise<{ id: string } | { error: string }> {
   const name = channelName.replace(/^#/, "");
 
-  // Paginate through all public channels (Slack returns max 200 per page)
+  // Paginate through all public and private channels (Slack returns max 200 per page)
   let cursor = "";
   const MAX_PAGES = 5; // Safety cap: 1000 channels max
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = `https://slack.com/api/conversations.list?types=public_channel&limit=200${cursor ? `&cursor=${cursor}` : ""}`;
+    const url = `https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200${cursor ? `&cursor=${cursor}` : ""}`;
     const listRes = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
