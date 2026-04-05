@@ -88,8 +88,16 @@ vi.mock("@/lib/data/mcp-analytics", () => ({
   recordMcpCall: vi.fn().mockResolvedValue(undefined),
 }));
 
-/** Stub for McpServer.server — absorbs setRequestHandler calls from tools/list override. */
-const mockInnerServer = () => ({ setRequestHandler: vi.fn() });
+/** Build a mock inner Server object for tools/list override. */
+function makeMockInnerServer() {
+  const requestHandlers = new Map();
+  return {
+    _requestHandlers: requestHandlers,
+    setRequestHandler: vi.fn((_schema: unknown, handler: unknown) => {
+      requestHandlers.set("tools/list", handler);
+    }),
+  };
+}
 
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
@@ -104,8 +112,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
-        _registeredTools: new Map(),
-        server: mockInnerServer(),
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -140,8 +147,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
-        _registeredTools: new Map(),
-        server: mockInnerServer(),
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -167,7 +173,7 @@ describe("MCP tool adapter", () => {
           }
         },
         _registeredTools: new Map(),
-        server: mockInnerServer(),
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -198,6 +204,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // Pass allowedToolFilter to restrict registration
@@ -219,6 +226,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // No filter = all tools registered
@@ -237,6 +245,7 @@ describe("MCP tool adapter", () => {
             capturedHandler = handler;
           }
         },
+        server: makeMockInnerServer(),
       };
 
       // Register only checkCalendar
@@ -268,6 +277,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // Explicitly pass undefined
@@ -280,12 +290,12 @@ describe("MCP tool adapter", () => {
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {
       const tools: Array<{ name: string; config: Record<string, unknown> }> = [];
+      const requestHandlers = new Map();
       const mockServer = {
         registerTool: (name: string, config: Record<string, unknown>, _handler: unknown) => {
           tools.push({ name, config });
         },
-        _registeredTools: new Map(),
-        server: mockInnerServer(),
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();

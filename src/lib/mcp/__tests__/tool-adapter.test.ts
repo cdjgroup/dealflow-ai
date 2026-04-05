@@ -149,7 +149,16 @@ const { adaptToolsForMcp } = await import("@/lib/mcp/tool-adapter");
 // ---------------------------------------------------------------------------
 
 function makeMockServer() {
-  return { registerTool: vi.fn() };
+  const requestHandlers = new Map();
+  return {
+    registerTool: vi.fn(),
+    server: {
+      _requestHandlers: requestHandlers,
+      setRequestHandler: vi.fn((_schema: unknown, handler: unknown) => {
+        requestHandlers.set("tools/list", handler);
+      }),
+    },
+  };
 }
 
 /**

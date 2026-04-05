@@ -68,7 +68,8 @@ The system now provides graduated autonomy across four surfaces:
 | MCP + CIBA | High | Push notification |
 | MCP (read) | Autonomous | None needed |
 
-### Known Limitations
+### Discovery Filtering
+- `tools/list` filtered per-client: API key clients see only their allowlisted tools, Auth0 token clients see scope-matched tools
 - SSE transport: tool filtering applies at connection setup; long-lived SSE connections reflect the initial client policy
 
 ---

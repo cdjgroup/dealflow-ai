@@ -8,7 +8,7 @@ export interface ToolRateLimitConfig {
   window: string;
 }
 
-export interface CircuitBreakerResult {
+export interface RateLimitResult {
   allowed: boolean;
   toolName: string;
   tier?: ToolTier;
@@ -48,7 +48,7 @@ export const REQUEST_TOOL_CALL_LIMIT = 15;
 export async function checkToolRateLimit(
   userId: string,
   toolName: string
-): Promise<CircuitBreakerResult> {
+): Promise<RateLimitResult> {
   const config = TOOL_RATE_LIMITS[toolName];
 
   if (!config) {
@@ -76,7 +76,7 @@ export async function checkToolRateLimit(
       };
     }
   } catch (err) {
-    console.error(`[circuit-breaker] rate limit check failed for ${toolName}:`, err);
+    console.error(`[rate-limiter] rate limit check failed for ${toolName}:`, err);
     return { allowed: false, toolName, tier: config.tier, remaining: 0 };
   }
 }
@@ -84,10 +84,10 @@ export async function checkToolRateLimit(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTool = Record<string, any>;
 
-export function attachCircuitBreaker<T extends AnyTool>(
+export function attachRateLimiter<T extends AnyTool>(
   tools: Record<string, T>,
   userId: string,
-  onBlocked: (result: CircuitBreakerResult) => void
+  onBlocked: (result: RateLimitResult) => void
 ): Record<string, T> {
   const wrapped: Record<string, T> = {};
 
@@ -108,12 +108,12 @@ export function attachCircuitBreaker<T extends AnyTool>(
           return originalExecute(...args);
         }
 
-        let cbResult: CircuitBreakerResult;
+        let rlResult: RateLimitResult;
         try {
-          cbResult = await checkToolRateLimit(userId, toolName);
+          rlResult = await checkToolRateLimit(userId, toolName);
         } catch (err) {
-          console.error(`[circuit-breaker] unexpected error for ${toolName}:`, err);
-          const failResult: CircuitBreakerResult = {
+          console.error(`[rate-limiter] unexpected error for ${toolName}:`, err);
+          const failResult: RateLimitResult = {
             allowed: false,
             toolName,
             tier: config.tier,
@@ -126,12 +126,12 @@ export function attachCircuitBreaker<T extends AnyTool>(
           };
         }
 
-        if (!cbResult.allowed) {
-          onBlocked(cbResult);
+        if (!rlResult.allowed) {
+          onBlocked(rlResult);
           return {
             error: `Rate limit exceeded for tool ${toolName}`,
             toolName,
-            resetMs: cbResult.resetMs,
+            resetMs: rlResult.resetMs,
           };
         }
 

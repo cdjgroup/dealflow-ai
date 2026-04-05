@@ -36,11 +36,11 @@ All notable changes to this project will be documented in this file.
 - Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
 - MCP client management UI in MCP Explorer: create/delete clients, trust tier visualization, tool checkboxes
 - MCP client card component: trust tier badge, allowed tools display, key rotation, delete confirmation
-- Real-time circuit breaking for AI tool execution (two-layer protection)
+- Two-layer rate limiting for AI tool execution (per-tool + per-request)
 - Per-tool rate limiting: 4 tiers (read: 10/min, write: 5/min, crm-read: 20/min, crm-write: 5/min)
 - Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
-- Circuit breaker audit trail: rate limit denials logged with tier, remaining budget, reset time
-- Amber-styled circuit breaker alerts in chat UI (distinct from red error banners)
+- Rate limit audit trail: denials logged with tier, remaining budget, reset time
+- Amber-styled rate limit alerts in chat UI (distinct from red error banners)
 - MCP write tools: draftEmail, createCalendarEvent, sendSlackMessage now exposed via `/api/mcp`
 - CIBA gating for all MCP write operations (Guardian push approval required)
 - `cibaGate()` function for synchronous CIBA polling in MCP context (50s timeout)

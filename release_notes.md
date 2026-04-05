@@ -81,7 +81,7 @@ External AI agents now get individually scoped access through named MCP clients 
 
 - `verifyMcpToken()` dual-path: API key hash lookup vs Auth0 /userinfo, both fail closed
 - `AuthInfo.extra` carries client metadata (allowedTools, rateLimit, trustTier) from auth to tool handlers
-- Tool registration uses AsyncLocalStorage bridge to thread per-client `allowedTools` from auth into `initializeServer`
+- Tool registration filtered at both registration time (allowedToolFilter) and discovery time (ListToolsRequestSchema override)
 - `tools/list` now returns only tools the client is allowed to call (defense-in-depth; execution-layer enforcement remains as fallback)
 - MCP write operations use the same CIBA flow as scheduled actions (v0.5.1) — `initiateCiba()` + `pollCiba()`
 - Synchronous polling within request (unlike chat which streams CibaWaitingCard to client)
