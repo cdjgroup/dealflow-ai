@@ -382,6 +382,15 @@ export function ActionCard({
               style.label
             )}
           </span>
+          {action.confidence !== undefined && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+              title={`AI confidence: how likely this is the right next step (${Math.round(action.confidence * 100)}%)`}
+              aria-label={`${Math.round(action.confidence * 100)}% AI confidence`}
+            >
+              {Math.round(action.confidence * 100)}% confident
+            </span>
+          )}
           <span className="text-xs text-muted-foreground">{timeAgo(action.createdAt)}</span>
         </div>
       </div>

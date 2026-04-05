@@ -73,3 +73,11 @@ Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#
 ## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
 
 React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
+
+## 018 — AI SDK v6 subagent pattern: generateText inside tool execute (2026-04-05)
+
+Calling `generateText()` inside a tool's `execute` handler is the officially documented "subagent" pattern in AI SDK v6. The outer `streamText()` pauses the tool step while the inner `generateText()` runs, then resumes with the result. Key details: (1) pass `abortSignal` from the tool context through to the nested call for cancellation propagation, (2) `Output.object({ schema })` provides Zod-validated structured output via constrained decoding — the model cannot produce tokens that violate the schema, (3) `generateObject()` is deprecated in v6 and will be removed in v7, (4) set `maxRetries: 1` for nested calls to avoid timeout risk on Vercel's 300s function limit. Source: ai-sdk.dev/docs/agents/subagents.
+
+## 019 — Trust calibration as a demo narrative, not a feature (2026-04-05)
+
+Tracking approval/dismiss stats and showing "Consider auto-approve" demonstrates the *concept* of adaptive trust without implementing actual auto-execution. For a hackathon judge, seeing "You've approved 12/14 email suggestions (86%)" with a green hint is enough to validate the trust spectrum vision. The gap between "show stats" and "auto-execute" is intentional — bridging it would require changes to the CIBA consent flow and scheduled execution logic, which is scope creep. The static trust levels (always/ask/never) remain the actual control mechanism; the stats overlay adds narrative weight.

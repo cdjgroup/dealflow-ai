@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-05
+
+### Added
+- LLM-powered action suggestions: `analyzePipeline` tool now calls Claude Haiku to generate personalized email drafts, meeting agendas, and Slack messages with AI reasoning instead of hardcoded templates
+- AI confidence scores (0-1) on suggested actions, displayed as badges in the Action Center
+- Trust calibration tracking: per-action-type approval/dismiss stats stored in Redis
+- Trust stats displayed in Permissions UI with approval rates and "Consider auto-approve" recommendation at >80%
+- Batch approve confirmation panel: type breakdown summary before approving (prevents accidental bulk approval)
+- `generationMethod` field in analyzePipeline return value distinguishes AI vs heuristic suggestions
+
+### Changed
+- `analyzePipeline` activities fetched in parallel (Promise.all) instead of sequential N+1 queries
+- Batch approve route now enforces same capability/trust guards as single-action approval
+- LLM-generated drafts validated against strict draftSchema before Redis write (defense-in-depth)
+
+### Security
+- LLM output validated through Zod draftSchema before persistence (prevents oversized/malformed drafts from prompt injection)
+- Batch route capability guard prevents approving actions for disabled integrations
+
 ## [0.5.1] - 2026-04-05
 
 ### Added
