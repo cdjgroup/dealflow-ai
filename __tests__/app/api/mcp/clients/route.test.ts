@@ -6,12 +6,14 @@ const {
   mockCheckCsrf,
   mockListMcpClients,
   mockCreateMcpClient,
+  mockLimit,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
   mockCheckCsrf: vi.fn(),
   mockListMcpClients: vi.fn(),
   mockCreateMcpClient: vi.fn(),
+  mockLimit: vi.fn().mockResolvedValue({ success: true }),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -21,6 +23,10 @@ vi.mock("@/lib/auth0", () => ({
 
 vi.mock("@/lib/api-guard", () => ({
   checkCsrf: (...args: unknown[]) => mockCheckCsrf(...args),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  getSensitiveLimiter: () => ({ limit: mockLimit }),
 }));
 
 vi.mock("@/lib/data/mcp-clients", () => ({

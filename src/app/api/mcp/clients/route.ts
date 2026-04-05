@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
+import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { listMcpClients, createMcpClient, toClientResponse } from "@/lib/data/mcp-clients";
 import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
 import { z } from "zod";
@@ -34,6 +35,11 @@ export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
+  const { success } = await getSensitiveLimiter().limit(auth.userId);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -50,5 +56,8 @@ export async function POST(req: Request) {
   }
 
   const { client, rawApiKey } = await createMcpClient(auth.userId, parsed.data);
-  return NextResponse.json({ client: toClientResponse(client), rawApiKey }, { status: 201 });
+  return NextResponse.json(
+    { client: toClientResponse(client), rawApiKey },
+    { status: 201, headers: { "Cache-Control": "no-store", "Pragma": "no-cache" } }
+  );
 }
