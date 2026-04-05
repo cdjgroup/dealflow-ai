@@ -12,7 +12,7 @@ const {
   mockConvertToModelMessages,
   mockCreateUIMessageStream,
   mockCreateUIMessageStreamResponse,
-  mockAttachCircuitBreaker,
+  mockAttachRateLimiter,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
@@ -24,7 +24,7 @@ const {
   mockConvertToModelMessages: vi.fn(),
   mockCreateUIMessageStream: vi.fn(),
   mockCreateUIMessageStreamResponse: vi.fn(),
-  mockAttachCircuitBreaker: vi.fn(),
+  mockAttachRateLimiter: vi.fn(),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -51,8 +51,8 @@ vi.mock("ai", () => ({
   tool: (config: unknown) => ({ type: "tool", ...config as Record<string, unknown> }),
 }));
 
-vi.mock("@/lib/circuit-breaker", () => ({
-  attachCircuitBreaker: (...args: unknown[]) => mockAttachCircuitBreaker(...args),
+vi.mock("@/lib/rate-limiter", () => ({
+  attachRateLimiter: (...args: unknown[]) => mockAttachRateLimiter(...args),
   RequestToolCounter: class MockRequestToolCounter {
     increment() { return { breached: false, count: 1, limit: 15 }; }
     getCount() { return 0; }
@@ -166,8 +166,8 @@ describe("POST /api/chat", () => {
     mockLimit.mockResolvedValue({ success: true });
     mockConvertToModelMessages.mockResolvedValue([]);
     mockStepCountIs.mockReturnValue(() => false);
-    // Circuit breaker passes tools through unchanged by default
-    mockAttachCircuitBreaker.mockImplementation((tools: unknown) => tools);
+    // Rate limiter passes tools through unchanged by default
+    mockAttachRateLimiter.mockImplementation((tools: unknown) => tools);
     // createUIMessageStream: capture the execute callback and run it
     mockCreateUIMessageStream.mockImplementation(({ execute }: { execute: (opts: { writer: unknown }) => Promise<void> | void }) => {
       const mockWriter = {
@@ -300,7 +300,7 @@ describe("POST /api/chat", () => {
     expect(streamTextCall.abortSignal).toBeInstanceOf(AbortSignal);
   });
 
-  it("AC-7: should wire circuit breaker into tool pipeline", async () => {
+  it("AC-7: should wire rate limiter into tool pipeline", async () => {
     await POST(
       makeRequest({
         messages: [{ role: "user", content: "hello" }],
@@ -308,10 +308,10 @@ describe("POST /api/chat", () => {
       })
     );
 
-    // attachCircuitBreaker is called synchronously before the stream starts
-    expect(mockAttachCircuitBreaker).toHaveBeenCalledOnce();
-    expect(mockAttachCircuitBreaker.mock.calls[0][1]).toBe("auth0|user1");
-    expect(typeof mockAttachCircuitBreaker.mock.calls[0][2]).toBe("function");
+    // attachRateLimiter is called synchronously before the stream starts
+    expect(mockAttachRateLimiter).toHaveBeenCalledOnce();
+    expect(mockAttachRateLimiter.mock.calls[0][1]).toBe("auth0|user1");
+    expect(typeof mockAttachRateLimiter.mock.calls[0][2]).toBe("function");
   });
 
   it("should return 500 when streamText throws", async () => {

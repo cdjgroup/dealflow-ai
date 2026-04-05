@@ -121,6 +121,8 @@ export async function GET(req: Request) {
               input: action.draft as unknown as Record<string, unknown>,
               result: "success",
               durationMs: 0,
+              surface: "actions",
+              policyReason: "CIBA: approved by user via Guardian push",
             }).catch((err) =>
               console.error("Audit write failed for action", actionId, err)
             );
@@ -138,6 +140,8 @@ export async function GET(req: Request) {
               input: action.draft as unknown as Record<string, unknown>,
               result: "error",
               durationMs: 0,
+              surface: "actions",
+              policyReason: "CIBA: approved but execution failed",
             }).catch((err) =>
               console.error("Audit write failed for action", actionId, err)
             );

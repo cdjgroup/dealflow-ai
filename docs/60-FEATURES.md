@@ -34,6 +34,12 @@ Each client has a configurable rate limit (requests/minute). Independent Upstash
 ### Cross-Surface Audit Telemetry
 The audit log now tracks which surface (Chat, MCP, Actions) each tool call came from. Filter by source to see cross-surface activity. MCP entries include the client name for per-agent attribution.
 
+### Confidence-Informed Autonomy
+The AI outputs confidence scores (0-1) for each suggested action, calibrated via a structured rubric. Low-confidence actions (<0.5) are automatically routed to manual review — even at the highest autonomy level. At Level 3, low-confidence actions require CIBA device consent instead of auto-executing. This turns the autonomy selector from a manual dial to an AI-informed dial: the user sets the trust boundary, the AI provides the signal. High-value deals still require CIBA regardless of confidence (defense-in-depth).
+
+### Reasoning-Aware Audit Trail
+Every audit entry now includes a `policyReason` field explaining not just what happened, but why — which authorization layer triggered the decision, what threshold was hit, which user setting applied. Displayed as an amber "Policy Decision" row in the audit detail panel.
+
 ### Real-Time Circuit Breaking
 Two-layer protection against runaway AI tool loops:
 - **Layer A (surgical):** Per-tool rate limits (read 10/min, write 5/min, crm-read 20/min, crm-write 5/min, compound 3/min). Blocks one tool, model adapts.
@@ -68,7 +74,8 @@ The system now provides graduated autonomy across four surfaces:
 | MCP + CIBA | High | Push notification |
 | MCP (read) | Autonomous | None needed |
 
-### Known Limitations
+### Discovery Filtering
+- `tools/list` filtered per-client: API key clients see only their allowlisted tools, Auth0 token clients see scope-matched tools
 - SSE transport: tool filtering applies at connection setup; long-lived SSE connections reflect the initial client policy
 
 ---

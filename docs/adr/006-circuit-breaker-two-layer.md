@@ -1,4 +1,4 @@
-# ADR 006: Two-Layer Circuit Breaking for AI Tool Execution
+# ADR 006: Two-Layer Rate Limiting for AI Tool Execution
 
 **Status:** PROPOSED
 **Date:** 2026-04-05

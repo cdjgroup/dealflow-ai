@@ -1,6 +1,6 @@
 import { getToolNamesForScopes } from "@/lib/surface-policy";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
-import { checkToolRateLimit } from "@/lib/circuit-breaker";
+import { checkToolRateLimit } from "@/lib/rate-limiter";
 import { getUserSettings } from "@/lib/data/settings";
 
 // Tool-to-capability category mapping (subset of capability-filter.ts — CRM write tools excluded from MCP)

@@ -1,5 +1,7 @@
 # DealFlow AI — Devpost Submission Draft
 
+> **Note:** This is the detailed internal draft with screenshot checklist and extended feature details. The final submission text is in [`devpost-submission.md`](devpost-submission.md).
+
 > **Hackathon**: Authorized to Act: Auth0 for AI Agents
 > **Deadline**: April 6, 2026 5:00 PM PT
 

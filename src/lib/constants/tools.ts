@@ -107,6 +107,15 @@ export const TRUST_TIER_TOOLS: Record<string, string[]> = {
   ],
 };
 
+/**
+ * Actions with confidence below this threshold are forced to "pending" regardless
+ * of autonomy level. Downgrade-only gate — high confidence never overrides existing
+ * safety gates (CIBA, value thresholds). Based on research showing LLM self-reported
+ * confidence is systematically overconfident (Xiong 2024); a model scoring <0.5 is
+ * genuinely uncertain.
+ */
+export const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
 /** Human-readable OAuth scope labels (per Google/Slack consent screen patterns) */
 export const SCOPE_LABELS: Record<string, string> = {
   "calendar.readonly": "View your calendar",
