@@ -212,7 +212,7 @@ function CalendarEventCreatedCard({ data }: { data: Record<string, unknown> }) {
         <span className="font-mono">
           {String(data.start || "").substring(11, 16)} – {String(data.end || "").substring(11, 16)}
         </span>
-        {data.htmlLink && (
+        {typeof data.htmlLink === "string" && (
           <a
             href={String(data.htmlLink)}
             target="_blank"
