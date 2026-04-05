@@ -37,7 +37,7 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
-**Built in 4 days** (March 31 – April 4, 2026) with 146 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026) with 219 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
