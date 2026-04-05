@@ -1,77 +1,30 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
-import { getActions, updateAction } from "@/lib/data/actions";
+import { getActions, batchUpdateStatus } from "@/lib/data/actions";
 import { initiateCiba } from "@/lib/ciba/authorize";
 import { storeScheduledCibaSession } from "@/lib/data/scheduled-ciba";
-import type {
-  SuggestedAction,
-  EmailDraft,
-  CalendarDraft,
-  SlackDraft,
-} from "@/lib/types/actions";
+import type { SuggestedAction } from "@/lib/types/actions";
 
 function sanitize(msg: string): string {
   return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
 }
 
-export function buildActionMessage(action: SuggestedAction): string {
-  const prio = action.priority === "high" ? "HIGH" : "MED";
-  const draft = action.draft;
-
-  switch (action.type) {
-    case "email": {
-      const d = draft as EmailDraft;
-      return sanitize(`${prio}: Email ${action.contactName} - ${d.subject}`);
-    }
-    case "calendar": {
-      const d = draft as CalendarDraft;
-      return sanitize(`${prio}: Meeting ${d.title} on ${d.date}`);
-    }
-    case "slack": {
-      const d = draft as SlackDraft;
-      return sanitize(`${prio}: Slack ${d.channel} - ${action.dealName}`);
-    }
-    default:
-      return sanitize(`${prio}: ${action.type} for ${action.dealName}`);
+function buildBatchMessage(actions: SuggestedAction[]): string {
+  const counts: Record<string, number> = {};
+  for (const a of actions) {
+    counts[a.type] = (counts[a.type] || 0) + 1;
   }
+  const parts = Object.entries(counts)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(", ");
+  return sanitize(`DealFlow: ${actions.length} actions - ${parts}`);
 }
 
 /**
- * Initiate CIBA for a single action. Returns the session details.
- */
-export async function initiateActionCiba(
-  userId: string,
-  action: SuggestedAction
-): Promise<{ authReqId: string; interval: number }> {
-  const now = new Date();
-  const batchId = `action:${action.id}:${now.toISOString()}`;
-  const msg = buildActionMessage(action);
-
-  const cibaResult = await initiateCiba(userId, msg);
-
-  await storeScheduledCibaSession({
-    batchId,
-    userId,
-    authReqId: cibaResult.authReqId,
-    actionIds: [action.id],
-    bindingMessage: msg,
-    expiresAt: new Date(
-      Date.now() + cibaResult.expiresIn * 1000
-    ).toISOString(),
-    interval: cibaResult.interval,
-    createdAt: now.toISOString(),
-  });
-
-  await updateAction(userId, action.id, { status: "ciba-pending" });
-
-  return { authReqId: cibaResult.authReqId, interval: cibaResult.interval };
-}
-
-/**
- * On-demand trigger for sequential CIBA consent.
- * Initiates Guardian push for the FIRST high/medium-priority pending action.
- * After approval+execution, the poll-trigger initiates the next one.
+ * On-demand trigger for batch CIBA consent.
+ * Sends ONE Guardian push for all high/medium-priority pending actions.
+ * Approval grants a time-boxed execution window.
  */
 export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
@@ -93,23 +46,35 @@ export async function POST(req: Request) {
     );
   }
 
-  const first = eligible[0];
+  const now = new Date();
+  const batchId = `manual:${now.toISOString()}`;
+  const actionIds = eligible.map((a) => a.id);
+  const msg = buildBatchMessage(eligible);
 
   try {
-    const result = await initiateActionCiba(userId, first);
+    const cibaResult = await initiateCiba(userId, msg);
+
+    await storeScheduledCibaSession({
+      batchId,
+      userId,
+      authReqId: cibaResult.authReqId,
+      actionIds,
+      bindingMessage: msg,
+      expiresAt: new Date(
+        Date.now() + cibaResult.expiresIn * 1000
+      ).toISOString(),
+      interval: cibaResult.interval,
+      createdAt: now.toISOString(),
+    });
+
+    await batchUpdateStatus(userId, actionIds, "ciba-pending");
 
     return NextResponse.json({
       status: "initiated",
-      actionCount: 1,
-      totalEligible: eligible.length,
+      actionCount: eligible.length,
       skippedLowPriority: pendingActions.length - eligible.length,
-      action: {
-        id: first.id,
-        type: first.type,
-        priority: first.priority,
-        bindingMessage: buildActionMessage(first),
-      },
-      interval: result.interval,
+      bindingMessage: msg,
+      interval: cibaResult.interval,
     });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

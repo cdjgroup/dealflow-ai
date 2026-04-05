@@ -4,9 +4,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockGetUsersForScheduleHour = vi.fn();
 const mockGetUserSettings = vi.fn();
 const mockGetActions = vi.fn();
-const mockUpdateAction = vi.fn();
+const mockBatchUpdateStatus = vi.fn();
 const mockInitiateCiba = vi.fn();
 const mockStoreScheduledCibaSession = vi.fn();
+const mockGetScheduledCibaSession = vi.fn();
 
 vi.mock("@/lib/data/settings", () => ({
   getUsersForScheduleHour: (...args: unknown[]) =>
@@ -15,7 +16,7 @@ vi.mock("@/lib/data/settings", () => ({
 }));
 vi.mock("@/lib/data/actions", () => ({
   getActions: (...args: unknown[]) => mockGetActions(...args),
-  updateAction: (...args: unknown[]) => mockUpdateAction(...args),
+  batchUpdateStatus: (...args: unknown[]) => mockBatchUpdateStatus(...args),
 }));
 vi.mock("@/lib/ciba/authorize", () => ({
   initiateCiba: (...args: unknown[]) => mockInitiateCiba(...args),
@@ -23,6 +24,8 @@ vi.mock("@/lib/ciba/authorize", () => ({
 vi.mock("@/lib/data/scheduled-ciba", () => ({
   storeScheduledCibaSession: (...args: unknown[]) =>
     mockStoreScheduledCibaSession(...args),
+  getScheduledCibaSession: (...args: unknown[]) =>
+    mockGetScheduledCibaSession(...args),
 }));
 vi.mock("@/lib/cron-auth", () => ({
   verifyCronSecret: (req: Request) =>
@@ -95,29 +98,25 @@ describe("GET /api/cron/schedule-initiate", () => {
       interval: 5,
       bindingMessage: "test",
     });
+    mockGetScheduledCibaSession.mockResolvedValue(null);
     mockStoreScheduledCibaSession.mockResolvedValue(undefined);
-    mockUpdateAction.mockResolvedValue(undefined);
+    mockBatchUpdateStatus.mockResolvedValue([]);
 
     const res = await GET(makeRequest("test-cron-secret"));
     const body = await res.json();
 
-    // Called twice (high + medium), not for the low-priority action
-    expect(mockInitiateCiba).toHaveBeenCalledTimes(2);
-    // First call should include priority and action detail
+    // Called once for the batch (not per-action)
+    expect(mockInitiateCiba).toHaveBeenCalledTimes(1);
+    // Binding message should include action count and types
     expect(mockInitiateCiba).toHaveBeenCalledWith(
       "auth0|user1",
-      expect.stringContaining("HIGH")
+      expect.stringContaining("2 actions")
     );
-    // Per-action status update, not batch
-    expect(mockUpdateAction).toHaveBeenCalledWith(
+    // Batch status update for high + medium only
+    expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
       "auth0|user1",
-      "act1",
-      { status: "ciba-pending" }
-    );
-    expect(mockUpdateAction).toHaveBeenCalledWith(
-      "auth0|user1",
-      "act2",
-      { status: "ciba-pending" }
+      ["act1", "act2"],
+      "ciba-pending"
     );
     expect(body.results[0].status).toBe("initiated");
     expect(body.results[0].actionCount).toBe(2);

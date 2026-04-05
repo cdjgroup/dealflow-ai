@@ -37,53 +37,46 @@ export function SchedulePanel({ initialSchedule }: Props) {
     setPolling(false);
   }, []);
 
-  const startPolling = useCallback((totalEligible: number, interval: number) => {
+  const startPolling = useCallback((actionCount: number, interval: number) => {
     setPolling(true);
-    let completed = 0;
-    setTriggerResult(`Approve on Guardian (1 of ${totalEligible})...`);
+    setTriggerResult(`Approve on Guardian to execute ${actionCount} action${actionCount === 1 ? "" : "s"}...`);
     let attempts = 0;
-    const maxAttempts = 120; // longer timeout for sequential flow
+    const maxAttempts = 60;
 
     pollRef.current = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
         stopPolling();
-        setTriggerResult(completed > 0 ? `${completed} executed, timed out on rest` : null);
-        if (completed === 0) setError("Approval timed out");
-        router.refresh();
+        setTriggerResult(null);
+        setError("Approval timed out");
         return;
       }
       try {
         const res = await fetch("/api/cron/schedule-poll-trigger");
         const data = await res.json();
 
-        if (data.status === "next") {
-          // Action executed, next one initiated — keep polling
-          completed += data.executed ? 1 : 0;
-          const remaining = (data.remaining || 0) + 1;
-          setTriggerResult(`${completed} done — approve next on Guardian (${remaining} left)...`);
-          attempts = 0; // reset timeout for next action
-          router.refresh(); // update action list immediately
-        } else if (data.status === "done") {
+        if (data.status === "executed") {
           stopPolling();
-          completed += data.executed ? 1 : 0;
-          setTriggerResult(`All done — ${completed} action${completed === 1 ? "" : "s"} executed`);
+          const msg = data.failed
+            ? `${data.executed} executed, ${data.failed} failed`
+            : `${data.executed} action${data.executed === 1 ? "" : "s"} executed`;
+          setTriggerResult(msg);
           router.refresh();
         } else if (data.status === "denied") {
           stopPolling();
-          setTriggerResult(completed > 0 ? `${completed} executed, last denied` : null);
-          if (completed === 0) setError("Approval denied");
+          setTriggerResult(null);
+          setError("Approval denied — actions returned to pending");
           router.refresh();
         } else if (data.status === "expired") {
           stopPolling();
-          setTriggerResult(completed > 0 ? `${completed} executed, last expired` : null);
-          if (completed === 0) setError("Session expired");
+          setTriggerResult(null);
+          setError("Session expired");
           router.refresh();
         } else if (data.status === "no-sessions") {
           if (attempts > 10) {
             stopPolling();
-            setTriggerResult(completed > 0 ? `${completed} executed` : null);
-            if (completed === 0) setError("Sessions expired or not found");
+            setTriggerResult(null);
+            setError("Session not found");
             router.refresh();
           }
         }
@@ -144,8 +137,8 @@ export function SchedulePanel({ initialSchedule }: Props) {
             )}
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Get a Guardian push notification per high/medium priority action
-            at scheduled times. Approve each individually from your phone.
+            Approve all high/medium priority actions with one Guardian push
+            at scheduled times. Actions execute within a time-boxed window.
           </p>
         </div>
       </div>
@@ -194,15 +187,9 @@ export function SchedulePanel({ initialSchedule }: Props) {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                  // Show the first action's error detail if available
-                  const detail = data.results?.find((r: { status: string; bindingMessage?: string }) => r.status === "error")?.bindingMessage;
-                  throw new Error(detail || data.error || `Trigger failed (${res.status})`);
+                  throw new Error(data.error || `Trigger failed (${res.status})`);
                 }
-                if (data.actionCount === 0) {
-                  setError("No eligible actions were initiated");
-                  return;
-                }
-                startPolling(data.totalEligible || data.actionCount, data.interval || 5);
+                startPolling(data.actionCount, data.interval || 5);
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Trigger failed");
               } finally {
