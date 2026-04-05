@@ -3,14 +3,16 @@ import {
   getUsersForScheduleHour,
   getUserSettings,
 } from "@/lib/data/settings";
-import { getActions, batchUpdateStatus } from "@/lib/data/actions";
+import { getActions, updateAction } from "@/lib/data/actions";
 import { initiateCiba } from "@/lib/ciba/authorize";
-import {
-  storeScheduledCibaSession,
-  getScheduledCibaSession,
-} from "@/lib/data/scheduled-ciba";
+import { storeScheduledCibaSession } from "@/lib/data/scheduled-ciba";
 import { verifyCronSecret } from "@/lib/cron-auth";
-import type { SuggestedAction } from "@/lib/types/actions";
+import type {
+  SuggestedAction,
+  EmailDraft,
+  CalendarDraft,
+  SlackDraft,
+} from "@/lib/types/actions";
 
 const MAX_USERS_PER_HOUR = 50;
 
@@ -27,19 +29,30 @@ function getHourInTimezone(date: Date, timezone: string): number {
   }
 }
 
-function sanitizeBindingMessage(msg: string): string {
-  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
+function sanitize(msg: string): string {
+  return msg.replace(/[^\w\s+\-_.,:#@]/g, "").trim().slice(0, 64);
 }
 
-function buildBindingMessage(actions: SuggestedAction[]): string {
-  const counts: Record<string, number> = {};
-  for (const a of actions) {
-    counts[a.type] = (counts[a.type] || 0) + 1;
+function buildActionMessage(action: SuggestedAction): string {
+  const prio = action.priority === "high" ? "HIGH" : "MED";
+  const draft = action.draft;
+
+  switch (action.type) {
+    case "email": {
+      const d = draft as EmailDraft;
+      return sanitize(`${prio}: Email ${d.to} - ${d.subject}`);
+    }
+    case "calendar": {
+      const d = draft as CalendarDraft;
+      return sanitize(`${prio}: Meeting ${d.title} on ${d.date}`);
+    }
+    case "slack": {
+      const d = draft as SlackDraft;
+      return sanitize(`${prio}: Slack #${d.channel} - ${d.message}`);
+    }
+    default:
+      return sanitize(`${prio}: ${action.type} for ${action.dealName}`);
   }
-  const parts = Object.entries(counts)
-    .map(([type, count]) => `${count} ${type}`)
-    .join(", ");
-  return sanitizeBindingMessage(`DealFlow: run ${actions.length} actions - ${parts}`);
 }
 
 export async function GET(req: Request) {
@@ -48,7 +61,6 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
-  const batchId = `${now.toISOString().slice(0, 13)}:00:00.000Z`;
   const results: Array<{
     userId: string;
     status: string;
@@ -70,50 +82,53 @@ export async function GET(req: Request) {
       }
 
       const pendingActions = await getActions(userId, { status: "pending" });
-      if (pendingActions.length === 0) {
-        results.push({ userId, status: "skipped-no-actions" });
+      const eligible = pendingActions.filter(
+        (a) => a.priority === "high" || a.priority === "medium"
+      );
+
+      if (eligible.length === 0) {
+        results.push({ userId, status: "skipped-no-eligible-actions" });
         continue;
       }
 
-      // AC-13: Idempotency — skip if session already exists for this batch window
-      const existing = await getScheduledCibaSession(userId, batchId);
-      if (existing) {
-        results.push({ userId, status: "skipped-existing-session" });
-        continue;
+      let initiated = 0;
+      for (const action of eligible) {
+        const batchId = `cron:${action.id}:${now.toISOString()}`;
+        const msg = buildActionMessage(action);
+
+        try {
+          const cibaResult = await initiateCiba(userId, msg);
+
+          await storeScheduledCibaSession({
+            batchId,
+            userId,
+            authReqId: cibaResult.authReqId,
+            actionIds: [action.id],
+            bindingMessage: msg,
+            expiresAt: new Date(
+              Date.now() + cibaResult.expiresIn * 1000
+            ).toISOString(),
+            interval: cibaResult.interval,
+            createdAt: now.toISOString(),
+          });
+
+          await updateAction(userId, action.id, { status: "ciba-pending" });
+          initiated++;
+        } catch (err) {
+          console.error(
+            `CIBA initiation failed for action ${action.id} (user ${userId}):`,
+            err
+          );
+        }
       }
 
-      const actionIds = pendingActions.map((a) => a.id);
-      const msg = buildBindingMessage(pendingActions);
-
-      try {
-        const cibaResult = await initiateCiba(userId, msg);
-
-        await storeScheduledCibaSession({
-          batchId,
-          userId,
-          authReqId: cibaResult.authReqId,
-          actionIds,
-          bindingMessage: msg,
-          expiresAt: new Date(
-            Date.now() + cibaResult.expiresIn * 1000
-          ).toISOString(),
-          interval: cibaResult.interval,
-          createdAt: now.toISOString(),
-        });
-
-        await batchUpdateStatus(userId, actionIds, "ciba-pending");
-
-        results.push({
-          userId,
-          status: "initiated",
-          actionCount: actionIds.length,
-        });
-      } catch (err) {
-        console.error(`CIBA initiation failed for ${userId}:`, err);
-        results.push({ userId, status: "error" });
-      }
+      results.push({
+        userId,
+        status: initiated > 0 ? "initiated" : "error",
+        actionCount: initiated,
+      });
     }
   }
 
-  return NextResponse.json({ batchId, results });
+  return NextResponse.json({ results });
 }

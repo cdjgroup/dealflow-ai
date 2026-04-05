@@ -37,9 +37,9 @@ export function SchedulePanel({ initialSchedule }: Props) {
     setPolling(false);
   }, []);
 
-  const startPolling = useCallback((interval: number) => {
+  const startPolling = useCallback((actionCount: number, interval: number) => {
     setPolling(true);
-    setTriggerResult("Waiting for Guardian approval...");
+    setTriggerResult(`Waiting for Guardian approval (${actionCount} action${actionCount === 1 ? "" : "s"})...`);
     let attempts = 0;
     const maxAttempts = 60;
 
@@ -54,26 +54,29 @@ export function SchedulePanel({ initialSchedule }: Props) {
       try {
         const res = await fetch("/api/cron/schedule-poll-trigger");
         const data = await res.json();
-        if (data.status === "executed") {
+
+        if (data.status === "done") {
           stopPolling();
-          setTriggerResult(
-            `Executed ${data.executed} action${data.executed === 1 ? "" : "s"}${data.failed ? ` (${data.failed} failed)` : ""}`
-          );
+          const parts: string[] = [];
+          if (data.executed > 0) parts.push(`${data.executed} executed`);
+          if (data.denied > 0) parts.push(`${data.denied} denied`);
+          if (data.failed > 0) parts.push(`${data.failed} failed`);
+          setTriggerResult(parts.join(", ") || "All actions processed");
           router.refresh();
-        } else if (data.status === "denied") {
+        } else if (data.status === "no-sessions") {
           stopPolling();
           setTriggerResult(null);
-          setError("Approval denied");
-        } else if (data.status === "expired" || data.status === "no-session") {
-          stopPolling();
-          setTriggerResult(null);
-          setError("Session expired");
-        } else if (data.status === "error") {
-          stopPolling();
-          setTriggerResult(null);
-          setError(data.error || "Execution failed");
+          setError("No active sessions");
+        } else if (data.status === "pending") {
+          // Update progress as individual actions resolve
+          const resolved = (data.executed || 0) + (data.denied || 0) + (data.failed || 0);
+          const remaining = data.pending || 0;
+          if (resolved > 0) {
+            setTriggerResult(
+              `${resolved} resolved, ${remaining} awaiting approval...`
+            );
+          }
         }
-        // "pending" — keep polling
       } catch {
         stopPolling();
         setTriggerResult(null);
@@ -130,8 +133,8 @@ export function SchedulePanel({ initialSchedule }: Props) {
             )}
           </h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Get a Guardian push notification to approve and execute all pending
-            actions at scheduled times.
+            Get a Guardian push notification per high/medium priority action
+            at scheduled times. Approve each individually from your phone.
           </p>
         </div>
       </div>
@@ -182,7 +185,7 @@ export function SchedulePanel({ initialSchedule }: Props) {
                 if (!res.ok) {
                   throw new Error(data.error || "Trigger failed");
                 }
-                startPolling(data.interval || 5);
+                startPolling(data.actionCount, data.interval || 5);
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Trigger failed");
               } finally {

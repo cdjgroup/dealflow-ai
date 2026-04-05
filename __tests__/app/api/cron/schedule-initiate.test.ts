@@ -4,10 +4,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockGetUsersForScheduleHour = vi.fn();
 const mockGetUserSettings = vi.fn();
 const mockGetActions = vi.fn();
-const mockBatchUpdateStatus = vi.fn();
+const mockUpdateAction = vi.fn();
 const mockInitiateCiba = vi.fn();
 const mockStoreScheduledCibaSession = vi.fn();
-const mockGetScheduledCibaSession = vi.fn();
 
 vi.mock("@/lib/data/settings", () => ({
   getUsersForScheduleHour: (...args: unknown[]) =>
@@ -16,7 +15,7 @@ vi.mock("@/lib/data/settings", () => ({
 }));
 vi.mock("@/lib/data/actions", () => ({
   getActions: (...args: unknown[]) => mockGetActions(...args),
-  batchUpdateStatus: (...args: unknown[]) => mockBatchUpdateStatus(...args),
+  updateAction: (...args: unknown[]) => mockUpdateAction(...args),
 }));
 vi.mock("@/lib/ciba/authorize", () => ({
   initiateCiba: (...args: unknown[]) => mockInitiateCiba(...args),
@@ -24,8 +23,6 @@ vi.mock("@/lib/ciba/authorize", () => ({
 vi.mock("@/lib/data/scheduled-ciba", () => ({
   storeScheduledCibaSession: (...args: unknown[]) =>
     mockStoreScheduledCibaSession(...args),
-  getScheduledCibaSession: (...args: unknown[]) =>
-    mockGetScheduledCibaSession(...args),
 }));
 vi.mock("@/lib/cron-auth", () => ({
   verifyCronSecret: (req: Request) =>
@@ -48,24 +45,23 @@ describe("GET /api/cron/schedule-initiate", () => {
     process.env.CRON_SECRET = "test-cron-secret";
   });
 
-  it("AC-9: returns 401 without valid CRON_SECRET", async () => {
+  it("returns 401 without valid CRON_SECRET", async () => {
     const res = await GET(makeRequest("wrong-secret"));
     expect(res.status).toBe(401);
   });
 
-  it("AC-9: returns 401 with no auth header", async () => {
+  it("returns 401 with no auth header", async () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(401);
   });
 
-  it("AC-4: skips users with no pending actions", async () => {
+  it("skips users with no pending actions", async () => {
     mockGetUsersForScheduleHour.mockResolvedValue(["auth0|user1"]);
     mockGetUserSettings.mockResolvedValue({
       schedule: { enabled: true, hours: [8], timezone: "UTC" },
     });
     mockGetActions.mockResolvedValue([]);
 
-    // Mock Date to be 08:00 UTC
     vi.setSystemTime(new Date("2026-04-04T08:00:00Z"));
 
     const res = await GET(makeRequest("test-cron-secret"));
@@ -73,7 +69,7 @@ describe("GET /api/cron/schedule-initiate", () => {
 
     expect(body.results).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ userId: "auth0|user1", status: "skipped-no-actions" }),
+        expect.objectContaining({ userId: "auth0|user1", status: "skipped-no-eligible-actions" }),
       ])
     );
     expect(mockInitiateCiba).not.toHaveBeenCalled();
@@ -81,7 +77,7 @@ describe("GET /api/cron/schedule-initiate", () => {
     vi.useRealTimers();
   });
 
-  it("AC-3: initiates CIBA for user at matching hour", async () => {
+  it("filters to high/medium priority and sends per-action CIBA", async () => {
     vi.setSystemTime(new Date("2026-04-04T12:00:00Z")); // 12 UTC = 8 AM ET
 
     mockGetUsersForScheduleHour.mockResolvedValue(["auth0|user1"]);
@@ -89,31 +85,39 @@ describe("GET /api/cron/schedule-initiate", () => {
       schedule: { enabled: true, hours: [8], timezone: "America/New_York" },
     });
     mockGetActions.mockResolvedValue([
-      { id: "act1", status: "pending" },
-      { id: "act2", status: "pending" },
+      { id: "act1", status: "pending", priority: "high", type: "email", draft: { to: "j@co.com", subject: "Follow up" }, dealName: "Acme" },
+      { id: "act2", status: "pending", priority: "medium", type: "slack", draft: { channel: "sales", message: "Update" }, dealName: "Beta" },
+      { id: "act3", status: "pending", priority: "low", type: "email", draft: { to: "x@co.com", subject: "FYI" }, dealName: "Gamma" },
     ]);
-    mockGetScheduledCibaSession.mockResolvedValue(null);
     mockInitiateCiba.mockResolvedValue({
       authReqId: "ciba-123",
       expiresIn: 300,
       interval: 5,
-      bindingMessage: "Execute 2 pending actions?",
+      bindingMessage: "test",
     });
     mockStoreScheduledCibaSession.mockResolvedValue(undefined);
-    mockBatchUpdateStatus.mockResolvedValue([]);
+    mockUpdateAction.mockResolvedValue(undefined);
 
     const res = await GET(makeRequest("test-cron-secret"));
     const body = await res.json();
 
+    // Called twice (high + medium), not for the low-priority action
+    expect(mockInitiateCiba).toHaveBeenCalledTimes(2);
+    // First call should include priority and action detail
     expect(mockInitiateCiba).toHaveBeenCalledWith(
       "auth0|user1",
-      expect.stringContaining("2 pending actions")
+      expect.stringContaining("HIGH")
     );
-    expect(mockStoreScheduledCibaSession).toHaveBeenCalled();
-    expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
+    // Per-action status update, not batch
+    expect(mockUpdateAction).toHaveBeenCalledWith(
       "auth0|user1",
-      ["act1", "act2"],
-      "ciba-pending"
+      "act1",
+      { status: "ciba-pending" }
+    );
+    expect(mockUpdateAction).toHaveBeenCalledWith(
+      "auth0|user1",
+      "act2",
+      { status: "ciba-pending" }
     );
     expect(body.results[0].status).toBe("initiated");
     expect(body.results[0].actionCount).toBe(2);
@@ -121,7 +125,7 @@ describe("GET /api/cron/schedule-initiate", () => {
     vi.useRealTimers();
   });
 
-  it("AC-3: skips user when timezone doesn't match", async () => {
+  it("skips user when timezone doesn't match", async () => {
     vi.setSystemTime(new Date("2026-04-04T12:00:00Z")); // 12 UTC = 1 PM London
 
     mockGetUsersForScheduleHour.mockResolvedValue(["auth0|london-user"]);
@@ -132,7 +136,6 @@ describe("GET /api/cron/schedule-initiate", () => {
     const res = await GET(makeRequest("test-cron-secret"));
     const body = await res.json();
 
-    // London is BST (UTC+1) in April, so 12 UTC = 1 PM London, not 8 AM
     expect(mockInitiateCiba).not.toHaveBeenCalled();
     expect(body.results).toEqual(
       expect.arrayContaining([
@@ -143,26 +146,22 @@ describe("GET /api/cron/schedule-initiate", () => {
     vi.useRealTimers();
   });
 
-  it("AC-13: skips user who already has pending CIBA session", async () => {
+  it("skips low-priority-only actions", async () => {
     vi.setSystemTime(new Date("2026-04-04T08:00:00Z"));
 
     mockGetUsersForScheduleHour.mockResolvedValue(["auth0|user1"]);
     mockGetUserSettings.mockResolvedValue({
       schedule: { enabled: true, hours: [8], timezone: "UTC" },
     });
-    mockGetActions.mockResolvedValue([{ id: "act1", status: "pending" }]);
-    mockGetScheduledCibaSession.mockResolvedValue({
-      batchId: "existing",
-      userId: "auth0|user1",
-      authReqId: "old-ciba",
-      actionIds: ["act1"],
-    });
+    mockGetActions.mockResolvedValue([
+      { id: "act1", status: "pending", priority: "low", type: "email", draft: { to: "x@co.com", subject: "FYI" }, dealName: "Gamma" },
+    ]);
 
     const res = await GET(makeRequest("test-cron-secret"));
     const body = await res.json();
 
     expect(mockInitiateCiba).not.toHaveBeenCalled();
-    expect(body.results[0].status).toBe("skipped-existing-session");
+    expect(body.results[0].status).toBe("skipped-no-eligible-actions");
 
     vi.useRealTimers();
   });

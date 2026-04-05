@@ -8,13 +8,11 @@ import { pollCiba } from "@/lib/ciba/poll";
 import {
   getAction,
   updateAction,
-  batchUpdateStatus,
 } from "@/lib/data/actions";
 import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
-import { getRedis } from "@/lib/redis";
 import type { SuggestedAction } from "@/lib/types/actions";
 
 const CONNECTION_MAP: Record<string, string> = {
@@ -38,9 +36,9 @@ async function getTokenForAction(
 }
 
 /**
- * On-demand poll for scheduled CIBA sessions.
- * Checks the current user's active session, and if approved, executes all actions.
- * Same logic as schedule-poll cron but uses session auth.
+ * On-demand poll for per-action CIBA sessions.
+ * Checks all active sessions for the current user and processes
+ * approved/denied ones individually.
  */
 export async function GET(_req: Request) {
   const auth = await requireAuth();
@@ -48,58 +46,64 @@ export async function GET(_req: Request) {
   const userId = auth.userId;
 
   const allSessions = await getAllActiveScheduledSessions();
-  const session = allSessions.find((s) => s.userId === userId);
+  const userSessions = allSessions.filter((s) => s.userId === userId);
 
-  if (!session) {
-    return NextResponse.json({ status: "no-session" });
+  if (userSessions.length === 0) {
+    return NextResponse.json({ status: "no-sessions", results: [] });
   }
 
-  const pollResult = await pollCiba(session.authReqId);
+  let refreshToken: string | null = null;
+  const results: Array<{
+    actionId: string;
+    status: string;
+    error?: string;
+  }> = [];
+  let anyPending = false;
 
-  if (pollResult.status === "pending") {
-    if (new Date(session.expiresAt) < new Date()) {
-      await batchUpdateStatus(userId, session.actionIds, "pending");
+  for (const session of userSessions) {
+    const actionId = session.actionIds[0];
+    const pollResult = await pollCiba(session.authReqId);
+
+    if (pollResult.status === "pending") {
+      if (new Date(session.expiresAt) < new Date()) {
+        await updateAction(userId, actionId, { status: "pending" });
+        await removeScheduledCibaSession(userId, session.batchId);
+        results.push({ actionId, status: "expired" });
+      } else {
+        anyPending = true;
+        results.push({ actionId, status: "pending" });
+      }
+      continue;
+    }
+
+    if (
+      pollResult.status === "denied" ||
+      pollResult.status === "expired" ||
+      pollResult.status === "error"
+    ) {
+      await updateAction(userId, actionId, { status: "pending" });
       await removeScheduledCibaSession(userId, session.batchId);
-      return NextResponse.json({ status: "expired" });
-    }
-    return NextResponse.json({ status: "pending" });
-  }
-
-  if (
-    pollResult.status === "denied" ||
-    pollResult.status === "expired" ||
-    pollResult.status === "error"
-  ) {
-    await batchUpdateStatus(userId, session.actionIds, "pending");
-    await removeScheduledCibaSession(userId, session.batchId);
-    return NextResponse.json({ status: pollResult.status });
-  }
-
-  if (pollResult.status === "approved") {
-    // Distributed lock
-    const redis = getRedis();
-    const lockResult = await redis.set(
-      `ciba:executing:${userId}:${session.batchId}`,
-      "1",
-      { ex: 120, nx: true }
-    );
-    if (lockResult !== "OK") {
-      return NextResponse.json({ status: "already-executing" });
+      results.push({ actionId, status: pollResult.status });
+      continue;
     }
 
-    const refreshToken = await getScheduleRefreshToken(userId);
-    if (!refreshToken) {
-      await batchUpdateStatus(userId, session.actionIds, "failed");
-      await removeScheduledCibaSession(userId, session.batchId);
-      return NextResponse.json({ status: "error", error: "No refresh token" });
-    }
+    if (pollResult.status === "approved") {
+      if (!refreshToken) {
+        refreshToken = await getScheduleRefreshToken(userId);
+      }
+      if (!refreshToken) {
+        await updateAction(userId, actionId, { status: "failed" });
+        await removeScheduledCibaSession(userId, session.batchId);
+        results.push({ actionId, status: "error", error: "No refresh token" });
+        continue;
+      }
 
-    let executed = 0;
-    let failed = 0;
-
-    for (const actionId of session.actionIds) {
       const action = await getAction(userId, actionId);
-      if (!action) continue;
+      if (!action) {
+        await removeScheduledCibaSession(userId, session.batchId);
+        results.push({ actionId, status: "error", error: "Action not found" });
+        continue;
+      }
 
       await updateAction(userId, actionId, { status: "executing" });
 
@@ -107,7 +111,7 @@ export async function GET(_req: Request) {
         const token = await getTokenForAction(action, refreshToken);
         await executeActionWithToken(action, token);
         await updateAction(userId, actionId, { status: "sent" });
-        executed++;
+        results.push({ actionId, status: "executed" });
 
         writeAuditEntry(userId, {
           threadId: `scheduled:${session.batchId}`,
@@ -123,7 +127,7 @@ export async function GET(_req: Request) {
           status: "failed",
           errorMessage,
         });
-        failed++;
+        results.push({ actionId, status: "error", error: errorMessage });
 
         writeAuditEntry(userId, {
           threadId: `scheduled:${session.batchId}`,
@@ -133,11 +137,24 @@ export async function GET(_req: Request) {
           durationMs: 0,
         }).catch(() => {});
       }
-    }
 
-    await removeScheduledCibaSession(userId, session.batchId);
-    return NextResponse.json({ status: "executed", executed, failed });
+      await removeScheduledCibaSession(userId, session.batchId);
+    }
   }
 
-  return NextResponse.json({ status: pollResult.status });
+  const executed = results.filter((r) => r.status === "executed").length;
+  const denied = results.filter((r) => r.status === "denied").length;
+  const failed = results.filter((r) => r.status === "error").length;
+
+  // Overall status: done if nothing pending, otherwise still polling
+  const overallStatus = anyPending ? "pending" : "done";
+
+  return NextResponse.json({
+    status: overallStatus,
+    executed,
+    denied,
+    failed,
+    pending: anyPending ? results.filter((r) => r.status === "pending").length : 0,
+    results,
+  });
 }
