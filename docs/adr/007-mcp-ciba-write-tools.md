@@ -40,3 +40,7 @@ Additionally, the existing MCP read tools called `exchangeToken()` internally, w
 ### Neutral
 - CRM write tools remain excluded from MCP (no Token Vault involvement, different consent model)
 - CIBA access token (scoped to `openid`) is correctly discarded — used only as proof of consent, not for API calls
+
+## Standards Alignment
+
+The MCP trust spectrum (Action Center → Chat → MCP+CIBA → MCP read) maps to the three delegation patterns in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/): pre-authorized execution (Action Center review, MCP read-only), interactive delegation (Chat step-up, MCP+CIBA push consent), and autonomous operation within pre-configured trust boundaries.

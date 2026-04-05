@@ -58,7 +58,7 @@ The system now provides graduated autonomy across four surfaces:
 | MCP (read) | Autonomous | None needed |
 
 ### Known Limitations
-- `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
+- SSE transport: tool filtering applies at connection setup; long-lived SSE connections reflect the initial client policy
 
 ---
 

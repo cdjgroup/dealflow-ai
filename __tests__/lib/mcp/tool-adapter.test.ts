@@ -180,6 +180,92 @@ describe("MCP tool adapter", () => {
       expect(text).toMatch(/disabled|not authorized|scope/i);
     });
 
+    it("AC-FILTER-1: API key client sees only allowed tools", async () => {
+      const registered: string[] = [];
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, _handler: unknown) => {
+          registered.push(name);
+        },
+      };
+
+      // Pass allowedToolFilter to restrict registration
+      const registerFn = adaptToolsForMcp(["checkCalendar", "searchEmails"]);
+      await registerFn(mockServer as never);
+
+      expect(registered).toContain("checkCalendar");
+      expect(registered).toContain("searchEmails");
+      expect(registered).toHaveLength(2);
+      // Other tools should NOT be registered
+      expect(registered).not.toContain("listSlackChannels");
+      expect(registered).not.toContain("draftEmail");
+      expect(registered).not.toContain("listDeals");
+    });
+
+    it("AC-FILTER-2: Auth0 token client (no filter) sees all MCP tools", async () => {
+      const registered: string[] = [];
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, _handler: unknown) => {
+          registered.push(name);
+        },
+      };
+
+      // No filter = all tools registered
+      const registerFn = adaptToolsForMcp();
+      await registerFn(mockServer as never);
+
+      const policyTools = getToolNamesForSurface("mcp");
+      expect(registered.sort()).toEqual(policyTools.sort());
+    });
+
+    it("AC-FILTER-3: execution-layer enforcement remains for filtered tools", async () => {
+      let capturedHandler: ((args: unknown, extra: unknown) => Promise<unknown>) | null = null;
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, handler: (args: unknown, extra: unknown) => Promise<unknown>) => {
+          if (name === "checkCalendar") {
+            capturedHandler = handler;
+          }
+        },
+      };
+
+      // Register only checkCalendar
+      const registerFn = adaptToolsForMcp(["checkCalendar"]);
+      await registerFn(mockServer as never);
+
+      expect(capturedHandler).not.toBeNull();
+
+      // Even though tool is registered, Layer 3 should deny if allowedTools doesn't match
+      const result = await capturedHandler!({}, {
+        authInfo: {
+          clientId: "user-123",
+          scopes: ["tools"],
+          extra: {
+            mcpClientId: "client-abc",
+            allowedTools: ["searchEmails"], // Doesn't include checkCalendar
+          },
+        },
+      });
+
+      expect(result).toMatchObject({ isError: true });
+      const text = (result as { content: Array<{ text: string }> }).content[0].text;
+      expect(text).toMatch(/not available/i);
+    });
+
+    it("AC-FILTER-4: backward compatibility — undefined filter registers all tools", async () => {
+      const registered: string[] = [];
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, _handler: unknown) => {
+          registered.push(name);
+        },
+      };
+
+      // Explicitly pass undefined
+      const registerFn = adaptToolsForMcp(undefined);
+      await registerFn(mockServer as never);
+
+      const policyTools = getToolNamesForSurface("mcp");
+      expect(registered.sort()).toEqual(policyTools.sort());
+    });
+
     it("AC-10: each registered tool has a description and inputSchema", async () => {
       const tools: Array<{ name: string; config: Record<string, unknown> }> = [];
       const mockServer = {
