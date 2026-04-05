@@ -4,8 +4,10 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import type { SuggestedAction, ActionStatus, ActionDraft } from "@/lib/types/actions";
+import type { TrustNudge } from "@/lib/trust-graduation";
 import { ActionCard } from "@/components/action-card";
 import { ActionFilters } from "@/components/action-filters";
+import { TrustNudgeBanner } from "@/components/trust-nudge-banner";
 
 const headers = {
   "Content-Type": "application/json",
@@ -19,6 +21,7 @@ interface Props {
 export function ActionList({ initialActions }: Props) {
   const [actions, setActions] = useState<SuggestedAction[]>(initialActions);
   const [filter, setFilter] = useState<ActionStatus | "all">("all");
+  const [nudge, setNudge] = useState<TrustNudge | null>(null);
   const router = useRouter();
 
   // Sync with server data when initialActions changes (e.g., after router.refresh())
@@ -50,12 +53,14 @@ export function ActionList({ initialActions }: Props) {
           headers,
           body: JSON.stringify({ status: "approved" }),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
           updateLocal(id, {
             status: "pending",
             errorMessage: data.error || undefined,
           });
+        } else if (data.nudge) {
+          setNudge(data.nudge);
         }
       } catch {
         updateLocal(id, { status: "pending" });
@@ -209,6 +214,11 @@ export function ActionList({ initialActions }: Props) {
         for (const id of pendingIds) {
           updateLocal(id, { status: "pending" });
         }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.nudge) {
+          setNudge(data.nudge);
+        }
       }
     } catch {
       for (const id of pendingIds) {
@@ -216,6 +226,21 @@ export function ActionList({ initialActions }: Props) {
       }
     }
   }, [actions, updateLocal]);
+
+  const handleNudgeAccept = useCallback(async (n: TrustNudge) => {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ toolTrust: { [n.tool]: n.suggestedTrust } }),
+      });
+      if (res.ok) {
+        setNudge(null);
+      }
+    } catch {
+      // Nudge stays visible so user can retry
+    }
+  }, []);
 
   const handleClearAll = useCallback(async () => {
     const prev = actions;
@@ -239,6 +264,12 @@ export function ActionList({ initialActions }: Props) {
         onFilterChange={setFilter}
         onBatchApprove={handleBatchApprove}
         onClearAll={handleClearAll}
+      />
+
+      <TrustNudgeBanner
+        nudge={nudge}
+        onAccept={handleNudgeAccept}
+        onDismiss={() => setNudge(null)}
       />
 
       <div className="space-y-3">

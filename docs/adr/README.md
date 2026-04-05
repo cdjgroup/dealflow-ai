@@ -10,3 +10,4 @@
 | 006 | [Two-Layer Circuit Breaking for AI Tool Execution](006-circuit-breaker-two-layer.md) | PROPOSED | 2026-04-05 |
 | 007 | [CIBA-Gated Write Tools for MCP](007-mcp-ciba-write-tools.md) | PROPOSED | 2026-04-05 |
 | 008 | [Per-Client MCP Policy System](008-per-client-mcp-policy.md) | PROPOSED | 2026-04-05 |
+| 009 | [Trust Calibration via Threshold-Based Nudge](009-trust-calibration-nudge.md) | PROPOSED | 2026-04-05 |

@@ -79,6 +79,14 @@ The EU AI Act's Article 14 (effective August 2026) requires that AI systems be d
 
 This isn't compliance theater. These are the same design decisions we'd make without the regulation, because users building trust with AI agents need exactly these controls. Article 14 validates the approach; it didn't drive it.
 
+## Trust Calibration: Closing the Feedback Loop
+
+Most permission systems are static — you set a level and forget it. But user trust in an AI agent evolves with experience. After approving 20 email drafts in a row, the manual approval step starts feeling like friction rather than safety.
+
+DealFlow AI tracks per-tool approval rates (approve vs dismiss) and surfaces a nudge when the data warrants it: "You've approved 5 of 5 email drafts. Upgrade to auto-approve?" One click upgrades the tool's trust level. The key constraint: **the system suggests, never auto-escalates.** Even when the approval rate is 100%, the user must explicitly opt in.
+
+This isn't ML — it's a simple threshold check (5+ decisions, >80% approval rate). But it's genuine trust calibration: the system observes behavior and recommends autonomy changes. The same approach could extend to downgrade suggestions (frequent dismissals → suggest blocking) or time-decay (unused auto-approve → suggest reverting to ask).
+
 ## What We'd Do Differently
 
 If we had more time, we'd add:
@@ -94,6 +102,7 @@ If we had more time, we'd add:
 2. **Remove, don't restrict.** When a user disables a tool, don't check permissions at execution time — remove the tool from the LLM entirely. The model produces cleaner behavior when it doesn't know about tools it can't use
 3. **Free Plan is enough.** Token Vault, two connections, async authorization patterns — everything we needed was available on the free tier
 4. **Compose authorization mechanisms, don't choose.** AI SDK 6's `needsApproval` handles inline consent. CIBA handles device-level consent. Together they create graduated authorization that matches action sensitivity
+5. **Trust should be earned, not assumed.** Track user behavior and suggest autonomy upgrades when the data warrants it — but never auto-escalate. The system recommends, the user decides
 
 ---
 

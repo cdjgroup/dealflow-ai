@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { getAction, updateAction } from "@/lib/data/actions";
-import { getUserSettings, incrementTrustStat } from "@/lib/data/settings";
+import { getUserSettings, incrementTrustStat, getTrustStats } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 import { draftSchema } from "@/lib/schemas/action-draft";
 import type { ActionType } from "@/lib/types/actions";
+import { evaluateTrustGraduation, type TrustNudge } from "@/lib/trust-graduation";
 
 const ACTION_CAPABILITY_MAP: Record<ActionType, { tool: string; capability: "gmail" | "calendar" | "slack" }> = {
   email: { tool: "draftEmail", capability: "gmail" },
@@ -52,10 +53,11 @@ export async function PUT(
     return NextResponse.json({ error: "Action not found" }, { status: 404 });
   }
 
+  const settings = await getUserSettings(auth.userId);
+  const mapping = ACTION_CAPABILITY_MAP[existing.type];
+
   // Block approval if capability is disabled or trust is "never"
   if (parsed.data.status === "approved") {
-    const settings = await getUserSettings(auth.userId);
-    const mapping = ACTION_CAPABILITY_MAP[existing.type];
     if (!settings.capabilities[mapping.capability]) {
       return NextResponse.json(
         { error: `Cannot approve: ${mapping.capability} is disabled. Enable it in Permissions.` },
@@ -72,10 +74,24 @@ export async function PUT(
 
   const updated = await updateAction(auth.userId, id, parsed.data as Parameters<typeof updateAction>[2]);
 
-  // Track approval/dismiss for trust calibration
-  if (parsed.data.status === "approved" || parsed.data.status === "dismissed") {
+  // Track trust calibration + evaluate nudge (upgrade-only, best-effort)
+  let nudge: TrustNudge | undefined;
+  if (parsed.data.status === "approved") {
+    try {
+      await incrementTrustStat(auth.userId, existing.type, parsed.data.status);
+      const stats = await getTrustStats(auth.userId);
+      const currentTrust = settings.toolTrust?.[mapping.tool] ?? "ask";
+      const suggested = evaluateTrustGraduation(stats[existing.type], currentTrust);
+      if (suggested) {
+        nudge = { tool: mapping.tool, actionType: existing.type, currentTrust, suggestedTrust: suggested, stats: stats[existing.type] };
+      }
+    } catch {
+      // Graduation is best-effort — don't break the approve flow
+    }
+  } else if (parsed.data.status === "dismissed") {
+    // Best-effort stat tracking; failures are non-critical
     incrementTrustStat(auth.userId, existing.type, parsed.data.status).catch(() => {});
   }
 
-  return NextResponse.json({ action: updated });
+  return NextResponse.json({ action: updated, ...(nudge ? { nudge } : {}) });
 }
