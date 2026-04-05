@@ -73,3 +73,7 @@ Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#
 ## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
 
 React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
+
+## 018 — CIBA unlocks MCP write operations without approval UI (2026-04-05)
+
+MCP is a stateless request-response protocol with no concept of interactive approval cards. The original assumption was that MCP must be read-only because "MCP has no approval UI." But CIBA (Client Initiated Backchannel Authentication) is designed precisely for this scenario — consent on a separate device with no client-side UI required. The MCP handler blocks synchronously while polling for Guardian push approval, then executes the tool with a stored refresh token. This makes MCP a first-class execution context rather than a second-class read-only surface. The combination of MCP + Token Vault + CIBA for agent consent appears to be novel — we haven't found another project that composes all three.

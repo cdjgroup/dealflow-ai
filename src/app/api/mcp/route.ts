@@ -40,8 +40,10 @@ async function verifyToken(
  * Auth0 /userinfo is used for capability filtering, approval checks,
  * and audit attribution — same security pipeline as the chat route.
  *
- * Tools that require approval (draftEmail, sendSlackMessage, delegateResearch,
- * high-value deals) are excluded from MCP since there is no approval UI.
+ * All Token Vault tools (read and write) require stored refresh tokens.
+ * Write tools (draftEmail, createCalendarEvent, sendSlackMessage) additionally
+ * require CIBA device consent via Guardian push. CRM write tools are not
+ * exposed via MCP.
  */
 const handler = createMcpHandler(
   async (server) => {
@@ -54,7 +56,7 @@ const handler = createMcpHandler(
   {
     serverInfo: {
       name: "dealflow-ai",
-      version: "0.5.0",
+      version: "0.6.0",
     },
   },
   {

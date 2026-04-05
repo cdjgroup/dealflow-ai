@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-04-05
+
+### Added
+- MCP write tools: draftEmail, createCalendarEvent, sendSlackMessage now exposed via `/api/mcp`
+- CIBA gating for all MCP write operations (Guardian push approval required)
+- `cibaGate()` function for synchronous CIBA polling in MCP context (50s timeout)
+- `buildMcpBindingMessage()` for tool-specific CIBA binding messages
+- `shouldRequireCibaMcp()` for MCP write tool detection
+- MCP capability enforcement: respects per-user permission toggles
+- Per-tool MCP executors using stored refresh tokens (same trust model as scheduled actions)
+
+### Changed
+- MCP server version bumped to 0.6.0
+- All MCP Token Vault tools now use stored refresh tokens instead of session-based `exchangeToken()`
+- Tool adapter expanded from 6 read-only tools to 9 tools (6 read + 3 CIBA-gated write)
+
+### Security
+- Write tools require device-level CIBA consent before MCP execution
+- Capability toggles enforced on MCP path (prevents bypassing permission settings)
+- Connection-disabled check runs before CIBA (no unnecessary push notifications)
+- HTTP response status validated for API calls (prevents silent error masking)
+
 ## [0.5.1] - 2026-04-05
 
 ### Added

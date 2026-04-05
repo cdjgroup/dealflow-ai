@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldRequireCiba } from "@/lib/ciba/should-require";
+import { shouldRequireCiba, shouldRequireCibaMcp } from "@/lib/ciba/should-require";
 
 describe("shouldRequireCiba", () => {
   // AC-1: High-value createDeal triggers CIBA
@@ -57,5 +57,78 @@ describe("shouldRequireCiba", () => {
 
   it("returns false for createDeal with non-numeric value", () => {
     expect(shouldRequireCiba("createDeal", { value: "a lot" })).toBe(false);
+  });
+});
+
+describe("shouldRequireCibaMcp", () => {
+  // AC-2: CIBA gate triggers for MCP write tools
+
+  it("AC-2: returns true for draftEmail", () => {
+    // Arrange
+    const toolName = "draftEmail";
+    // Act
+    const result = shouldRequireCibaMcp(toolName);
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it("AC-2: returns true for createCalendarEvent", () => {
+    // Arrange
+    const toolName = "createCalendarEvent";
+    // Act
+    const result = shouldRequireCibaMcp(toolName);
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  it("AC-2: returns true for sendSlackMessage", () => {
+    // Arrange
+    const toolName = "sendSlackMessage";
+    // Act
+    const result = shouldRequireCibaMcp(toolName);
+    // Assert
+    expect(result).toBe(true);
+  });
+
+  // AC-9: Read tools skip CIBA
+
+  it("AC-9: returns false for checkCalendar", () => {
+    expect(shouldRequireCibaMcp("checkCalendar")).toBe(false);
+  });
+
+  it("AC-9: returns false for searchEmails", () => {
+    expect(shouldRequireCibaMcp("searchEmails")).toBe(false);
+  });
+
+  it("AC-9: returns false for listSlackChannels", () => {
+    expect(shouldRequireCibaMcp("listSlackChannels")).toBe(false);
+  });
+
+  // AC-9: CRM tools skip CIBA
+
+  it("AC-9: returns false for listDeals", () => {
+    expect(shouldRequireCibaMcp("listDeals")).toBe(false);
+  });
+
+  it("AC-9: returns false for getDealDetails", () => {
+    expect(shouldRequireCibaMcp("getDealDetails")).toBe(false);
+  });
+
+  it("AC-9: returns false for searchContacts", () => {
+    expect(shouldRequireCibaMcp("searchContacts")).toBe(false);
+  });
+
+  it("AC-9: returns false for createDeal", () => {
+    expect(shouldRequireCibaMcp("createDeal")).toBe(false);
+  });
+
+  it("AC-9: returns false for updateDeal", () => {
+    expect(shouldRequireCibaMcp("updateDeal")).toBe(false);
+  });
+
+  // Edge case: unknown tool name
+
+  it("returns false for an unknown tool name", () => {
+    expect(shouldRequireCibaMcp("unknownTool")).toBe(false);
   });
 });
