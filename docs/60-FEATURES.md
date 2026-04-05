@@ -1,5 +1,19 @@
 # Features
 
+## v0.6.3 — MCP Playground
+
+### Interactive Agent Simulation
+The MCP Playground (`/dashboard/mcp-playground`) lets users simulate external AI agent tool calls from within the app. Demonstrates the full MCP + CIBA trust model interactively:
+
+1. **Connect** — Paste a `dfk_` API key from an MCP client created in MCP Explorer
+2. **Discover** — Fetch available tools via `tools/list` JSON-RPC (filtered by client's trust tier)
+3. **Configure** — Select a tool, fill in parameters via dynamically generated form (from `inputSchema`)
+4. **Execute** — Click Execute. Read tools return instantly. Write tools trigger Guardian push → pulsing wait → approve/deny on phone → result
+5. **Review** — See success/error result with execution time, CIBA status, and formatted JSON response
+
+### Claude Code Integration
+Project-scoped `.mcp.json` configures Claude Code CLI to connect to the DealFlow MCP server. API key is referenced via `${DEALFLOW_API_KEY}` environment variable (safe to commit — no credentials in git).
+
 ## v0.6.2 — Confidence Routing + Intent Constraints
 
 ### Confidence-Based Action Routing

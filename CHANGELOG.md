@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-04-05
+
+### Added
+- MCP Playground page at `/dashboard/mcp-playground` for interactive MCP tool testing
+- Dynamic form generation from MCP tool `inputSchema` (JSON Schema → HTML inputs)
+- CIBA consent visualization: pulsing wait state with cancel button for write tools
+- `.mcp.json` project-scoped Claude Code config with env var expansion for API key
+- `mcpCall()` JSON-RPC helper with AbortController support
+
 ## [0.6.2] - 2026-04-05
 
 ### Added

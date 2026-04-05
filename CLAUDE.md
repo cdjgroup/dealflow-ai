@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.2 — Confidence Routing + Intent Constraints
+## Current Version: 0.6.3 — MCP Playground + Claude Code Integration
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
