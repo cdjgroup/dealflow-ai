@@ -419,20 +419,14 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
           </span>
         </div>
 
-        {/* Zone legend */}
-        <div className="flex flex-col items-center gap-0.5 mt-3 text-xs">
-          <p>
-            <span className="font-medium text-red-600">Below {Math.round(confidenceThresholds.requireReview * 100)}%</span>
-            <span className="text-muted-foreground"> — Always requires manual review</span>
-          </p>
-          <p>
-            <span className="font-medium text-amber-600">{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}%</span>
-            <span className="text-muted-foreground"> — Routed by your autonomy level (currently {AUTONOMY_LEVELS.find(a => a.level === autonomyLevel)?.label ?? "unknown"})</span>
-          </p>
-          <p>
-            <span className="font-medium text-emerald-600">Above {Math.round(confidenceThresholds.autoApprove * 100)}%</span>
-            <span className="text-muted-foreground"> — Auto-approved regardless of autonomy level</span>
-          </p>
+        {/* Zone legend — compact swatches left-aligned per Material Design / NNg proximity principle */}
+        <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mt-3 text-xs text-muted-foreground">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400/40 border border-red-500/50 mt-0.5" />
+          <span>Below {Math.round(confidenceThresholds.requireReview * 100)}% — always requires manual review</span>
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400/40 border border-amber-500/50 mt-0.5" />
+          <span>{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}% — routed by autonomy level ({AUTONOMY_LEVELS.find(a => a.level === autonomyLevel)?.label ?? "unknown"})</span>
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400/40 border border-emerald-500/50 mt-0.5" />
+          <span>Above {Math.round(confidenceThresholds.autoApprove * 100)}% — auto-approved regardless of autonomy level</span>
         </div>
       </div>
 
