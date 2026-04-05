@@ -7,8 +7,6 @@ import type { UIMessage } from "ai";
 import { ToolResultCard } from "@/components/tool-result-card";
 import { ApprovalCard } from "@/components/approval-card";
 import { ToolBadge } from "@/components/tool-badge";
-import { TokenLifecycle } from "@/components/token-lifecycle";
-import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 import { CibaInlineCard } from "@/components/ciba-inline-card";
 
 interface Props {
@@ -99,12 +97,6 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
               );
             }
 
-            // Token Vault tool metadata for lifecycle display
-            const scopeConfig = TOOL_SCOPE_CONFIG[toolName as keyof typeof TOOL_SCOPE_CONFIG];
-            const tokenMeta = output && typeof output === "object"
-              ? (output as Record<string, unknown>)._tokenMeta as Record<string, unknown> | undefined
-              : undefined;
-
             // CIBA interrupt — show waiting card inline in tool result
             const cibaInterrupt = output && typeof output === "object"
               ? (output as Record<string, unknown>)._cibaInterrupt as {
@@ -139,17 +131,6 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {scopeConfig && (
-                    <TokenLifecycle
-                      toolName={toolName}
-                      state="completed"
-                      provider={scopeConfig.provider}
-                      scope={tokenMeta?.scope as string | undefined}
-                      minScope={scopeConfig.minScope}
-                      expiresIn={tokenMeta?.expiresIn as number | null | undefined}
-                      connection={scopeConfig.connection}
-                    />
-                  )}
                   <ToolBadge toolName={toolName} state="completed" />
                   <ToolResultCard toolName={toolName} output={output} />
                 </motion.div>
@@ -159,15 +140,6 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
             // Running / pending state
             return (
               <div key={i}>
-                {scopeConfig && (state === "call" || state === "input-streaming") && (
-                  <TokenLifecycle
-                    toolName={toolName}
-                    state="running"
-                    provider={scopeConfig.provider}
-                    minScope={scopeConfig.minScope}
-                    connection={scopeConfig.connection}
-                  />
-                )}
                 <ToolBadge
                   toolName={toolName}
                   state={

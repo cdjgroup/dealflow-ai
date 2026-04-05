@@ -12,7 +12,7 @@ Most AI agents get blanket access to your data. DealFlow AI demonstrates five au
 
 1. **Dynamic Scope Narrowing** — The AI voluntarily restricts itself to minimum required scopes, even though the token grants broader access
 2. **Consent-Aware Tool Selection** — Per-tool trust levels (always / ask each time / never) that override default approval behavior
-3. **Token Vault Audit Visualization** — An animated 6-stage pipeline in the chat showing exactly how your token flows through each API call
+3. **Token Vault Audit Visualization** — Audit trail showing how tokens flow through each API call with metadata (scope, TTL, provider)
 4. **MCP Server for External Agents** — Any AI agent (OpenClaw, Claude Desktop, Cursor) can securely use these tools via the Model Context Protocol
 5. **Cross-Agent Delegation** — Scoped, time-limited delegation tokens that let one agent grant restricted access to another
 
@@ -144,7 +144,7 @@ Per-tool trust levels that give users granular control:
 - **Never** — hard-block the tool entirely (AI never sees it)
 
 #### Token Vault Audit Visualization
-An animated 6-stage pipeline that appears in the chat during Token Vault tool execution: AI Decides → Token Exchange → Scoped Token → API Call → Response → Token Expires. Shows scope, TTL, and provider in a collapsible panel. Audit table entries include token exchange metadata.
+Audit table entries include token exchange metadata (provider, scope, TTL) for every Token Vault tool call. Expanded rows show the full exchange details.
 
 #### MCP Server for External AI Agents
 `/api/mcp` endpoint exposing read-only tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and OpenClaw.
@@ -300,8 +300,7 @@ src/
   components/
     chat-container.tsx       # Conversation list + chat orchestration
     chat-window.tsx          # Chat interface (useChat)
-    chat-message.tsx         # Message renderer with tool cards + token lifecycle
-    token-lifecycle.tsx      # Animated token flow visualization (6-stage pipeline)
+    chat-message.tsx         # Message renderer with tool cards
     tool-result-card.tsx     # Rich cards (7 tool types)
     capability-toggles.tsx   # Per-tool ON/OFF switches + trust levels
     approval-card.tsx        # Action approval UI (incl. delegation consent)

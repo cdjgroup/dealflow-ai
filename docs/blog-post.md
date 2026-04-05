@@ -21,7 +21,7 @@ DealFlow AI is a sales agent powered by Claude that manages pipeline, checks cal
 
 This isn't theoretical architecture — it's running code. The capability filter is 30 lines. The approval logic is 40 lines. The audit wrapper is a single `writeAuditEntry` call in the chat endpoint's `onToolCallFinish` callback. Simple primitives, composed deliberately.
 
-## The CIBA Journey: From "Can't" to Two-Step Consent
+## The CIBA Journey: From Per-Action to Batch Scheduled Consent
 
 Our original plan included CIBA (Client Initiated Backchannel Authentication) for step-up authorization — the user would approve high-value operations via push notification on their phone through Auth0 Guardian. It's the gold standard for out-of-band consent.
 
@@ -36,9 +36,9 @@ const createDeal = tool({
 
 The SDK handles the full lifecycle: pausing execution, surfacing an approval request to the UI, collecting the user's response, and resuming or canceling. One property on the tool definition — elegant.
 
-But then we realized: why choose one when both mechanisms serve different purposes? We implemented CIBA via direct HTTP to Auth0's `/bc-authorize` endpoint, and now DealFlow AI has **two-step consent**: an inline approval card in the chat (fast, convenient) followed by a Guardian push notification on the user's phone (device-level, out-of-band). Neither alone is sufficient — together they provide both convenience and security.
+But we didn't stop at inline approval. We implemented CIBA via direct HTTP to Auth0's `/bc-authorize` endpoint for **scheduled batch execution**. Users configure review times (8am, 12pm, 5pm), and at each time the system sends a single Guardian push: "DealFlow: 5 actions - 3 email, 2 calendar." One approval executes all high/medium priority actions within the CIBA token's time-boxed window. A "Run Now" button lets users trigger batch execution on demand.
 
-**The insight:** Don't think of authorization mechanisms as either/or. AI SDK's `needsApproval` is great for app-level consent. CIBA is great for device-level consent. Composing them gives you graduated authorization that matches the sensitivity of the action.
+**The insight:** CIBA's real power for AI agents isn't per-action consent (that creates notification fatigue). It's **time-boxed delegation** — the user approves a batch, the token lifetime naturally bounds the execution window, and only pre-declared actions execute within it. The token expiry is the security boundary, not just a timeout.
 
 ## Two Connections, Not One
 
