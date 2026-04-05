@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.5.1 — Scheduled Action Review (Autonomous Agent Execution with CIBA Consent)
+## Current Version: 0.5.2 — AI Autonomy Selector, AI-Powered Actions, Trust Calibration
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -64,6 +64,16 @@
 | logActivity | Upstash Redis | No |
 
 ---
+
+## AI Autonomy Selector (v0.5.2)
+
+Three-level autonomy control on the Action Center — users choose how much the AI can do without intervention.
+
+- **Level 1 — Suggest Only** (default): AI queues actions as "pending". User reviews, edits, approves each one manually.
+- **Level 2 — Auto-Approve**: AI auto-approves high/medium priority actions at creation. Execution still requires CIBA Guardian consent.
+- **Level 3 — Full Autonomous**: AI auto-approves AND auto-executes routine actions on schedule. High-value (>$50K deal) actions still require CIBA consent.
+- **Safety Guardrails**: Low priority always stays "pending" regardless of level. Capability toggles and connection state enforced even at level 3. Confirmation dialog required when selecting level 3.
+- **UI**: Segmented 3-button control with color-coded states (blue/amber/emerald), accessible (aria-pressed, aria-live, focus management)
 
 ## Scheduled Action Review (v0.5.1)
 

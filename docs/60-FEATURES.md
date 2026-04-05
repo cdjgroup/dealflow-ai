@@ -1,5 +1,40 @@
 # Features
 
+## v0.5.2 — AI Autonomy Selector, AI-Powered Actions, Trust Calibration
+
+### AI Autonomy Selector
+A 3-level segmented control on the Action Center lets users choose how autonomous the AI agent is:
+
+| Level | Label | Behavior |
+|-------|-------|----------|
+| 1 | Suggest Only | AI queues actions as "pending". User reviews, edits, and approves each one. |
+| 2 | Auto-Approve | AI auto-approves high/medium priority actions at creation. Execution requires CIBA Guardian consent. |
+| 3 | Full Autonomous | AI auto-approves AND auto-executes routine actions on schedule. High-value (>$50K) actions still require CIBA. |
+
+### Safety Guardrails at Every Level
+- Low priority actions always stay "pending" regardless of autonomy level
+- Capability toggles (gmail/calendar/slack) enforced even in autonomous execution
+- Connection disabled state respected (disconnecting in Permissions stops autonomous execution)
+- Confirmation dialog required before enabling Level 3
+- High-value deal actions (>$50K) always require CIBA device consent
+
+### Status Flow Per Level
+```
+Level 1: pending → [user approves] → approved → [execute / CIBA] → sent
+Level 2: approved (auto) → [CIBA push] → [phone approve] → sent
+Level 3: approved (auto) → sent  (routine <$50K)
+Level 3: approved (auto) → [CIBA push] → [phone approve] → sent  (>$50K)
+```
+
+### AI-Powered Action Suggestions
+The `analyzePipeline` tool now uses Claude Haiku as a subagent to analyze deal context and generate personalized suggestions. Instead of template strings ("Following up — {dealName}"), the AI reasons about each deal's stage, value, days since last activity, and contact relationship to craft unique email drafts, meeting agendas, and Slack messages. Each suggestion includes a confidence score (0.0-1.0).
+
+### Trust Calibration
+Every time you approve or dismiss a suggested action, the system tracks your decision per action type (email, calendar, slack). The Permissions page shows your approval rate alongside the trust level controls. When your approval rate exceeds 80%, a "Consider auto-approve" hint appears — demonstrating an adaptive trust spectrum where the system learns from your behavior.
+
+### Batch Approve Confirmation
+"Approve All Pending" now requires confirmation. An inline panel shows a type breakdown (e.g., "3 emails, 1 calendar event, 1 Slack message") with Confirm/Cancel buttons. This ensures thoughtful review even in batch mode.
+
 ## v0.5.1 — Scheduled Action Review
 
 ### Autonomous Agent Execution on a Schedule

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback, useRef } from "react";
-import type { UserSettings, TrustLevel } from "@/lib/types/settings";
+import type { UserSettings, TrustLevel, TrustStats } from "@/lib/types/settings";
 import { SCOPE_LABELS } from "@/lib/constants/tools";
 
 /* ─── Types ─── */
@@ -17,6 +17,7 @@ interface ConnectionStatus {
 interface Props {
   initialSettings: UserSettings;
   disabledConnections: string[];
+  trustStats?: TrustStats;
 }
 
 /* ─── Brand assets ─── */
@@ -318,7 +319,14 @@ const INTEGRATIONS: Integration[] = [
 
 /* ─── Main component ─── */
 
-export function IntegrationPermissions({ initialSettings, disabledConnections }: Props) {
+// Map tool names to action types for trust stats display
+const TOOL_ACTION_TYPE_MAP: Record<string, "email" | "calendar" | "slack"> = {
+  draftEmail: "email",
+  createCalendarEvent: "calendar",
+  sendSlackMessage: "slack",
+};
+
+export function IntegrationPermissions({ initialSettings, disabledConnections, trustStats }: Props) {
   const [settings, setSettings] = useState(initialSettings);
   const [isPending, startTransition] = useTransition();
   const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
@@ -528,6 +536,25 @@ export function IntegrationPermissions({ initialSettings, disabledConnections }:
                                   </button>
                                 )}
                               </div>
+                              {/* Trust calibration stats */}
+                              {(() => {
+                                const actionType = TOOL_ACTION_TYPE_MAP[toolName];
+                                if (!actionType || !trustStats) return null;
+                                const stats = trustStats[actionType];
+                                const total = stats.approved + stats.dismissed;
+                                if (total === 0) return null;
+                                const rate = stats.approved / total;
+                                return (
+                                  <span className="text-[10px] text-muted-foreground ml-1">
+                                    <span aria-label={`${stats.approved} of ${total} actions approved, ${Math.round(rate * 100)}%`}>
+                                      {stats.approved}/{total} approved ({Math.round(rate * 100)}%)
+                                    </span>
+                                    {rate > 0.8 && currentTrust !== "always" && (
+                                      <span className="text-emerald-400 ml-1.5"> · Consider auto-approve</span>
+                                    )}
+                                  </span>
+                                );
+                              })()}
                             </div>
                           );
                         })}
