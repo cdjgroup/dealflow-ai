@@ -103,12 +103,14 @@ export async function POST(req: Request) {
         bindingMessage: msg,
       });
     } catch (err) {
-      console.error(`CIBA initiation failed for action ${action.id}:`, err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`CIBA initiation failed for action ${action.id}:`, errorMsg);
       results.push({
         actionId: action.id,
         type: action.type,
         priority: action.priority,
         status: "error",
+        bindingMessage: errorMsg,
       });
     }
   }

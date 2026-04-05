@@ -186,7 +186,9 @@ export function SchedulePanel({ initialSchedule }: Props) {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                  throw new Error(data.error || `Trigger failed (${res.status})`);
+                  // Show the first action's error detail if available
+                  const detail = data.results?.find((r: { status: string; bindingMessage?: string }) => r.status === "error")?.bindingMessage;
+                  throw new Error(detail || data.error || `Trigger failed (${res.status})`);
                 }
                 if (data.actionCount === 0) {
                   setError("No eligible actions were initiated");
