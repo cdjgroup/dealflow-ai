@@ -27,7 +27,7 @@ export default async function ActionsPage() {
         </p>
       </div>
 
-      <SchedulePanel initialSchedule={settings.schedule} />
+      <SchedulePanel initialSchedule={settings.schedule} initialAutonomyLevel={settings.autonomyLevel} />
 
       <ActionList initialActions={actions} />
     </div>

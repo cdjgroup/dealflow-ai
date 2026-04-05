@@ -398,6 +398,7 @@ Some actions require user approval before they execute (drafting emails, sending
               errorMessage: event.success ? undefined : String(event.error),
               durationMs: event.durationMs,
               tokenMeta,
+              surface: "chat",
             });
 
             // Circuit breaker Layer B: per-request tool call limit

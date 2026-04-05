@@ -36,3 +36,8 @@ export function getSensitiveLimiter(): Ratelimit {
 export function getToolRateLimiter(toolName: string, requests: number, window: string): Ratelimit {
   return create(`tool:${toolName}`, requests, window);
 }
+
+// Per-client MCP rate limiting — dynamic rate per client
+export function getMcpClientLimiter(clientId: string, requestsPerMinute: number): Ratelimit {
+  return create(`mcp:${clientId}`, requestsPerMinute, "1 m");
+}

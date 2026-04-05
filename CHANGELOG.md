@@ -2,9 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.2] - 2026-04-05
+## [0.6.0] - 2026-04-05
 
 ### Added
+- Per-client MCP policy system: create named clients with API keys, trust tiers, and tool allowlists
+- Dual MCP authentication: `dfk_`-prefixed API keys with SHA-256 hashing + Auth0 bearer tokens (backward compatible)
+- Surface policy registry: formal declarations for chat/mcp/actions trust boundaries
+- Trust tier spectrum: Full > Standard > Restricted > Read Only, each with default tool sets
+- API key management: generation, rotation, revocation via `/api/mcp/clients` REST endpoints
+- Per-client rate limiting: configurable requests/minute per MCP client via Upstash Ratelimit
+- Per-client usage analytics: call counts, success rates, top tools with daily granularity
+- Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
+- MCP client management UI in MCP Explorer: create/delete clients, trust tier visualization, tool checkboxes
+- MCP client card component: trust tier badge, allowed tools display, key rotation, delete confirmation
 - Real-time circuit breaking for AI tool execution (two-layer protection)
 - Per-tool rate limiting: 4 tiers (read: 10/min, write: 5/min, crm-read: 20/min, crm-write: 5/min)
 - Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
@@ -13,11 +23,21 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Chat route refactored from `toUIMessageStreamResponse` to `createUIMessageStream` wrapper for clean error injection before stream abort
-- `delegateResearch` and `analyzePipeline` tools now rate-limited (3/min — most expensive compound tools)
 
 ### Security
+- API keys hashed with SHA-256 before storage; raw key shown only once on creation
+- CSRF enforcement on all MCP client management mutations
+- Per-client tool filtering: disallowed tools return error at `tools/call` time
+- User-scoped Redis keys prevent cross-user client access
 - AbortController kills runaway streams mid-flight when tool call limit exceeded
-- Rate limit check fails open on Redis errors for read tools (availability over strictness)
+
+## [0.5.2] - 2026-04-05
+
+### Added
+- AI Autonomy Selector: 3-level control (Suggest Only / Auto-Approve / Full Autonomous)
+- LLM-powered action suggestions via Claude Haiku subagent with confidence scores
+- Trust calibration tracking with approval rate display in Permissions UI
+- Surface policy registry + scope-aware MCP auth
 
 ## [0.5.1] - 2026-04-05
 

@@ -1,7 +1,7 @@
 import type { UserSettings } from "@/lib/types/settings";
 import type { Tool } from "ai";
 
-const TOOL_CATEGORIES: Record<string, keyof UserSettings["capabilities"]> = {
+export const TOOL_CATEGORIES: Record<string, keyof UserSettings["capabilities"]> = {
   // CRM Read
   listDeals: "crmRead",
   getDealDetails: "crmRead",
