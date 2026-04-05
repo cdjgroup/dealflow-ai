@@ -115,18 +115,35 @@ export async function updateDealRecord(
   dealId: string,
   data: Partial<Omit<Deal, "id" | "createdAt">>
 ): Promise<Deal | null> {
-  const existing = await getDeal(userId, dealId);
-  if (!existing) return null;
-  const updated: Deal = {
-    ...existing,
-    ...data,
-    id: existing.id,
-    createdAt: existing.createdAt,
-    updatedAt: now(),
-  };
   const redis = getRedis();
-  await redis.set(`${userId}:deal:${updated.id}`, JSON.stringify(updated));
-  return updated;
+  const key = `${userId}:deal:${dealId}`;
+  const lockKey = `${key}:lock`;
+
+  // Advisory lock to prevent concurrent read-modify-write races
+  // (e.g., CIBA retry + simultaneous Action Center update)
+  const acquired = await redis.set(lockKey, "1", { nx: true, ex: 5 });
+  if (!acquired) {
+    // Another update in progress — retry once after brief delay
+    await new Promise((r) => setTimeout(r, 100));
+    const retry = await redis.set(lockKey, "1", { nx: true, ex: 5 });
+    if (!retry) return null;
+  }
+
+  try {
+    const existing = await getDeal(userId, dealId);
+    if (!existing) return null;
+    const updated: Deal = {
+      ...existing,
+      ...data,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: now(),
+    };
+    await redis.set(key, JSON.stringify(updated));
+    return updated;
+  } finally {
+    await redis.del(lockKey);
+  }
 }
 
 // --- Contacts ---

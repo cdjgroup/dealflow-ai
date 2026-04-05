@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { pollCiba } from "@/lib/ciba/poll";
-import { getRedis } from "@/lib/redis";
+import { getSessionOwner } from "@/lib/ciba/session";
 import { getPollingLimiter } from "@/lib/rate-limit";
 
 export async function GET(
@@ -21,24 +21,9 @@ export async function GET(
     return NextResponse.json({ error: "authReqId is required" }, { status: 400 });
   }
 
-  // Verify the requesting user owns this CIBA session
-  const redis = getRedis();
-  const keys = await redis.keys(`ciba:${auth.userId}:*`);
-  let ownsSession = false;
-  for (const key of keys) {
-    const raw = await redis.get<string>(key);
-    if (!raw) continue;
-    try {
-      const session = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (session.authReqId === authReqId) {
-        ownsSession = true;
-        break;
-      }
-    } catch {
-      continue;
-    }
-  }
-  if (!ownsSession) {
+  // O(1) ownership check via lookup index (replaces KEYS scan)
+  const owner = await getSessionOwner(authReqId);
+  if (!owner || owner !== auth.userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

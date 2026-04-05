@@ -98,25 +98,33 @@ export const searchEmails = tool({
       return { results: [], message: "No emails found matching that query.", _tokenMeta: tokenMeta };
     }
 
-    const emails = await Promise.all(
-      data.messages.slice(0, max).map(async (msg: GmailMessageRef) => {
-        const detail = await fetch(
-          `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-          { headers: { Authorization: `Bearer ${result.token}` } }
-        );
-        if (!detail.ok) return null;
-        const d = await detail.json();
-        const headers: GmailHeader[] = d.payload?.headers || [];
-        return {
-          id: msg.id,
-          from: headers.find((h) => h.name === "From")?.value,
-          subject: headers.find((h) => h.name === "Subject")?.value,
-          date: headers.find((h) => h.name === "Date")?.value,
-          snippet: d.snippet,
-        };
-      })
-    );
+    // Fetch message details in batches of 5 to respect Gmail API quota
+    const msgs = data.messages.slice(0, max) as GmailMessageRef[];
+    const emails: (Record<string, unknown> | null)[] = [];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < msgs.length; i += BATCH_SIZE) {
+      const batch = await Promise.all(
+        msgs.slice(i, i + BATCH_SIZE).map(async (msg) => {
+          const detail = await fetch(
+            `https://www.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+            { headers: { Authorization: `Bearer ${result.token}` } }
+          );
+          if (!detail.ok) return null;
+          const d = await detail.json();
+          const headers: GmailHeader[] = d.payload?.headers || [];
+          return {
+            id: msg.id,
+            from: headers.find((h) => h.name === "From")?.value,
+            subject: headers.find((h) => h.name === "Subject")?.value,
+            date: headers.find((h) => h.name === "Date")?.value,
+            snippet: d.snippet,
+          };
+        })
+      );
+      emails.push(...batch);
+    }
 
-    return { results: emails.filter(Boolean), count: emails.filter(Boolean).length, _tokenMeta: tokenMeta };
+    const filtered = emails.filter(Boolean);
+    return { results: filtered, count: filtered.length, _tokenMeta: tokenMeta };
   },
 });

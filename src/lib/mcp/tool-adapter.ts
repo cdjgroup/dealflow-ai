@@ -81,7 +81,13 @@ export function adaptToolsForMcp() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: unknown, extra: any) => {
           const params = (args ?? {}) as Record<string, unknown>;
-          const userId = extra?.authInfo?.clientId || "mcp-anonymous";
+          const userId = extra?.authInfo?.clientId;
+          if (!userId) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "Authentication required" }) }],
+              isError: true,
+            };
+          }
           const start = Date.now();
           try {
             let result: unknown;

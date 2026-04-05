@@ -179,7 +179,8 @@ describe("Actions Data Layer", () => {
       const pipeline = mockPipeline.mock.results[0].value;
       expect(pipeline.set).toHaveBeenCalledWith(
         `user1:action:${action.id}`,
-        JSON.stringify(action)
+        JSON.stringify(action),
+        { ex: 2592000 }
       );
       expect(pipeline.sadd).toHaveBeenCalledWith("user1:_idx:actions", action.id);
       expect(pipeline.exec).toHaveBeenCalled();

@@ -100,14 +100,15 @@ async function executeCalendar(
   token: string
 ): Promise<ExecutionResult> {
   const startDateTime = `${draft.date}T${draft.time}:00`;
-  const endDate = new Date(
-    new Date(startDateTime).getTime() + draft.duration * 60 * 1000
-  );
-  const endDateTime = endDate.toISOString().replace("Z", "");
+  // Compute end time by adding duration to the naive start time string.
+  // Both start and end use the same naive format — Google Calendar
+  // interprets both using the timeZone field, keeping them consistent.
+  const [h, m] = draft.time.split(":").map(Number);
+  const totalMinutes = h * 60 + m + draft.duration;
+  const endH = String(Math.floor(totalMinutes / 60) % 24).padStart(2, "0");
+  const endM = String(totalMinutes % 60).padStart(2, "0");
+  const endDateTime = `${draft.date}T${endH}:${endM}:00`;
 
-  // Use the draft's timezone if provided, otherwise default to UTC.
-  // Intl.DateTimeFormat() returns the server's timezone (UTC on Vercel),
-  // not the user's timezone, so we cannot rely on it.
   const timeZone = draft.timeZone || "UTC";
   const event = {
     summary: draft.title,

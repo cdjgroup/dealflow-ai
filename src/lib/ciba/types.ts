@@ -14,6 +14,7 @@ export interface CibaSession {
   interval: number;
   status: CibaStatus;
   createdAt: string;
+  lastPolledAt?: string;
 }
 
 export interface CibaPollResult {
