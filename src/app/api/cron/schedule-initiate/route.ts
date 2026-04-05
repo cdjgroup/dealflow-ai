@@ -15,7 +15,14 @@ import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { isConnectionDisabled } from "@/lib/data/connections";
 import type { SuggestedAction } from "@/lib/types/actions";
+
+const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
+  email: "gmail",
+  calendar: "calendar",
+  slack: "slack",
+};
 
 const MAX_USERS_PER_HOUR = 50;
 const HIGH_VALUE_THRESHOLD = 50_000;
@@ -57,6 +64,7 @@ function buildBatchMessage(actions: SuggestedAction[]): string {
 async function executeActionsDirectly(
   userId: string,
   actions: SuggestedAction[],
+  settings: { capabilities: Record<string, boolean> },
   batchId: string
 ): Promise<{ executed: number; failed: number }> {
   const refreshToken = await getScheduleRefreshToken(userId);
@@ -69,10 +77,25 @@ async function executeActionsDirectly(
   let failed = 0;
 
   for (const action of actions) {
+    // Respect user capability toggles and connection state
+    const capability = CAPABILITY_MAP[action.type];
+    if (capability && !settings.capabilities[capability]) {
+      await updateAction(userId, action.id, { status: "failed", errorMessage: `${capability} capability is disabled` });
+      failed++;
+      continue;
+    }
+
+    const connection = CONNECTION_MAP[action.type];
+    const disabled = await isConnectionDisabled(userId, connection);
+    if (disabled) {
+      await updateAction(userId, action.id, { status: "failed", errorMessage: "Connection disabled by user" });
+      failed++;
+      continue;
+    }
+
     await updateAction(userId, action.id, { status: "executing" });
 
     try {
-      const connection = CONNECTION_MAP[action.type];
       const result = await exchangeTokenWithRefresh(connection, refreshToken);
       if ("error" in result) {
         throw new Error(`Token exchange failed for ${action.type}`);
@@ -171,7 +194,7 @@ export async function GET(req: Request) {
 
         // Auto-execute routine actions directly (no CIBA)
         if (routineActions.length > 0) {
-          const execResult = await executeActionsDirectly(userId, routineActions, batchId);
+          const execResult = await executeActionsDirectly(userId, routineActions, settings, batchId);
           results.push({
             userId,
             status: "auto-executed",

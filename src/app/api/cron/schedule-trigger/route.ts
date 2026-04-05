@@ -10,7 +10,14 @@ import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { isConnectionDisabled } from "@/lib/data/connections";
 import type { SuggestedAction } from "@/lib/types/actions";
+
+const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
+  email: "gmail",
+  calendar: "calendar",
+  slack: "slack",
+};
 
 const HIGH_VALUE_THRESHOLD = 50_000;
 
@@ -94,9 +101,24 @@ export async function POST(req: Request) {
         failed += routineActions.length;
       } else {
         for (const action of routineActions) {
+          // Respect user capability toggles and connection state
+          const capability = CAPABILITY_MAP[action.type];
+          if (capability && !settings.capabilities[capability]) {
+            await updateAction(userId, action.id, { status: "failed", errorMessage: `${capability} capability is disabled` });
+            failed++;
+            continue;
+          }
+
+          const connection = CONNECTION_MAP[action.type];
+          const connDisabled = await isConnectionDisabled(userId, connection);
+          if (connDisabled) {
+            await updateAction(userId, action.id, { status: "failed", errorMessage: "Connection disabled by user" });
+            failed++;
+            continue;
+          }
+
           await updateAction(userId, action.id, { status: "executing" });
           try {
-            const connection = CONNECTION_MAP[action.type];
             const result = await exchangeTokenWithRefresh(connection, refreshToken);
             if ("error" in result) throw new Error(`Token exchange failed for ${action.type}`);
             await executeActionWithToken(action, result.token);

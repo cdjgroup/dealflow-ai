@@ -45,6 +45,10 @@ vi.mock("@/lib/data/crm", () => ({
   getDeal: (...args: unknown[]) => mockGetDeal(...args),
 }));
 
+vi.mock("@/lib/data/connections", () => ({
+  isConnectionDisabled: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock("@/lib/data/schedule-tokens", () => ({
   getScheduleRefreshToken: (...args: unknown[]) => mockGetScheduleRefreshToken(...args),
 }));
