@@ -5,41 +5,47 @@
 ### Autonomous Agent Execution on a Schedule
 Users opt into scheduled review times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the scheduled time:
 1. **Vercel cron** finds opted-in users whose local timezone matches the hour
-2. **CIBA Guardian push** sent to user's phone: "Execute N pending actions?"
-3. **Phone approval** triggers auto-execution of all pending actions (email drafts, calendar events, Slack messages)
-4. **Phone denial** reverts actions to pending for next cycle
+2. **Batch CIBA Guardian push** sent to user's phone: "DealFlow: 5 actions - 3 email, 2 calendar"
+3. **Phone approval** grants a time-boxed execution window — all high/medium priority actions execute within the token's lifetime
+4. **Phone denial** reverts all actions to pending for next cycle
+
+### Priority Filtering
+Only **high** and **medium** priority actions are included in scheduled execution. Low priority actions stay pending for manual review in the Action Center. This prevents notification fatigue while ensuring time-sensitive actions get attention.
+
+### Run Now (On-Demand)
+A "Run Now" button in the Schedule panel triggers immediate batch CIBA execution without waiting for the next scheduled hour. The UI polls for approval and shows progress as actions execute. Useful for testing and demos.
+
+### Reseed Demo Data
+The "Reseed Demo Data" button resets CRM data and the onboarding checklist to fresh state for demo purposes.
 
 ### How It Works
 - Two-phase cron: hourly initiate (finds users, sends CIBA) + per-minute poll (checks approval, executes)
 - User's Auth0 refresh token stored encrypted (AES-256-GCM) at opt-in time for offline token exchange
 - Distributed execution lock prevents duplicate execution from overlapping cron ticks
 - Timezone-aware: uses browser's IANA timezone, validated server-side
+- Binding message sanitized to Auth0-allowed characters (alphanumerics + `+-_.,:#`, 64-char max)
+- Action list syncs in real-time after execution via server component refresh
 
 ### Security
 - Timing-safe CRON_SECRET comparison on all cron endpoints
 - Encrypted refresh token with 90-day TTL, separate encryption key
-- CIBA serves as device-level consent — proof of authorization before executing
+- CIBA token lifetime serves as natural execution boundary — time-boxed delegation
+- Only pre-declared actions execute within the window (no open-ended agent authorization)
 
 ## v0.5.0 — CIBA Step-Up Authentication
 
-### Device-Level Consent for High-Value Actions
-When the AI agent triggers a high-value action ($50K+ deals or terminal stage changes like closed-won), a two-step consent flow activates:
+### Device-Level Consent for High-Value Chat Actions
+When the AI agent triggers a high-value action in chat ($50K+ deals or terminal stage changes like closed-won), a two-step consent flow activates:
 1. **Inline approval** — standard approval card in chat (app-level consent)
 2. **CIBA push notification** — Auth0 sends a push to the user's phone via Guardian app (device-level consent)
 
 The user sees a CibaWaitingCard in the chat with the binding message (e.g., "Approve creating $75,000 deal: Acme Enterprise"), an animated pulse indicator, and a countdown timer. Upon phone approval, the tool executes normally.
-
-### Action Center Integration
-High-value actions in the Action Center also trigger CIBA. When a user clicks Execute on an action linked to a $50K+ deal, the action status changes to `ciba-pending` with a device approval badge, Auth0 sends a push notification, and the action executes after phone approval.
 
 ### How It Works
 - Direct HTTP calls to Auth0 `/bc-authorize` (CIBA initiation) and `/oauth/token` (CIBA grant polling)
 - Follows the same pattern as Token Vault exchange (ADR 001) — no SDK wrapper
 - Redis-backed CIBA sessions prevent re-initiation when the chat regenerates
 - Access tokens never exposed to the client — consumed server-side only
-
-### Routine Actions Unchanged
-CIBA only activates for high-value mutations. Email drafts, Slack messages, calendar checks, and low-value deals continue to use the existing inline approval flow.
 
 ## v0.4.0 — Action Center
 
@@ -110,7 +116,7 @@ Application-layer scope awareness for Token Vault tools. Each tool declares its 
 Per-tool trust levels ("always" / "ask each time" / "never") that override the default approval behavior. Users can require consent on every calendar check or permanently block email access. The "never" level hard-blocks tools at registration — the AI never sees them. Trust settings persist per-user in Redis and are managed at `/dashboard/permissions`.
 
 ### Token Vault Audit Visualization
-Animated 6-stage token lifecycle pipeline that appears in the chat during Token Vault tool execution: AI Decides, Token Exchange, Scoped Token, API Call, Response, Token Expires. Shows scope, TTL, provider, and connection in a collapsible panel. Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
+Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
 ### MCP Server for External AI Agents
 Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.

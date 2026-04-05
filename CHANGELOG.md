@@ -2,23 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.1] - 2026-04-04
+## [0.5.1] - 2026-04-05
 
 ### Added
 - `createCalendarEvent` AI tool: schedule meetings directly via Token Vault (calendar.events scope)
 - Calendar event result card with "Open in Calendar" link in chat UI
 - Scheduled Action Review: users opt into 8am/12pm/5pm review via checkboxes on Action Center
-- Vercel cron jobs: Phase 1 (hourly initiate) sends Guardian push for pending actions, Phase 2 (per-minute poll) auto-executes on approval
+- Batch CIBA consent: one Guardian push for all high/medium priority actions (e.g., "DealFlow: 5 actions - 3 email, 2 calendar")
+- Time-boxed execution: CIBA approval grants a token window, all actions execute within it
+- Priority filtering: only high and medium priority actions included in scheduled execution
+- "Run Now" button for on-demand batch CIBA execution (testing/demos)
+- Vercel cron jobs: Phase 1 (hourly initiate) sends Guardian push, Phase 2 (per-minute poll) auto-executes on approval
 - AES-256-GCM encrypted refresh token storage for offline/cron execution
 - Distributed execution lock (Redis SET NX) prevents duplicate action execution
 - Timezone-aware scheduling with IANA timezone validation
-- SchedulePanel UI component with optimistic updates and error handling
+- SchedulePanel UI component with optimistic updates, polling progress, and error handling
+- "Reseed Demo Data" resets onboarding checklist for demo purposes
+- Action list syncs with server data in real-time after scheduled execution
 
 ### Security
 - Timing-safe CRON_SECRET comparison (crypto.timingSafeEqual)
 - Encryption key length validation with actionable error messages
 - Token exchange errors sanitized before user-facing storage
 - IANA timezone validated in Zod schema (prevents silent UTC fallback)
+- CIBA binding message sanitized to Auth0-allowed characters (alphanumerics + +-_.,:#)
 
 ### Changed
 - Executor refactored: new `executeActionWithToken()` for pre-obtained tokens (cron flow)

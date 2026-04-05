@@ -29,17 +29,7 @@ export default async function ActionsPage() {
 
       <SchedulePanel initialSchedule={settings.schedule} />
 
-      {actions.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
-          <p className="mb-2">No suggested actions yet.</p>
-          <p className="text-xs">
-            Ask the AI to analyze your pipeline or suggest next steps to
-            generate actions here.
-          </p>
-        </div>
-      ) : (
-        <ActionList initialActions={actions} />
-      )}
+      <ActionList initialActions={actions} />
     </div>
   );
 }

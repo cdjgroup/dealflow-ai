@@ -6,11 +6,15 @@ AI agent autonomously proposes and executes pending actions on a user-defined sc
 
 ### What's new
 
-- **Scheduled Action Review**: Users opt into scheduled times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the selected time, a Guardian push notification asks "Execute N pending actions?" — approve on your phone and all actions auto-execute.
+- **Scheduled Action Review**: Users opt into scheduled times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the selected time, a single Guardian push notification describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar") — approve once on your phone and all high/medium priority actions auto-execute within the token's time-boxed window.
+- **Priority filtering**: Only high and medium priority actions are included in scheduled execution. Low priority actions stay pending for manual review in the Action Center.
+- **Run Now**: On-demand button in the Schedule panel triggers immediate batch CIBA execution without waiting for the next scheduled hour. UI polls for approval and shows real-time progress.
 - **Two-phase Vercel cron design**: Phase 1 runs hourly to find opted-in users (timezone-aware), initiate CIBA. Phase 2 polls every minute — on approval, exchanges stored refresh tokens for Google/Slack access tokens and executes all actions.
 - **AES-256-GCM encrypted token storage**: User's Auth0 refresh token encrypted at rest in Redis for offline/cron execution. Defense-in-depth beyond Upstash's infrastructure encryption.
-- **SchedulePanel UI**: Checkbox cards for each time slot, optimistic saves, Active badge, timezone display, error rollback.
-- **51 unit tests**: Full coverage of crypto, data layers, cron routes, executor refactoring, and settings integration.
+- **SchedulePanel UI**: Checkbox cards for each time slot, optimistic saves, Active badge, timezone display, Run Now button with polling progress, error rollback.
+- **Reseed Demo Data**: Resets CRM data and onboarding checklist to fresh state for demo purposes.
+- **Action list real-time sync**: Action statuses update in real-time after scheduled execution via server component refresh.
+- **Removed token lifecycle animation**: Simplified chat UI by removing the 6-stage pipeline visualization.
 
 ### Security
 
@@ -21,6 +25,7 @@ AI agent autonomously proposes and executes pending actions on a user-defined sc
 - IANA timezone validated in API schema (prevents silent UTC fallback)
 - Token exchange errors sanitized — OAuth internals never stored in user-facing fields
 - CIBA denial reverts actions to pending (not failed) — respects user choice
+- CIBA binding message sanitized to Auth0-allowed characters (alphanumerics + `+-_.,:#`, 64-char max)
 
 ### Architecture
 
