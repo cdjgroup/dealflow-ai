@@ -32,7 +32,7 @@ Our four execution surfaces map to the delegation patterns described in [IETF dr
 | MCP + CIBA | High | Guardian push notification | Agent-to-agent with out-of-band device consent |
 | MCP (read-only) | Autonomous | None needed | Pre-authorized within configured boundaries |
 
-Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model satisfies the human oversight requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit.
+Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model aligns with [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (Human Oversight, effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit. Confidence-based routing adds adaptive oversight: the AI's own uncertainty drives which actions surface for human review, regardless of the user's autonomy setting.
 
 The agent supports 13 tools across 4 services:
 - **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
@@ -50,7 +50,7 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
-**Built in 4 days** (March 31 – April 4, 2026) with 146 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026) with 219 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
@@ -71,6 +71,25 @@ The Token Vault integration uses direct RFC 8693 token exchange rather than the 
 - **Two Token Vault providers** — Google + Slack, demonstrating the pattern's extensibility with identical integration code
 - **Batch CIBA with scheduled execution** — One Guardian push approves all high/medium priority actions on schedule — time-boxed execution within the token's lifetime
 
+## EU AI Act Compliance
+
+DealFlow AI self-classifies as **Limited Risk** under the EU AI Act (Article 50 — transparency obligations). An AI sales agent that drafts emails and manages calendars is a productivity tool, not a high-risk system under Annex III (which covers employment decisions, credit scoring, law enforcement, etc.).
+
+Our existing architecture already satisfies the Act's core requirements:
+
+| EU AI Act Requirement | Article | DealFlow Feature | Status |
+|---|---|---|---|
+| Human Oversight | Art. 14 | CIBA device consent + needsApproval step-up + per-tool capability toggles | **Exceeds** — three independent override mechanisms |
+| Logging & Traceability | Art. 12 | Full audit trail with tool params, duration, token metadata, outcome | **Strong** |
+| User Control & Intervention | Art. 14 | Per-tool ON/OFF toggles, trust levels, Action Center review queue | **Strong** |
+| Transparency | Art. 50 | Chat UI identifies AI agent; binding messages describe actions before execution | **Good** |
+| Right to Disconnect | — | OAuth connection revocation via Permissions dashboard | **Good** |
+| Data Governance | GDPR | No PII in logs; user-scoped Redis storage with TTL; token metadata only | **Good** |
+
+**Key insight:** Our CIBA consent flow exceeds the Act's human oversight requirements. Article 14 asks that users can "intervene on the operation of the high-risk AI system or interrupt the system." CIBA goes further — the agent *cannot act* without device-level approval for write operations. This is not an override mechanism; it's a prerequisite. The AI is blocked by default, authorized only by explicit phone approval with a binding message describing exactly what will happen.
+
+The six-layer authorization pipeline (CSRF → rate limit → capability filter → trust level → value step-up → CIBA device consent) implements graduated authorization that maps directly to the Act's proportionality principle: higher-impact actions require stronger consent mechanisms.
+
 ## What we learned
 
 - Security is a composition problem — no single mechanism is sufficient. Our six-layer pipeline (CSRF → rate limit → capability filter → trust level → value step-up → CIBA device consent) demonstrates graduated authorization
@@ -84,6 +103,7 @@ The Token Vault integration uses direct RFC 8693 token exchange rather than the 
 - **Incremental authorization** — Request additional OAuth scopes only when needed
 - **Multi-user workspaces** — Team-level permissions and delegation policies
 - **OpenClaw reference integration** — Published example showing OpenClaw agents using DealFlow tools via MCP with full Token Vault security
+- **EU AI Act formal compliance** — Risk assessment documentation, conformity self-assessment, and AI-generated content labeling on outbound emails/messages
 - Additional Token Vault connections (GitHub, Salesforce, Microsoft 365)
 - **What we deliberately excluded (and why):** We evaluated [OpenFGA](https://openfga.dev/) for relationship-based authorization and [WIMSE](https://datatracker.ietf.org/wg/wimse/about/) for workload-level identity. OpenFGA would formalize our capability/trust policy as a Zanzibar-style tuple store — valuable for multi-tenant enterprises, but our per-tool trust levels provide equivalent control at the individual-user level appropriate for a sales assistant. WIMSE would enable cryptographic identity for the MCP server as a distinct workload — the right next step for production multi-agent deployments. Both exceeded the hackathon's 4-day scope.
 

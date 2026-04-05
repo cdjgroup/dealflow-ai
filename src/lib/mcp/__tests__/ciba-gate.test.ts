@@ -322,5 +322,48 @@ describe("ciba-gate", () => {
       // Assert
       expect(message.length).toBeLessThanOrEqual(64);
     });
+
+    // AC-7: Client name prefix in binding message
+    it("AC-7: should prefix binding message with client name when provided", () => {
+      const params = { to: "alice@acme.com" };
+      const message = buildMcpBindingMessage("draftEmail", params, "Cursor IDE");
+      expect(message).toBe("Cursor IDE - draft email to alice@acme.com");
+    });
+
+    // AC-8: No client name preserves existing MCP: prefix
+    it("AC-8: should use MCP: prefix when clientName is undefined", () => {
+      const params = { to: "alice@acme.com" };
+      const message = buildMcpBindingMessage("draftEmail", params);
+      expect(message).toBe("MCP: draft email to alice@acme.com");
+    });
+
+    // AC-9: CIBA-unsafe characters stripped from client name
+    it("AC-9: should strip CIBA-unsafe characters from clientName", () => {
+      const params = { to: "a@b.com" };
+      const message = buildMcpBindingMessage("draftEmail", params, "Bad[Name]{Test}");
+      expect(message).toMatch(/^BadNameTest - /);
+    });
+
+    // AC-10: Long client name still truncates to 64 chars total
+    it("AC-10: should truncate total message to 64 characters with long clientName", () => {
+      const params = { to: "alice@acme.com" };
+      const longName = "A".repeat(50);
+      const message = buildMcpBindingMessage("draftEmail", params, longName);
+      expect(message.length).toBeLessThanOrEqual(64);
+    });
+
+    // AC-7: Client name works for createCalendarEvent
+    it("AC-7: should prefix calendar binding message with client name", () => {
+      const params = { summary: "Pipeline Review" };
+      const message = buildMcpBindingMessage("createCalendarEvent", params, "Sales Bot");
+      expect(message).toBe('Sales Bot - calendar "Pipeline Review"');
+    });
+
+    // AC-7: Client name works for sendSlackMessage
+    it("AC-7: should prefix slack binding message with client name", () => {
+      const params = { channel: "deals", text: "Update" };
+      const message = buildMcpBindingMessage("sendSlackMessage", params, "Slack Agent");
+      expect(message).toBe('Slack Agent - slack #deals "Update"');
+    });
   });
 });

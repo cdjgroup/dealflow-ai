@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
 import { getToolNamesForSurface } from "@/lib/surface-policy";
+import { getUserSettings } from "@/lib/data/settings";
+import { DEFAULT_SETTINGS } from "@/lib/types/settings";
 
 // Mock all tool imports so tests don't need real Auth0/Redis
 vi.mock("@/lib/auth0", () => ({
@@ -77,11 +79,25 @@ vi.mock("@/lib/rate-limit", () => ({
   getMcpClientLimiter: vi.fn().mockReturnValue({
     limit: vi.fn().mockResolvedValue({ success: true }),
   }),
+  getToolRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ success: true, remaining: 9, reset: Date.now() + 60000, limit: 10 }),
+  }),
 }));
 
 vi.mock("@/lib/data/mcp-analytics", () => ({
   recordMcpCall: vi.fn().mockResolvedValue(undefined),
 }));
+
+/** Build a mock inner Server object for tools/list override. */
+function makeMockInnerServer() {
+  const requestHandlers = new Map();
+  return {
+    _requestHandlers: requestHandlers,
+    setRequestHandler: vi.fn((_schema: unknown, handler: unknown) => {
+      requestHandlers.set("tools/list", handler);
+    }),
+  };
+}
 
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
@@ -96,6 +112,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -130,6 +147,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -140,6 +158,13 @@ describe("MCP tool adapter", () => {
     });
 
     it("AC-6: handler denies tool call when scope doesn't match", async () => {
+      // Mock getUserSettings to return settings with calendar disabled
+      // so fresh scope derivation excludes calendar:read
+      vi.mocked(getUserSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        capabilities: { ...DEFAULT_SETTINGS.capabilities, calendar: false },
+      });
+
       let capturedHandler: ((args: unknown, extra: unknown) => Promise<unknown>) | null = null;
       const mockServer = {
         registerTool: (name: string, _config: unknown, handler: (args: unknown, extra: unknown) => Promise<unknown>) => {
@@ -147,6 +172,8 @@ describe("MCP tool adapter", () => {
             capturedHandler = handler;
           }
         },
+        _registeredTools: new Map(),
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -154,20 +181,21 @@ describe("MCP tool adapter", () => {
 
       expect(capturedHandler).not.toBeNull();
 
-      // Call with scopes that don't include calendar:read
+      // Capability toggles are enforced at Step 0 in the tool handler,
+      // so even with valid scopes, a disabled category is denied
       const result = await capturedHandler!({}, {
         authInfo: {
           clientId: "user-123",
-          scopes: ["crm:read"], // no calendar:read
+          scopes: ["crm:read", "calendar:read"],
         },
       });
 
       expect(result).toMatchObject({
         isError: true,
       });
-      // Verify the error message mentions scope/authorization
+      // Verify the error message mentions disabled/scope/authorization
       const text = (result as { content: Array<{ text: string }> }).content[0].text;
-      expect(text).toMatch(/not authorized|scope/i);
+      expect(text).toMatch(/disabled|not authorized|scope/i);
     });
 
     it("AC-FILTER-1: API key client sees only allowed tools", async () => {
@@ -176,6 +204,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // Pass allowedToolFilter to restrict registration
@@ -197,6 +226,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // No filter = all tools registered
@@ -215,6 +245,7 @@ describe("MCP tool adapter", () => {
             capturedHandler = handler;
           }
         },
+        server: makeMockInnerServer(),
       };
 
       // Register only checkCalendar
@@ -246,6 +277,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       // Explicitly pass undefined
@@ -258,10 +290,12 @@ describe("MCP tool adapter", () => {
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {
       const tools: Array<{ name: string; config: Record<string, unknown> }> = [];
+      const requestHandlers = new Map();
       const mockServer = {
         registerTool: (name: string, config: Record<string, unknown>, _handler: unknown) => {
           tools.push({ name, config });
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();

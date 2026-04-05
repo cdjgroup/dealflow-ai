@@ -23,8 +23,8 @@ import { pollCiba } from "@/lib/ciba/poll";
 import { getCibaSession, storeCibaSession, deleteCibaSession, updateCibaSessionStatus } from "@/lib/ciba/session";
 import type { CibaInterrupt } from "@/lib/ciba/types";
 import { NextResponse } from "next/server";
-import { attachCircuitBreaker, RequestToolCounter } from "@/lib/circuit-breaker";
-import type { CircuitBreakerResult } from "@/lib/circuit-breaker";
+import { attachRateLimiter, RequestToolCounter } from "@/lib/rate-limiter";
+import type { RateLimitResult } from "@/lib/rate-limiter";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
 const MAX_TOOL_STEPS = 7;
@@ -294,8 +294,8 @@ export async function POST(req: Request) {
   // Attach CIBA step-up auth for high-value actions (C1 layer — runs after inline approval)
   const withCiba = attachCibaChecks(withApproval, userId);
 
-  // Per-tool rate limiting — circuit breaker Layer A (outermost wrapper, runs first at call time)
-  const handleToolBlocked = (result: CircuitBreakerResult) => {
+  // Per-tool rate limiting — Layer A (outermost wrapper, runs first at call time)
+  const handleToolBlocked = (result: RateLimitResult) => {
     writeAuditEntry(userId, {
       threadId: id as string,
       toolName: result.toolName,
@@ -306,7 +306,7 @@ export async function POST(req: Request) {
       surface: "chat",
     }).catch(() => {});
   };
-  const tools = attachCircuitBreaker(withCiba, userId, handleToolBlocked);
+  const tools = attachRateLimiter(withCiba, userId, handleToolBlocked);
 
   // Build dynamic system prompt based on available tools
   const availableTools: string[] = [];
@@ -406,21 +406,21 @@ Some actions require user approval before they execute (drafting emails, sending
                 : undefined,
             });
 
-            // Circuit breaker Layer B: per-request tool call limit
+            // Rate limiter Layer B: per-request tool call limit
             const { breached, count, limit } = toolCounter.increment();
             if (breached) {
               writer.write({
                 type: "error",
-                errorText: `Circuit breaker: ${count} tool calls exceeded limit of ${limit}. Request stopped to prevent runaway execution.`,
+                errorText: `Rate limit: ${count} tool calls exceeded limit of ${limit}. Request stopped to prevent runaway execution.`,
               });
               writeAuditEntry(userId, {
                 threadId: id as string,
                 toolName: event.toolCall.toolName,
                 input: {},
                 result: "error",
-                errorMessage: `Circuit breaker abort: request tool call limit (${limit}) exceeded at ${count} calls`,
+                errorMessage: `Rate limit abort: request tool call limit (${limit}) exceeded at ${count} calls`,
               });
-              abortController.abort("circuit-breaker");
+              abortController.abort("rate-limit");
             }
           },
         });
@@ -429,7 +429,7 @@ Some actions require user approval before they execute (drafting emails, sending
       },
       onFinish({ isAborted }) {
         // Persist conversation to Redis — fire and forget.
-        // Save even on circuit-breaker abort so partial conversations aren't lost.
+        // Save even on rate-limit abort so partial conversations aren't lost.
         saveConversation(userId, id as string, messages).catch((err) =>
           console.error(`Conversation save${isAborted ? " (post-abort)" : ""} failed:`, err)
         );

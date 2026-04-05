@@ -38,6 +38,12 @@ export function decrypt(ciphertext: string): string {
 
 const API_KEY_PREFIX = "dfk_";
 
+/**
+ * SHA-256 is intentional here — NOT a mistake. API keys have 256 bits of
+ * entropy (randomBytes(32)), making brute-force preimage attacks infeasible.
+ * Slow hashes (bcrypt/argon2) defend against low-entropy password guessing,
+ * which doesn't apply. GitHub, Stripe, and AWS use fast hashes for API keys.
+ */
 export function hashApiKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
 }

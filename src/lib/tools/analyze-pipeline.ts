@@ -7,7 +7,27 @@ import { createAction, getActions } from "@/lib/data/actions";
 import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 import { draftSchema } from "@/lib/schemas/action-draft";
-import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/constants/tools";
+import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
+
+const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
+  autoApprove: 0.85,
+  requireReview: 0.5,
+};
+
+export function resolveInitialStatus(
+  suggestion: { priority: ActionPriority; confidence?: number },
+  settings: { autonomyLevel: AutonomyLevel; confidenceThresholds?: ConfidenceThresholds }
+): "approved" | "pending" {
+  const thresholds = settings.confidenceThresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS;
+  const { confidence, priority } = suggestion;
+
+  if (confidence !== undefined) {
+    if (confidence >= thresholds.autoApprove) return "approved";
+    if (confidence <= thresholds.requireReview) return "pending";
+  }
+
+  return settings.autonomyLevel >= 2 && priority !== "low" ? "approved" : "pending";
+}
 
 interface SuggestionInput {
   type: ActionType;
@@ -18,6 +38,17 @@ interface SuggestionInput {
   justification: string;
   draft: ActionDraft;
   confidence?: number;
+}
+
+function matchesFocusFilter(
+  deal: { value: number; stage: string },
+  daysSinceUpdate: number,
+  focus: string
+): boolean {
+  if (focus === "stale" && daysSinceUpdate < 5) return false;
+  if (focus === "high-value" && deal.value < 50000) return false;
+  if (focus === "new-leads" && deal.stage !== "lead") return false;
+  return true;
 }
 
 interface DealContext {
@@ -74,11 +105,7 @@ const SYSTEM_PROMPT = `You are a sales pipeline AI assistant. Analyze the provid
 Rules:
 - Only suggest these action types: email (follow-up), calendar (meeting/demo), slack (team update)
 - Do NOT suggest actions for deals that already have a suggestion (listed in existingActions)
-- Rate your confidence (0.0-1.0) for each suggestion using this rubric:
-  0.9+: Strong evidence — recent activity, clear next step, time-sensitive
-  0.7-0.9: Good evidence — reasonable next step but timing or approach has some ambiguity
-  0.5-0.7: Moderate evidence — plausible action but based on assumptions about intent or timing
-  Below 0.5: Weak evidence — speculative, missing key context, or multiple equally valid alternatives
+- Add a confidence score (0.0-1.0) reflecting how certain you are this action is needed right now
 - Personalize all content using the contact's name, role, company, and deal context
 - For email drafts: include "to" (email), "subject", and "body" fields. Body should be professional but warm.
 - For calendar drafts: include "title", "date" (YYYY-MM-DD, schedule 3 days from now), "time" (HH:MM, default 14:00), "duration" (minutes), "attendees" (array of emails), and optional "notes"
@@ -157,9 +184,7 @@ function generateHeuristicSuggestions(
       ? activities.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
       : null;
 
-    if (focus === "stale" && daysSinceUpdate < 5) continue;
-    if (focus === "high-value" && deal.value < 50000) continue;
-    if (focus === "new-leads" && deal.stage !== "lead") continue;
+    if (!matchesFocusFilter(deal, daysSinceUpdate, focus)) continue;
 
     if (daysSinceUpdate >= 3 && !existingKeys.has(`${deal.id}:email`)) {
       const priority: ActionPriority =
@@ -283,10 +308,7 @@ export function createAnalyzePipelineTool(userId: string) {
           ? activities.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
           : null;
 
-        // Apply focus filter
-        if (focus === "stale" && daysSinceUpdate < 5) continue;
-        if (focus === "high-value" && deal.value < 50000) continue;
-        if (focus === "new-leads" && deal.stage !== "lead") continue;
+        if (!matchesFocusFilter(deal, daysSinceUpdate, focus)) continue;
 
         dealContexts.push({
           dealId: deal.id,
@@ -335,19 +357,10 @@ export function createAnalyzePipelineTool(userId: string) {
       });
 
       // Create actions in Redis
-      // Autonomy gate: level 2+ auto-approves high/medium priority actions
-      // Confidence gate: low-confidence actions forced to pending (downgrade-only).
-      // Heuristic suggestions omit confidence (undefined) — they bypass the gate by design.
+      // Confidence-aware routing: high confidence auto-approves, low confidence forces review
       let created = 0;
       for (const suggestion of validated) {
-        const isLowConfidence = suggestion.confidence !== undefined
-          && suggestion.confidence < LOW_CONFIDENCE_THRESHOLD;
-        const initialStatus =
-          settings.autonomyLevel >= 2
-          && suggestion.priority !== "low"
-          && !isLowConfidence
-            ? "approved"
-            : "pending";
+        const initialStatus = resolveInitialStatus(suggestion, settings);
         await createAction(userId, { ...suggestion, status: initialStatus });
         created++;
       }

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { getAction, batchUpdateStatus } from "@/lib/data/actions";
-import { getUserSettings, incrementTrustStat } from "@/lib/data/settings";
+import { getUserSettings, incrementTrustStat, getTrustStats } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 import type { ActionType } from "@/lib/types/actions";
+import { evaluateTrustGraduation, type TrustNudge } from "@/lib/trust-graduation";
 
 const ACTION_CAPABILITY_MAP: Record<ActionType, { tool: string; capability: "gmail" | "calendar" | "slack" }> = {
   email: { tool: "draftEmail", capability: "gmail" },
@@ -39,10 +40,12 @@ export async function POST(req: Request) {
     );
   }
 
+  // Fetch settings (needed for capability check + nudge evaluation)
+  const settings = await getUserSettings(auth.userId);
+
   // For approvals, filter out actions blocked by capability/trust settings
   let allowedIds = parsed.data.actionIds;
   if (parsed.data.status === "approved") {
-    const settings = await getUserSettings(auth.userId);
     const checked = await Promise.all(
       parsed.data.actionIds.map(async (id) => {
         const action = await getAction(auth.userId, id);
@@ -69,10 +72,34 @@ export async function POST(req: Request) {
     parsed.data.status
   );
 
-  // Track trust calibration stats per action type
-  for (const action of actions) {
-    incrementTrustStat(auth.userId, action.type, parsed.data.status).catch(() => {});
+  // Track trust calibration + evaluate nudge (upgrade-only, best-effort)
+  let nudge: TrustNudge | undefined;
+  if (parsed.data.status === "approved") {
+    try {
+      await Promise.all(
+        actions.map((a) => incrementTrustStat(auth.userId, a.type, parsed.data.status))
+      );
+      const stats = await getTrustStats(auth.userId);
+      const seenTypes = new Set(actions.map((a) => a.type));
+      for (const actionType of seenTypes) {
+        const mapping = ACTION_CAPABILITY_MAP[actionType];
+        const currentTrust = settings.toolTrust?.[mapping.tool] ?? "ask";
+        const suggested = evaluateTrustGraduation(stats[actionType], currentTrust);
+        if (suggested) {
+          // Surface at most one nudge per batch to avoid overwhelming the user
+          nudge = { tool: mapping.tool, actionType, currentTrust, suggestedTrust: suggested, stats: stats[actionType] };
+          break;
+        }
+      }
+    } catch {
+      // Graduation is best-effort — don't break the batch flow
+    }
+  } else {
+    // Best-effort stat tracking; failures are non-critical
+    for (const action of actions) {
+      incrementTrustStat(auth.userId, action.type, parsed.data.status).catch(() => {});
+    }
   }
 
-  return NextResponse.json({ actions });
+  return NextResponse.json({ actions, ...(nudge ? { nudge } : {}) });
 }

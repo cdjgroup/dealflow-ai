@@ -33,6 +33,7 @@ export const WRITE_TOOLS = new Set([
   "createCalendarEvent",
   "draftEmail",
   "sendSlackMessage",
+  "delegateResearch",
 ]);
 
 /** Human-readable tool names for UI display */

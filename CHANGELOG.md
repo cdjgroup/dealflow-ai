@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-04-05
+
+### Added
+- Confidence-based routing: AI confidence scores drive action approval — high confidence (>=85%) auto-approves, low confidence (<=50%) forces manual review regardless of autonomy level
+- Per-client MCP parameter constraints: regex-based semantic filtering on tool parameters (e.g., restrict searchEmails to @acme.com domains)
+- Layer 3.5 enforcement in MCP tool handler: parameter constraints validated between client allowlist and CIBA gate, fail-closed on invalid regex
+- Confidence threshold sliders in schedule panel UI with three-band visualization
+- Parameter constraint editor in MCP client create form (collapsible, tool+param+regex+description)
+- EU AI Act Article 14 references in blog post, Devpost submission, and insights docs (025, 026)
+- Regex validation at MCP client creation time (defense-in-depth with runtime fail-closed)
+- Constraints bounded: max 5 per tool, max 10 tools per client
+
+## [0.6.1] - 2026-04-05
+
+### Added
+- Trust calibration nudge: after 5+ approvals at >80% rate, banner suggests upgrading tool to auto-approve
+- Nudge in single-action and batch approve API responses (optional `nudge` field, backward-compatible)
+- TrustNudgeBanner component in Action Center with Accept/Dismiss controls
+- Accept updates `toolTrust` via settings API; dismiss hides banner (re-appears on next threshold hit)
+- Hardened `getTrustStats` to merge against defaults for legacy Redis records
+
 ## [0.6.0] - 2026-04-05
 
 ### Added
@@ -20,11 +41,11 @@ All notable changes to this project will be documented in this file.
 - Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
 - MCP client management UI in MCP Explorer: create/delete clients, trust tier visualization, tool checkboxes
 - MCP client card component: trust tier badge, allowed tools display, key rotation, delete confirmation
-- Real-time circuit breaking for AI tool execution (two-layer protection)
+- Two-layer rate limiting for AI tool execution (per-tool + per-request)
 - Per-tool rate limiting: 4 tiers (read: 10/min, write: 5/min, crm-read: 20/min, crm-write: 5/min)
 - Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
-- Circuit breaker audit trail: rate limit denials logged with tier, remaining budget, reset time
-- Amber-styled circuit breaker alerts in chat UI (distinct from red error banners)
+- Rate limit audit trail: denials logged with tier, remaining budget, reset time
+- Amber-styled rate limit alerts in chat UI (distinct from red error banners)
 - MCP write tools: draftEmail, createCalendarEvent, sendSlackMessage now exposed via `/api/mcp`
 - CIBA gating for all MCP write operations (Guardian push approval required)
 - `cibaGate()` function for synchronous CIBA polling in MCP context (50s timeout)
@@ -43,6 +64,11 @@ All notable changes to this project will be documented in this file.
 - Tool adapter expanded from 6 read-only tools to 9 tools (6 read + 3 CIBA-gated write)
 
 ### Security
+- MCP `tools/list` filtered per-client by scope and allowedTools (closes info disclosure)
+- Circuit breaker fails closed on Redis error (was fail-open — blocks tool execution instead of bypassing rate limits)
+- CIBA binding messages include client name prefix for attribution + sanitize all params
+- SHA-256 API key hash rationale documented in code comment
+- Token binding (DPoP/mTLS) absence documented as future hardening (insight #022)
 - API keys hashed with SHA-256 before storage; raw key shown only once on creation
 - CSRF enforcement on all MCP client management mutations
 - Per-client tool discovery filtering: `tools/list` returns only client's allowed tools (defense-in-depth)
