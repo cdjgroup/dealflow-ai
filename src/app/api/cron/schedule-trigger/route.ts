@@ -15,7 +15,7 @@ function sanitize(msg: string): string {
   return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
 }
 
-function buildActionMessage(action: SuggestedAction): string {
+export function buildActionMessage(action: SuggestedAction): string {
   const prio = action.priority === "high" ? "HIGH" : "MED";
   const draft = action.draft;
 
@@ -38,9 +38,40 @@ function buildActionMessage(action: SuggestedAction): string {
 }
 
 /**
- * On-demand trigger for per-action CIBA consent.
- * Sends one Guardian push per high/medium-priority pending action,
- * each with a descriptive binding message.
+ * Initiate CIBA for a single action. Returns the session details.
+ */
+export async function initiateActionCiba(
+  userId: string,
+  action: SuggestedAction
+): Promise<{ authReqId: string; interval: number }> {
+  const now = new Date();
+  const batchId = `action:${action.id}:${now.toISOString()}`;
+  const msg = buildActionMessage(action);
+
+  const cibaResult = await initiateCiba(userId, msg);
+
+  await storeScheduledCibaSession({
+    batchId,
+    userId,
+    authReqId: cibaResult.authReqId,
+    actionIds: [action.id],
+    bindingMessage: msg,
+    expiresAt: new Date(
+      Date.now() + cibaResult.expiresIn * 1000
+    ).toISOString(),
+    interval: cibaResult.interval,
+    createdAt: now.toISOString(),
+  });
+
+  await updateAction(userId, action.id, { status: "ciba-pending" });
+
+  return { authReqId: cibaResult.authReqId, interval: cibaResult.interval };
+}
+
+/**
+ * On-demand trigger for sequential CIBA consent.
+ * Initiates Guardian push for the FIRST high/medium-priority pending action.
+ * After approval+execution, the poll-trigger initiates the next one.
  */
 export async function POST(req: Request) {
   const csrfError = checkCsrf(req);
@@ -62,74 +93,29 @@ export async function POST(req: Request) {
     );
   }
 
-  const now = new Date();
-  const results: Array<{
-    actionId: string;
-    type: string;
-    priority: string;
-    status: string;
-    authReqId?: string;
-    bindingMessage?: string;
-  }> = [];
+  const first = eligible[0];
 
-  for (const action of eligible) {
-    const batchId = `action:${action.id}:${now.toISOString()}`;
-    const msg = buildActionMessage(action);
+  try {
+    const result = await initiateActionCiba(userId, first);
 
-    try {
-      const cibaResult = await initiateCiba(userId, msg);
-
-      await storeScheduledCibaSession({
-        batchId,
-        userId,
-        authReqId: cibaResult.authReqId,
-        actionIds: [action.id],
-        bindingMessage: msg,
-        expiresAt: new Date(
-          Date.now() + cibaResult.expiresIn * 1000
-        ).toISOString(),
-        interval: cibaResult.interval,
-        createdAt: now.toISOString(),
-      });
-
-      await updateAction(userId, action.id, { status: "ciba-pending" });
-
-      results.push({
-        actionId: action.id,
-        type: action.type,
-        priority: action.priority,
-        status: "initiated",
-        authReqId: cibaResult.authReqId,
-        bindingMessage: msg,
-      });
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error(`CIBA initiation failed for action ${action.id}:`, errorMsg);
-      results.push({
-        actionId: action.id,
-        type: action.type,
-        priority: action.priority,
-        status: "error",
-        bindingMessage: errorMsg,
-      });
-    }
-  }
-
-  const initiated = results.filter((r) => r.status === "initiated");
-  const errors = results.filter((r) => r.status === "error");
-
-  if (initiated.length === 0 && errors.length > 0) {
+    return NextResponse.json({
+      status: "initiated",
+      actionCount: 1,
+      totalEligible: eligible.length,
+      skippedLowPriority: pendingActions.length - eligible.length,
+      action: {
+        id: first.id,
+        type: first.type,
+        priority: first.priority,
+        bindingMessage: buildActionMessage(first),
+      },
+      interval: result.interval,
+    });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: `CIBA initiation failed for all ${errors.length} actions`, results },
+      { error: errorMsg },
       { status: 502 }
     );
   }
-
-  return NextResponse.json({
-    status: "initiated",
-    actionCount: initiated.length,
-    skippedLowPriority: pendingActions.length - eligible.length,
-    results,
-    interval: 5,
-  });
 }

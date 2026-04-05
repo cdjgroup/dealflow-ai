@@ -37,49 +37,56 @@ export function SchedulePanel({ initialSchedule }: Props) {
     setPolling(false);
   }, []);
 
-  const startPolling = useCallback((actionCount: number, interval: number) => {
+  const startPolling = useCallback((totalEligible: number, interval: number) => {
     setPolling(true);
-    setTriggerResult(`Waiting for Guardian approval (${actionCount} action${actionCount === 1 ? "" : "s"})...`);
+    let completed = 0;
+    setTriggerResult(`Approve on Guardian (1 of ${totalEligible})...`);
     let attempts = 0;
-    const maxAttempts = 60;
+    const maxAttempts = 120; // longer timeout for sequential flow
 
     pollRef.current = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
         stopPolling();
-        setTriggerResult(null);
-        setError("Approval timed out");
+        setTriggerResult(completed > 0 ? `${completed} executed, timed out on rest` : null);
+        if (completed === 0) setError("Approval timed out");
+        router.refresh();
         return;
       }
       try {
         const res = await fetch("/api/cron/schedule-poll-trigger");
         const data = await res.json();
 
-        if (data.status === "done") {
+        if (data.status === "next") {
+          // Action executed, next one initiated — keep polling
+          completed += data.executed ? 1 : 0;
+          const remaining = (data.remaining || 0) + 1;
+          setTriggerResult(`${completed} done — approve next on Guardian (${remaining} left)...`);
+          attempts = 0; // reset timeout for next action
+        } else if (data.status === "done") {
           stopPolling();
-          const parts: string[] = [];
-          if (data.executed > 0) parts.push(`${data.executed} executed`);
-          if (data.denied > 0) parts.push(`${data.denied} denied`);
-          if (data.failed > 0) parts.push(`${data.failed} failed`);
-          setTriggerResult(parts.join(", ") || "All actions processed");
+          completed += data.executed ? 1 : 0;
+          setTriggerResult(`All done — ${completed} action${completed === 1 ? "" : "s"} executed`);
+          router.refresh();
+        } else if (data.status === "denied") {
+          stopPolling();
+          setTriggerResult(completed > 0 ? `${completed} executed, last denied` : null);
+          if (completed === 0) setError("Approval denied");
+          router.refresh();
+        } else if (data.status === "expired") {
+          stopPolling();
+          setTriggerResult(completed > 0 ? `${completed} executed, last expired` : null);
+          if (completed === 0) setError("Session expired");
           router.refresh();
         } else if (data.status === "no-sessions") {
-          // Sessions may not be stored yet on early polls — keep waiting
           if (attempts > 10) {
             stopPolling();
-            setTriggerResult(null);
-            setError("Sessions expired or not found");
-          }
-        } else if (data.status === "pending") {
-          // Update progress as individual actions resolve
-          const resolved = (data.executed || 0) + (data.denied || 0) + (data.failed || 0);
-          const remaining = data.pending || 0;
-          if (resolved > 0) {
-            setTriggerResult(
-              `${resolved} resolved, ${remaining} awaiting approval...`
-            );
+            setTriggerResult(completed > 0 ? `${completed} executed` : null);
+            if (completed === 0) setError("Sessions expired or not found");
+            router.refresh();
           }
         }
+        // "pending" — keep polling
       } catch {
         stopPolling();
         setTriggerResult(null);
@@ -194,7 +201,7 @@ export function SchedulePanel({ initialSchedule }: Props) {
                   setError("No eligible actions were initiated");
                   return;
                 }
-                startPolling(data.actionCount, data.interval || 5);
+                startPolling(data.totalEligible || data.actionCount, data.interval || 5);
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Trigger failed");
               } finally {
