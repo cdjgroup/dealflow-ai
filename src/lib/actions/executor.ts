@@ -166,7 +166,13 @@ async function executeSlack(
 
   const data = await response.json();
   if (!data.ok) {
-    throw new Error(`Slack API error: ${data.error}`);
+    const friendly: Record<string, string> = {
+      not_in_channel: `You are not a member of #${draft.channel}. Join the channel in Slack first — Token Vault posts as you, not as a bot.`,
+      channel_not_found: `Slack channel #${draft.channel} not found or was deleted`,
+      not_authed: "Slack token expired. Reconnect Slack in Permissions.",
+      invalid_auth: "Slack token invalid. Reconnect Slack in Permissions.",
+    };
+    throw new Error(friendly[data.error] || `Slack API error: ${data.error}`);
   }
 
   return {

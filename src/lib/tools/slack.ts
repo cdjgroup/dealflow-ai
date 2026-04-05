@@ -20,7 +20,7 @@ export const listSlackChannels = tool({
     }
 
     const response = await fetch(
-      "https://slack.com/api/conversations.list?types=public_channel&exclude_archived=true&limit=50",
+      "https://slack.com/api/conversations.list?types=public_channel,private_channel&exclude_archived=true&limit=50",
       {
         headers: { Authorization: `Bearer ${result.token}` },
       }

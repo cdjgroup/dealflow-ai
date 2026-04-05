@@ -34,7 +34,7 @@ export async function resolveSlackChannelId(
   const name = channelName.replace(/^#/, "");
 
   const listRes = await fetch(
-    "https://slack.com/api/conversations.list?types=public_channel&limit=200",
+    "https://slack.com/api/conversations.list?types=public_channel,private_channel&limit=200",
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
