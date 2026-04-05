@@ -1,5 +1,31 @@
 # Features
 
+## v0.5.2 — AI Autonomy Selector
+
+### Graduated Trust Spectrum
+A 3-level segmented control on the Action Center lets users choose how autonomous the AI agent is:
+
+| Level | Label | Behavior |
+|-------|-------|----------|
+| 1 | Suggest Only | AI queues actions as "pending". User reviews, edits, and approves each one. |
+| 2 | Auto-Approve | AI auto-approves high/medium priority actions at creation. Execution requires CIBA Guardian consent. |
+| 3 | Full Autonomous | AI auto-approves AND auto-executes routine actions on schedule. High-value (>$50K) actions still require CIBA. |
+
+### Safety Guardrails at Every Level
+- Low priority actions always stay "pending" regardless of autonomy level
+- Capability toggles (gmail/calendar/slack) enforced even in autonomous execution
+- Connection disabled state respected (disconnecting in Permissions stops autonomous execution)
+- Confirmation dialog required before enabling Level 3
+- High-value deal actions (>$50K) always require CIBA device consent
+
+### Status Flow Per Level
+```
+Level 1: pending → [user approves] → approved → [execute / CIBA] → sent
+Level 2: approved (auto) → [CIBA push] → [phone approve] → sent
+Level 3: approved (auto) → sent  (routine <$50K)
+Level 3: approved (auto) → [CIBA push] → [phone approve] → sent  (>$50K)
+```
+
 ## v0.5.1 — Scheduled Action Review
 
 ### Autonomous Agent Execution on a Schedule

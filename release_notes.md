@@ -1,11 +1,17 @@
-# Release Notes — v0.5.1
+# Release Notes — v0.5.2
 
-## DealFlow AI: Scheduled Action Review with CIBA Approval
+## DealFlow AI: AI Autonomy Selector — Graduated Trust for AI Agents
 
-AI agent autonomously proposes and executes pending actions on a user-defined schedule, with device-level consent via Auth0 Guardian.
+Users control exactly how much the AI agent can do without human intervention via a 3-level autonomy spectrum on the Action Center.
 
 ### What's new
 
+- **AI Autonomy Selector**: 3-level control on the Action Center lets users choose their trust posture:
+  - **Level 1 — Suggest Only** (default): AI queues actions as "pending" for manual review
+  - **Level 2 — Auto-Approve**: AI auto-approves high/medium priority actions; execution still requires one CIBA Guardian push
+  - **Level 3 — Full Autonomous**: AI auto-approves AND auto-executes routine actions on schedule. High-value actions (>$50K deal value) still require Guardian device consent — the AI knows when to ask.
+- **Confirmation dialog**: Selecting Full Autonomous mode shows a warning dialog explaining what changes. Only activates on explicit confirmation.
+- **Graduated trust with safety net**: Even at Level 3, low-priority actions stay pending, capability toggles are enforced, and high-value deals still get CIBA consent.
 - **Scheduled Action Review**: Users opt into scheduled times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the selected time, a single Guardian push notification describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar") — approve once on your phone and all high/medium priority actions auto-execute within the token's time-boxed window.
 - **Priority filtering**: Only high and medium priority actions are included in scheduled execution. Low priority actions stay pending for manual review in the Action Center.
 - **Run Now**: On-demand button in the Schedule panel triggers immediate batch CIBA execution without waiting for the next scheduled hour. UI polls for approval and shows real-time progress.

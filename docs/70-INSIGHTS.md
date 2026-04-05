@@ -73,3 +73,8 @@ Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#
 ## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
 
 React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
+
+
+## 018 — Autonomy level 3 needs $50K safety net, not blanket autonomy (2026-04-05)
+
+Full autonomous mode that skips ALL consent is a weaker security story than graduated autonomy with a high-value safety net. Level 3 skips CIBA for routine actions (<$50K deal value) but retains CIBA for high-value deals. This creates a compelling demo moment: "The AI auto-executed 4 routine follow-ups, but sent me a Guardian push for the $75K deal." The key insight is that consent to a general operating mode is different from consent to a specific high-stakes action — your financial advisor has broad authority but calls you before moving six figures. This also means the auto-execute path must enforce capability toggles and connection state independently, since the user may have disabled a connection after setting autonomy level 3.
