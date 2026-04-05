@@ -4,6 +4,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { getDeals, getContacts, getActivities } from "@/lib/data/crm";
 import { createAction, getActions } from "@/lib/data/actions";
+import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 import { draftSchema } from "@/lib/schemas/action-draft";
 
@@ -219,10 +220,11 @@ export function createAnalyzePipelineTool(userId: string) {
         ),
     }),
     execute: async ({ focus }: { focus: string }, { abortSignal }) => {
-      const [deals, contacts, existingActions] = await Promise.all([
+      const [deals, contacts, existingActions, settings] = await Promise.all([
         getDeals(userId),
         getContacts(userId),
         getActions(userId),
+        getUserSettings(userId),
       ]);
 
       if (deals.length === 0) {
@@ -309,9 +311,15 @@ export function createAnalyzePipelineTool(userId: string) {
       const validated = suggestions.filter((s) => draftSchema.safeParse(s.draft).success);
 
       // Create actions in Redis
+      // Autonomy gate: level 2+ auto-approves high/medium priority actions
       let created = 0;
+      // Autonomy gate: level 2+ auto-approves high/medium priority actions
       for (const suggestion of validated) {
-        await createAction(userId, { ...suggestion, status: "pending" });
+        const initialStatus =
+          settings.autonomyLevel >= 2 && suggestion.priority !== "low"
+            ? "approved"
+            : "pending";
+        await createAction(userId, { ...suggestion, status: initialStatus });
         created++;
       }
 

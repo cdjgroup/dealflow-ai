@@ -1,39 +1,17 @@
 # Release Notes — v0.5.2
 
-## DealFlow AI: AI-Powered Actions, Trust Calibration, Batch Review
+## DealFlow AI: AI Autonomy Selector — Graduated Trust for AI Agents
 
-The Action Center now generates truly AI-powered suggestions — Claude Haiku analyzes your pipeline context and writes personalized drafts with confidence scores. Trust calibration tracks your approval patterns and recommends when to auto-approve. Batch approve now requires confirmation with a type breakdown.
-
-### What's new
-
-- **AI-Powered Action Suggestions**: `analyzePipeline` calls Claude Haiku with full deal context (stage, value, contact history, activity timeline) to generate personalized email drafts, meeting agendas, and Slack messages. Each suggestion includes a confidence score (0-1) and AI-reasoned justification. Falls back to heuristic rules if the LLM call fails.
-- **Confidence Badges**: Action cards display an AI confidence badge (e.g., "87% confident") with tooltip explaining the score.
-- **Trust Calibration**: Every approve/dismiss increments per-action-type stats in Redis. The Permissions page shows approval rates (e.g., "12/14 approved (86%)") and recommends "Consider auto-approve" when the rate exceeds 80%.
-- **Batch Approve Confirmation**: "Approve All Pending" now shows an inline confirmation panel with type breakdown (e.g., "3 emails, 1 calendar event, 1 Slack message"). Escape key dismisses, focus auto-moves to Cancel for keyboard safety.
-- **Batch Route Capability Guard**: Batch approve now enforces the same capability/trust checks as individual approval — disabled integrations or "never" trust tools are filtered out.
-
-### Security
-
-- LLM-generated drafts validated through strict Zod draftSchema before Redis persistence (defense-in-depth against prompt injection via deal data)
-- Batch route enforces capability and trust-level guards (closes gap where batch could bypass per-tool settings)
-
-### Architecture
-
-- `generateText()` + `Output.object()` with Zod schema for structured LLM output (AI SDK v6 subagent pattern)
-- Heuristic fallback extracted to `generateHeuristicSuggestions()` — called automatically if LLM fails
-- Activities fetched in parallel via `Promise.all` (eliminates N+1 sequential Redis queries)
-- Trust stats: `{userId}:trustStats` Redis key with get-modify-set pattern (documented race condition acceptable for demo scale)
-
----
-
-# Release Notes — v0.5.1
-
-## DealFlow AI: Scheduled Action Review with CIBA Approval
-
-AI agent autonomously proposes and executes pending actions on a user-defined schedule, with device-level consent via Auth0 Guardian.
+Users control exactly how much the AI agent can do without human intervention via a 3-level autonomy spectrum on the Action Center.
 
 ### What's new
 
+- **AI Autonomy Selector**: 3-level control on the Action Center lets users choose their trust posture:
+  - **Level 1 — Suggest Only** (default): AI queues actions as "pending" for manual review
+  - **Level 2 — Auto-Approve**: AI auto-approves high/medium priority actions; execution still requires one CIBA Guardian push
+  - **Level 3 — Full Autonomous**: AI auto-approves AND auto-executes routine actions on schedule. High-value actions (>$50K deal value) still require Guardian device consent — the AI knows when to ask.
+- **Confirmation dialog**: Selecting Full Autonomous mode shows a warning dialog explaining what changes. Only activates on explicit confirmation.
+- **Graduated trust with safety net**: Even at Level 3, low-priority actions stay pending, capability toggles are enforced, and high-value deals still get CIBA consent.
 - **Scheduled Action Review**: Users opt into scheduled times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the selected time, a single Guardian push notification describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar") — approve once on your phone and all high/medium priority actions auto-execute within the token's time-boxed window.
 - **Priority filtering**: Only high and medium priority actions are included in scheduled execution. Low priority actions stay pending for manual review in the Action Center.
 - **Run Now**: On-demand button in the Schedule panel triggers immediate batch CIBA execution without waiting for the next scheduled hour. UI polls for approval and shows real-time progress.

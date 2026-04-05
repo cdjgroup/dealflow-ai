@@ -22,6 +22,7 @@ export async function updateUserSettings(
     approvalRequired: patch.approvalRequired ?? current.approvalRequired,
     toolTrust: { ...current.toolTrust, ...(patch.toolTrust ?? {}) },
     schedule: patch.schedule ?? current.schedule,
+    autonomyLevel: patch.autonomyLevel ?? current.autonomyLevel,
   };
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);

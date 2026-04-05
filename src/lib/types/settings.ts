@@ -1,4 +1,5 @@
 export type TrustLevel = "always" | "ask" | "never";
+export type AutonomyLevel = 1 | 2 | 3;
 
 export interface ActionTypeStats {
   approved: number;
@@ -30,6 +31,7 @@ export interface UserSettings {
     hours: number[];
     timezone: string;
   };
+  autonomyLevel: AutonomyLevel;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -49,4 +51,5 @@ export const DEFAULT_SETTINGS: UserSettings = {
     hours: [],
     timezone: "UTC",
   },
+  autonomyLevel: 1,
 };

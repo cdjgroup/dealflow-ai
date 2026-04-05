@@ -43,6 +43,16 @@ vi.mock("@/lib/data/actions", () => ({
   createAction: (...args: unknown[]) => mockCreateAction(...args),
 }));
 
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn().mockResolvedValue({
+    capabilities: { crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: false },
+    approvalRequired: { crmWrite: false },
+    toolTrust: {},
+    schedule: { enabled: false, hours: [], timezone: "UTC" },
+    autonomyLevel: 1,
+  }),
+}));
+
 // Import after mocks are registered
 const { createAnalyzePipelineTool } = await import(
   "@/lib/tools/analyze-pipeline"
