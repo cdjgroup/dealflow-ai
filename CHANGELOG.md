@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4] - 2026-04-05
+
+### Added
+- Confidence routing redesign: Stripe Radar-inspired pattern with read-only viz bar, numeric inputs, zone icons, and dynamic autonomy level references
+- Enable/disable toggle for confidence routing (falls back to autonomy-level-only routing)
+- Guardian notification priority selector: user-configurable priority checkboxes for scheduled batch execution
+- Priority labels on action cards ("high priority" instead of "high")
+
+### Fixed
+- Settings persistence bug: `confidenceThresholds` silently dropped in `updateUserSettings` — now field-level merged
+- Light mode contrast across MCP components (~40 instances): text-*-400 to -600/-700, bg-*/5-10 to -/15 (WCAG AA)
+- Action card priority badge contrast for light mode
+
+### Changed
+- Confidence routing UI moved from dual-thumb slider to numeric stepper inputs + read-only visualization bar
+- `notifyPriorities` setting controls which priorities are included in scheduled Guardian push (default: high + medium)
+
 ## [0.6.3] - 2026-04-05
 
 ### Added

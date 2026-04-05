@@ -1,5 +1,22 @@
 # Features
 
+## v0.6.4 — Confidence Routing Overhaul + Light Mode
+
+### Stripe Radar-Inspired Confidence Routing
+The dual-thumb slider has been replaced with a Stripe Radar-inspired control pattern. A read-only visualization bar shows three colored zones with icons (shield=Always Review, eye=Follows Autonomy, checkmark=Auto-Approved), while two numeric stepper inputs let users set precise thresholds. Zone descriptions dynamically reference the current autonomy level, explaining the two-gate relationship: confidence routing overrides autonomy at the extremes, autonomy level decides in the middle band.
+
+### Confidence Routing Toggle
+Users can now enable or disable confidence routing entirely. When disabled, all actions route based on autonomy level only — confidence scores are ignored. The toggle persists across sessions. Backward-compatible: existing users without the `enabled` field default to enabled.
+
+### Guardian Notification Priority Selector
+In the Scheduled Action Review section, users can now select which priorities (high, medium, low) are included in Guardian push notifications. Previously hardcoded to high + medium. At least one priority must remain selected. The setting flows through both cron routes (schedule-initiate and schedule-trigger).
+
+### Priority Labels
+Action cards now display "high priority", "medium priority", and "low priority" instead of bare priority names, improving clarity for users scanning the Action Center.
+
+### Light Mode Contrast Fixes
+~40 color instances across 4 MCP components updated for WCAG AA compliance: `text-*-400` bumped to `-600`/`-700` for readable body text, `bg-*/5-10` bumped to `-/15` for visible badge backgrounds. Action card priority badges also fixed.
+
 ## v0.6.3 — MCP Playground
 
 ### Interactive Agent Simulation
