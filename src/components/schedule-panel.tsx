@@ -454,11 +454,14 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
               </div>
             </div>
 
-            {/* Zone descriptions */}
-            <div id="confidence-zone-descriptions" className="space-y-1 text-sm text-muted-foreground">
-              <p><span className="font-medium text-red-600">Below {Math.round(confidenceThresholds.requireReview * 100)}%</span> — Always requires manual review</p>
-              <p><span className="font-medium text-amber-700">{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}%</span> — Routed by your autonomy level (currently {AUTONOMY_LEVELS.find(l => l.level === autonomyLevel)?.label ?? "Unknown"})</p>
-              <p><span className="font-medium text-emerald-600">Above {Math.round(confidenceThresholds.autoApprove * 100)}%</span> — Auto-approved regardless of autonomy level</p>
+            {/* Zone legend — color swatches left-aligned per NNg proximity principle */}
+            <div id="confidence-zone-descriptions" className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
+              <span className="inline-block w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40 mt-0.5" />
+              <span>Below {Math.round(confidenceThresholds.requireReview * 100)}% — always requires manual review</span>
+              <span className="inline-block w-3 h-3 rounded-full bg-amber-500/20 border border-amber-500/40 mt-0.5" />
+              <span>{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}% — routed by autonomy level ({AUTONOMY_LEVELS.find(l => l.level === autonomyLevel)?.label ?? "Unknown"})</span>
+              <span className="inline-block w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/40 mt-0.5" />
+              <span>Above {Math.round(confidenceThresholds.autoApprove * 100)}% — auto-approved regardless of autonomy level</span>
             </div>
           </>
         )}
