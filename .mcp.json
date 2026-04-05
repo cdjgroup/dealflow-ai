@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "dealflow": {
+      "type": "http",
+      "url": "https://dealflow-ai-seven.vercel.app/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${DEALFLOW_API_KEY}"
+      }
+    }
+  }
+}
