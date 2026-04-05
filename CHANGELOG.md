@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [0.5.1] - 2026-04-04
 
 ### Added
+- `createCalendarEvent` AI tool: schedule meetings directly via Token Vault (calendar.events scope)
+- Calendar event result card with "Open in Calendar" link in chat UI
 - Scheduled Action Review: users opt into 8am/12pm/5pm review via checkboxes on Action Center
 - Vercel cron jobs: Phase 1 (hourly initiate) sends Guardian push for pending actions, Phase 2 (per-minute poll) auto-executes on approval
 - AES-256-GCM encrypted refresh token storage for offline/cron execution

@@ -17,7 +17,7 @@ DealFlow AI is an AI-powered sales assistant that manages your deal pipeline, co
 
 ### Three Surfaces, One Security Pipeline
 
-**1. Chat Interface** — Ask the AI about your pipeline, check your calendar, draft emails, or post Slack updates. Every external API call flows through Token Vault's RFC 8693 token exchange. An animated 6-stage token lifecycle visualization shows users exactly what happens: AI Decides → Token Exchange → Scoped Token → API Call → Response → Token Expires.
+**1. Chat Interface** — Ask the AI about your pipeline, check your calendar, schedule meetings, draft emails, or post Slack updates. Every external API call flows through Token Vault's RFC 8693 token exchange. An animated 6-stage token lifecycle visualization shows users exactly what happens: AI Decides → Token Exchange → Scoped Token → API Call → Response → Token Expires.
 
 **2. Action Center** — The AI analyzes your pipeline and generates suggested next steps (follow-up emails, demo meetings, team updates). Each suggestion includes the AI's reasoning — not a black box. Users review, edit drafts inline, approve, and execute. Same Token Vault OAuth flow, different surface. This is the "Authorized to Act" thesis in action: the user curates what the AI does, not just rubber-stamps it.
 
@@ -110,6 +110,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Token lifecycle visualization** | Makes the invisible security model visible — 6-stage animation in chat |
 | **MCP Server** | External AI agents get Auth0-grade security without framework changes |
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
+| **Calendar event creation** | AI schedules meetings via Token Vault — always requires approval, short-lived token |
 | **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
 | **Direct RFC 8693 exchange** | SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — direct calls give full error observability + richer token metadata |
 | **CIBA via direct HTTP** | Device-level consent using Auth0 Guardian push — same direct HTTP pattern as Token Vault (ADR 004) |
@@ -153,7 +154,7 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 
 2. **Token Vault tokenset deletion is non-revocable**: Deleting a tokenset via the Management API doesn't prevent re-provisioning. Auth0 silently creates a new tokenset on the next exchange. We implemented application-level disconnect via Redis flags checked at three integration points: `exchangeToken()`, `/api/token-status`, and the permissions UI.
 
-3. **OAuth scope configuration**: Google Calendar event creation requires upgrading from `calendar.readonly` to `calendar.events` — configured in Auth0 Dashboard, not code. Auth0 Token Vault does NOT accept a `scope` parameter on federated exchanges, so scopes must be configured at the connection level. Users must re-authorize after scope changes.
+3. **OAuth scope configuration**: Google Calendar event creation requires upgrading from `calendar.readonly` to `calendar.events` — configured in Auth0 Dashboard, not code. Auth0 Token Vault does NOT accept a `scope` parameter on federated exchanges, so scopes must be configured at the connection level. Users must re-authorize after scope changes. We built a `createCalendarEvent` tool that uses the write scope while `checkCalendar` stays read-only — demonstrating least-privilege per tool.
 
 4. **Three surfaces, one pipeline**: Ensuring capability toggles, trust levels, and audit logging work identically across chat (AI SDK streaming), Action Center (REST API), and MCP (external agents) required careful design. The key was making `exchangeToken()` context-agnostic — it reads the Auth0 session cookie, which is present in any browser-initiated request.
 
