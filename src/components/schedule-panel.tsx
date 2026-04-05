@@ -316,96 +316,107 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
       <div>
         <h3 className="text-sm font-semibold mb-1">Confidence Routing</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          When the AI suggests an action, it assigns a confidence score. These thresholds control what happens next:
+          Drag the handles to control how the AI routes actions based on its confidence score.
         </p>
 
-        {/* Visual zone bar */}
-        <div className="relative h-8 rounded-full overflow-hidden mb-3 flex">
-          <div
-            className="bg-red-400/20 border-r border-red-300/40 flex items-center justify-center transition-all"
-            style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
-          >
-            <span className="text-[9px] font-medium text-red-600 truncate px-1">Always review</span>
+        {/* Zone labels above the bar */}
+        <div className="flex mb-1" aria-hidden="true">
+          <div className="transition-all overflow-hidden" style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}>
+            {confidenceThresholds.requireReview >= 0.15 && (
+              <span className="text-[10px] font-medium text-red-600 block text-center truncate px-1">Always review</span>
+            )}
           </div>
-          <div
-            className="bg-amber-400/20 border-r border-amber-300/40 flex items-center justify-center transition-all"
-            style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}
-          >
-            <span className="text-[9px] font-medium text-amber-600 truncate px-1">Follows autonomy level</span>
+          <div className="transition-all overflow-hidden" style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}>
+            {(confidenceThresholds.autoApprove - confidenceThresholds.requireReview) >= 0.15 && (
+              <span className="text-[10px] font-medium text-amber-600 block text-center truncate px-1">Follows autonomy</span>
+            )}
           </div>
-          <div
-            className="bg-emerald-400/20 flex items-center justify-center transition-all"
-            style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}
-          >
-            <span className="text-[9px] font-medium text-emerald-600 truncate px-1">Auto-approved</span>
+          <div className="transition-all overflow-hidden" style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}>
+            {(1 - confidenceThresholds.autoApprove) >= 0.12 && (
+              <span className="text-[10px] font-medium text-emerald-600 block text-center truncate px-1">Auto-approved</span>
+            )}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                Auto-approve when AI is above
-              </label>
-              <span className="text-xs font-semibold text-emerald-600 tabular-nums">
-                {Math.round(confidenceThresholds.autoApprove * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={10}
-              max={100}
-              step={5}
-              value={Math.round(confidenceThresholds.autoApprove * 100)}
-              onChange={(e) => {
-                const val = parseInt(e.target.value) / 100;
-                if (val <= confidenceThresholds.requireReview) return;
-                const updated = { ...confidenceThresholds, autoApprove: val };
-                setConfidenceThresholds(updated);
-                saveSettings({ confidenceThresholds: updated }).catch(() => {
-                  setConfidenceThresholds(confidenceThresholds);
-                  setError("Failed to save. Please try again.");
-                });
-              }}
-              disabled={saving}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-emerald-500 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5"
+        {/* Unified dual-thumb slider */}
+        <div className="relative h-8 select-none">
+          {/* Colored track (visual only) */}
+          <div className="absolute inset-0 rounded-full overflow-hidden flex">
+            <div
+              className="bg-red-400/25 transition-all"
+              style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
             />
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Higher = stricter — fewer actions auto-approve
-            </p>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                Always require review when below
-              </label>
-              <span className="text-xs font-semibold text-amber-600 tabular-nums">
-                {Math.round(confidenceThresholds.requireReview * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={90}
-              step={5}
-              value={Math.round(confidenceThresholds.requireReview * 100)}
-              onChange={(e) => {
-                const val = parseInt(e.target.value) / 100;
-                if (val >= confidenceThresholds.autoApprove) return;
-                const updated = { ...confidenceThresholds, requireReview: val };
-                setConfidenceThresholds(updated);
-                saveSettings({ confidenceThresholds: updated }).catch(() => {
-                  setConfidenceThresholds(confidenceThresholds);
-                  setError("Failed to save. Please try again.");
-                });
-              }}
-              disabled={saving}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-amber-500 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5"
+            <div
+              className="bg-amber-400/25 transition-all"
+              style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}
             />
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Lower = more trust — fewer actions flagged for review
-            </p>
+            <div
+              className="bg-emerald-400/25 transition-all"
+              style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}
+            />
           </div>
+
+          {/* Left thumb — requireReview */}
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, Math.round(confidenceThresholds.autoApprove * 100) - 5)}
+            step={5}
+            value={Math.round(confidenceThresholds.requireReview * 100)}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) / 100;
+              if (val >= confidenceThresholds.autoApprove) return;
+              const previous = confidenceThresholds;
+              const updated = { ...previous, requireReview: val };
+              setConfidenceThresholds(updated);
+              saveSettings({ confidenceThresholds: updated }).catch(() => {
+                setConfidenceThresholds(previous);
+                setError("Failed to save. Please try again.");
+              });
+            }}
+            disabled={saving}
+            aria-label={`Review threshold: ${Math.round(confidenceThresholds.requireReview * 100)}%`}
+            className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none z-[3] [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-red-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-red-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-grab [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-8 [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:h-8 focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-red-500 focus-visible:[&::-webkit-slider-thumb]:ring-offset-2 focus-visible:[&::-moz-range-thumb]:ring-2 focus-visible:[&::-moz-range-thumb]:ring-red-500 focus-visible:[&::-moz-range-thumb]:ring-offset-2 disabled:opacity-50"
+          />
+
+          {/* Right thumb — autoApprove */}
+          <input
+            type="range"
+            min={Math.min(100, Math.round(confidenceThresholds.requireReview * 100) + 5)}
+            max={100}
+            step={5}
+            value={Math.round(confidenceThresholds.autoApprove * 100)}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) / 100;
+              if (val <= confidenceThresholds.requireReview) return;
+              const previous = confidenceThresholds;
+              const updated = { ...previous, autoApprove: val };
+              setConfidenceThresholds(updated);
+              saveSettings({ confidenceThresholds: updated }).catch(() => {
+                setConfidenceThresholds(previous);
+                setError("Failed to save. Please try again.");
+              });
+            }}
+            disabled={saving}
+            aria-label={`Auto-approve threshold: ${Math.round(confidenceThresholds.autoApprove * 100)}%`}
+            className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none z-[4] [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-grab [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-8 [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:h-8 focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-emerald-500 focus-visible:[&::-webkit-slider-thumb]:ring-offset-2 focus-visible:[&::-moz-range-thumb]:ring-2 focus-visible:[&::-moz-range-thumb]:ring-emerald-500 focus-visible:[&::-moz-range-thumb]:ring-offset-2 disabled:opacity-50"
+          />
+        </div>
+
+        {/* Percentage callouts below the bar */}
+        <div className="relative h-5 mt-1" aria-hidden="true">
+          <span
+            className="absolute text-[11px] font-semibold text-red-600 tabular-nums -translate-x-1/2 transition-all"
+            style={{ left: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
+          >
+            {Math.round(confidenceThresholds.requireReview * 100)}%
+          </span>
+          <span
+            className="absolute text-[11px] font-semibold text-emerald-600 tabular-nums -translate-x-1/2 transition-all"
+            style={{ left: `${Math.max(Math.round(confidenceThresholds.requireReview * 100) + 10, Math.round(confidenceThresholds.autoApprove * 100))}%` }}
+          >
+            {Math.round(confidenceThresholds.autoApprove * 100)}%
+          </span>
         </div>
       </div>
 
