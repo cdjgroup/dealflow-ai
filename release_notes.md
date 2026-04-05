@@ -1,43 +1,31 @@
-# Release Notes — v0.5.1
+# Release Notes — v0.5.2
 
-## DealFlow AI: Scheduled Action Review with CIBA Approval
+## DealFlow AI: Real-Time Circuit Breaking for AI Tool Execution
 
-AI agent autonomously proposes and executes pending actions on a user-defined schedule, with device-level consent via Auth0 Guardian.
+Two-layer circuit breaking prevents runaway AI agent tool loops — the AI agent can no longer scrape your entire inbox or flood your calendar.
 
 ### What's new
 
-- **Scheduled Action Review**: Users opt into scheduled times (8am, 12pm, 5pm) via checkboxes on the Action Center page. At the selected time, a single Guardian push notification describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar") — approve once on your phone and all high/medium priority actions auto-execute within the token's time-boxed window.
-- **Priority filtering**: Only high and medium priority actions are included in scheduled execution. Low priority actions stay pending for manual review in the Action Center.
-- **Run Now**: On-demand button in the Schedule panel triggers immediate batch CIBA execution without waiting for the next scheduled hour. UI polls for approval and shows real-time progress.
-- **Two-phase Vercel cron design**: Phase 1 runs hourly to find opted-in users (timezone-aware), initiate CIBA. Phase 2 polls every minute — on approval, exchanges stored refresh tokens for Google/Slack access tokens and executes all actions.
-- **AES-256-GCM encrypted token storage**: User's Auth0 refresh token encrypted at rest in Redis for offline/cron execution. Defense-in-depth beyond Upstash's infrastructure encryption.
-- **SchedulePanel UI**: Checkbox cards for each time slot, optimistic saves, Active badge, timezone display, Run Now button with polling progress, error rollback.
-- **Reseed Demo Data**: Resets CRM data and onboarding checklist to fresh state for demo purposes.
-- **Action list real-time sync**: Action statuses update in real-time after scheduled execution via server component refresh.
-- **Removed token lifecycle animation**: Simplified chat UI by removing the 6-stage pipeline visualization.
+- **Per-Tool Rate Limiting (Layer A)**: Tools grouped into 4 tiers with per-minute budgets. Read tools (calendar, email, Slack search) get 10 calls/min. Write tools (draft email, create event, send Slack) get 5 calls/min. CRM reads get 20 calls/min. CRM writes get 5 calls/min. Compound tools (delegateResearch, analyzePipeline) get 3 calls/min. When a tool hits its limit, the AI model gets an error result and can explain to the user why — other tools still work.
+- **Per-Request Tool Call Cap (Layer B)**: Max 15 tool calls per single chat request. If the model tries to exceed this (runaway execution loop), the circuit breaker aborts the entire stream and the user sees an amber warning: "Request limit reached."
+- **Clean Error Messaging**: Route refactored from `streamText.toUIMessageStreamResponse` to `createUIMessageStream` wrapper, enabling injection of an error chunk before the AbortController fires. This ensures the client sees a meaningful circuit-breaker message instead of a silent stream termination.
+- **Amber Circuit Breaker Alerts**: Circuit breaker errors render with amber/warning styling in the chat, visually distinct from red error banners for other failures.
+- **Audit Trail Integration**: Every rate limit denial is logged to the Redis audit trail with tool name, tier, and reset time — visible at `/dashboard/audit`.
 
 ### Security
 
-- Timing-safe CRON_SECRET verification (crypto.timingSafeEqual)
-- Distributed execution lock (Redis SET NX) prevents duplicate action execution from overlapping cron ticks
-- AES-256-GCM with random IV per encryption, auth tag verification on decrypt
-- Encryption key length validated at startup with actionable error
-- IANA timezone validated in API schema (prevents silent UTC fallback)
-- Token exchange errors sanitized — OAuth internals never stored in user-facing fields
-- CIBA denial reverts actions to pending (not failed) — respects user choice
-- CIBA binding message sanitized to Auth0-allowed characters (alphanumerics + `+-_.,:#`, 64-char max)
+- AbortController kills runaway streams mid-flight when tool call limit exceeded
+- Rate limit checks use Upstash Ratelimit sliding window (sub-10ms overhead per check)
+- Fail-open on Redis errors: read tools still work during Upstash outages (availability over strictness)
+- `delegateResearch` and `analyzePipeline` now rate-limited at 3/min (most expensive compound tools)
 
 ### Architecture
 
-- **Executor refactoring**: `executeActionWithToken()` accepts pre-obtained token, `executeAction()` unchanged (session-based). Shared `executeWithToken()` dispatcher — zero duplication.
-- **Offline access pattern**: Refresh token stored at opt-in (RFC 6749/9700 compliant), exchanged at cron time via `exchangeTokenWithRefresh()`. CIBA token is proof of consent only (scoped to `openid`).
-- **Redis key design**: `schedule:idx:{hour}` (user index), `ciba:scheduled:{userId}:{batchId}` (session with 10min TTL), `schedule:ciba:active` (active sessions index), `{userId}:schedule:refresh-token` (encrypted, 90-day TTL)
-- **Idempotency**: Hour-truncated batch IDs prevent duplicate CIBA pushes. SET NX execution lock prevents duplicate action execution.
-- Direct HTTP to Auth0 `/bc-authorize` and `/oauth/token` (CIBA grant type `urn:openid:params:grant-type:ciba`)
-- Follows ADR 001 pattern: direct HTTP for full error observability (SDK swallows errors — [auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175))
+- Two-layer design: Layer A (Upstash Ratelimit, cross-request, surgical) + Layer B (in-memory counter, per-request, nuclear)
+- `attachCircuitBreaker()` follows same wrapping pattern as `attachCibaChecks()` and `attachApprovalChecks()`
+- `ephemeralCache` on Upstash Ratelimit blocks repeated rate-limited calls with zero Redis commands
+- `RequestToolCounter` instantiated fresh per request (no cross-request state leakage)
 
-### Deployment
+### Insight
 
-- Live at: https://dealflow-ai-seven.vercel.app
-- Repo: https://github.com/cdjgroup/dealflow-ai
-- Requires: Auth0 CIBA grant type enabled + Guardian push factor configured + user enrolled in MFA
+The AI SDK's `experimental_onToolCallFinish` callback fires *after* each tool call, and errors thrown inside it are silently swallowed (`notify.ts` wraps callbacks in try/catch). But `AbortController.abort()` doesn't throw — it fires a signal. This means calling `abort()` from inside the swallowed callback actually works. The signal propagates through the merged abort chain and kills the stream. Server-side abort sends `{ type: 'abort' }` then closes cleanly — the client sees `status: 'ready'` (no error). To surface a meaningful message, we write an error chunk via `createUIMessageStream`'s writer *before* aborting, which the client processes first.

@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.5.1 — Scheduled Action Review (Autonomous Agent Execution with CIBA Consent)
+## Current Version: 0.5.2 — Real-Time Circuit Breaking (Per-Tool Rate Limiting + Stream Abort)
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

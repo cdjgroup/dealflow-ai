@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-05
+
+### Added
+- Real-time circuit breaking for AI tool execution (two-layer protection)
+- Per-tool rate limiting: 4 tiers (read: 10/min, write: 5/min, crm-read: 20/min, crm-write: 5/min)
+- Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
+- Circuit breaker audit trail: rate limit denials logged with tier, remaining budget, reset time
+- Amber-styled circuit breaker alerts in chat UI (distinct from red error banners)
+
+### Changed
+- Chat route refactored from `toUIMessageStreamResponse` to `createUIMessageStream` wrapper for clean error injection before stream abort
+- `delegateResearch` and `analyzePipeline` tools now rate-limited (3/min — most expensive compound tools)
+
+### Security
+- AbortController kills runaway streams mid-flight when tool call limit exceeded
+- Rate limit check fails open on Redis errors for read tools (availability over strictness)
+
 ## [0.5.1] - 2026-04-05
 
 ### Added

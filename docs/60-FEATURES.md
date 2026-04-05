@@ -1,5 +1,26 @@
 # Features
 
+## v0.5.2 — Real-Time Circuit Breaking
+
+### Per-Tool Rate Limiting
+AI tools are grouped into 4 tiers with per-minute budgets to prevent runaway execution:
+- **Read tools** (calendar, email search, Slack channels): 10 calls/min
+- **Write tools** (draft email, create event, send Slack): 5 calls/min
+- **CRM read** (list deals, get details, search contacts): 20 calls/min
+- **CRM write** (create/update deals, contacts, activities): 5 calls/min
+- **Compound tools** (delegateResearch, analyzePipeline): 3 calls/min
+
+When a tool hits its limit, the AI model receives an error with the tool name and reset time, allowing it to explain the situation and adapt.
+
+### Per-Request Tool Call Cap
+Each chat request is capped at 15 tool calls. If the model exceeds this (runaway loop), the circuit breaker:
+1. Writes an error message to the stream
+2. Fires AbortController to kill the stream
+3. Logs the event to the audit trail
+
+### Circuit Breaker UI
+Amber-styled alert in chat: "Request limit reached. Circuit breaker: N tool calls exceeded limit of 15." Visually distinct from red error banners for other failures.
+
 ## v0.5.1 — Scheduled Action Review
 
 ### Autonomous Agent Execution on a Schedule
