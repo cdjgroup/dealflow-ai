@@ -7,6 +7,27 @@ import { createAction, getActions } from "@/lib/data/actions";
 import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 import { draftSchema } from "@/lib/schemas/action-draft";
+import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
+
+const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
+  autoApprove: 0.85,
+  requireReview: 0.5,
+};
+
+export function resolveInitialStatus(
+  suggestion: { priority: ActionPriority; confidence?: number },
+  settings: { autonomyLevel: AutonomyLevel; confidenceThresholds?: ConfidenceThresholds }
+): "approved" | "pending" {
+  const thresholds = settings.confidenceThresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS;
+  const { confidence, priority } = suggestion;
+
+  if (confidence !== undefined) {
+    if (confidence >= thresholds.autoApprove) return "approved";
+    if (confidence <= thresholds.requireReview) return "pending";
+  }
+
+  return settings.autonomyLevel >= 2 && priority !== "low" ? "approved" : "pending";
+}
 
 interface SuggestionInput {
   type: ActionType;
@@ -330,14 +351,10 @@ export function createAnalyzePipelineTool(userId: string) {
       });
 
       // Create actions in Redis
-      // Autonomy gate: level 2+ auto-approves high/medium priority actions
+      // Confidence-aware routing: high confidence auto-approves, low confidence forces review
       let created = 0;
-      // Autonomy gate: level 2+ auto-approves high/medium priority actions
       for (const suggestion of validated) {
-        const initialStatus =
-          settings.autonomyLevel >= 2 && suggestion.priority !== "low"
-            ? "approved"
-            : "pending";
+        const initialStatus = resolveInitialStatus(suggestion, settings);
         await createAction(userId, { ...suggestion, status: initialStatus });
         created++;
       }

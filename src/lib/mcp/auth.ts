@@ -46,6 +46,7 @@ async function verifyApiKey(rawKey: string): Promise<AuthInfo | undefined> {
         rateLimit: client.rateLimit,
         trustTier: client.trustTier,
         clientName: client.name,
+        parameterConstraints: client.parameterConstraints,
       },
     };
   } catch {

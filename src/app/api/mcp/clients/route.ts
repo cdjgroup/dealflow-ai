@@ -5,6 +5,15 @@ import { listMcpClients, createMcpClient, toClientResponse } from "@/lib/data/mc
 import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
 import { z } from "zod";
 
+const ParameterConstraintSchema = z.object({
+  param: z.string().min(1).max(64),
+  pattern: z.string().min(1).max(200).refine(
+    (p) => { try { new RegExp(p); return true; } catch { return false; } },
+    { message: "Invalid regex pattern" }
+  ),
+  description: z.string().max(200).optional(),
+});
+
 const CreateClientSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
@@ -17,6 +26,11 @@ const CreateClientSchema = z.object({
     ),
   trustTier: z.enum(["full", "standard", "restricted", "readonly"]).optional(),
   rateLimit: z.number().int().min(1).max(1000).optional(),
+  parameterConstraints: z.record(
+    z.array(ParameterConstraintSchema).max(5)
+  ).refine((r) => Object.keys(r).length <= 10, {
+    message: "Cannot constrain more than 10 tools",
+  }).optional(),
 });
 
 export async function GET() {

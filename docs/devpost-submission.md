@@ -19,7 +19,9 @@ What makes it different is the security and control model — a **policy-driven 
 
 Each tool invocation evaluates all six layers in sequence. The result isn't a single yes/no — it's a graduated response: proceed silently, prompt for approval, require device consent, or block entirely. This mirrors how enterprise access control works: context-dependent authorization, not blanket permissions.
 
-**Design philosophy:** We treat AI agency as a spectrum of delegation, not a binary. Users grant specific capabilities, set trust levels per tool, approve high-value actions inline, and confirm critical mutations on their phone. The AI is authorized to act — but only within bounds the user controls in real-time
+**Design philosophy:** We treat AI agency as a spectrum of delegation, not a binary. Users grant specific capabilities, set trust levels per tool, approve high-value actions inline, and confirm critical mutations on their phone. The AI is authorized to act — but only within bounds the user controls in real-time.
+
+This design aligns with EU AI Act Article 14 (Human Oversight, effective August 2026), which requires AI systems to support "effective oversight by natural persons during the period of use." Our graduated authorization — suggest, auto-approve with device consent, autonomous with value-based CIBA gates — satisfies Article 14's requirement that oversight measures be "commensurate with the risks" of the AI system's outputs. Confidence-based routing adds adaptive oversight: the AI's own uncertainty drives which actions surface for human review
 
 The agent supports 13 tools across 4 services:
 - **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis

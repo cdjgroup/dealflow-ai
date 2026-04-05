@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ParameterConstraint } from "@/lib/types/policy";
 import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 import { searchEmails, draftEmail } from "@/lib/tools/gmail";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
@@ -17,6 +18,40 @@ import { getMcpClientLimiter } from "@/lib/rate-limit";
 import { checkToolRateLimit } from "@/lib/circuit-breaker";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface, getToolNamesForScopes } from "@/lib/surface-policy";
+
+/**
+ * Validates that the provided params satisfy all parameter constraints for the given tool.
+ * Returns null if all constraints pass, or an error string if any constraint is violated.
+ * Fails closed: invalid regex patterns are treated as violations, not passes.
+ */
+export function validateParameterConstraints(
+  toolName: string,
+  params: Record<string, unknown>,
+  constraints: Record<string, ParameterConstraint[]>
+): string | null {
+  const toolConstraints = constraints[toolName];
+  if (!toolConstraints || toolConstraints.length === 0) return null;
+
+  for (const constraint of toolConstraints) {
+    const paramValue = params[constraint.param];
+    if (paramValue === undefined) continue;
+
+    const strValue = String(paramValue);
+    let regex: RegExp;
+    try {
+      regex = new RegExp(constraint.pattern);
+    } catch {
+      return `Parameter constraint error: ${toolName}.${constraint.param} — invalid constraint pattern`;
+    }
+
+    if (!regex.test(strValue)) {
+      const desc = constraint.description ? ` — ${constraint.description}` : "";
+      return `Parameter constraint violated: ${toolName}.${constraint.param}${desc}`;
+    }
+  }
+
+  return null;
+}
 
 // Tool-to-capability category mapping (subset of capability-filter.ts — CRM write tools excluded from MCP)
 const TOOL_CATEGORIES: Record<string, string> = {
@@ -354,6 +389,22 @@ export function adaptToolsForMcp(_userId?: string) {
             }
           }
 
+          const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+          const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+
+          // Layer 3.5: Per-client parameter constraints (intent verification)
+          const paramConstraints = extra?.authInfo?.extra?.parameterConstraints as
+            Record<string, ParameterConstraint[]> | undefined;
+          if (mcpClientId && mcpClientId !== "default" && paramConstraints) {
+            const constraintError = validateParameterConstraints(toolEntry.name, params, paramConstraints);
+            if (constraintError) {
+              return auditAndErrorResponse(
+                userId, toolEntry.name, params, constraintError, 0,
+                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+              );
+            }
+          }
+
           // Per-tool rate limiting — same limits as chat endpoint, enforced across all surfaces
           const cbResult = await checkToolRateLimit(userId, toolEntry.name);
           if (!cbResult.allowed) {
@@ -383,9 +434,6 @@ export function adaptToolsForMcp(_userId?: string) {
           if (category && !settings.capabilities[category]) {
             return auditAndErrorResponse(userId, toolEntry.name, params, "Tool category disabled by user", Date.now() - start);
           }
-
-          const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
-          const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
 
           // CRM tool path
           if (toolEntry.isCrmTool) {

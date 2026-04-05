@@ -225,4 +225,54 @@ describe("schedule-initiate autonomy branching", () => {
     expect(mockInitiateCiba).toHaveBeenCalledOnce();
     expect(mockGetActions).toHaveBeenCalledWith("user-1", { status: "pending" });
   });
+
+  it("AC-4 (confidence): low-confidence actions excluded from batch execution", async () => {
+    // Arrange — two actions: one high confidence, one below requireReview threshold
+    mockGetUsersForScheduleHour.mockResolvedValue(["user-1"]);
+    mockGetUserSettings.mockResolvedValue({
+      ...baseSettings,
+      autonomyLevel: 1,
+      confidenceThresholds: { autoApprove: 0.85, requireReview: 0.5 },
+    });
+    const highConfAction = { ...makeAction("a1", "high", "pending"), confidence: 0.92 };
+    const lowConfAction = { ...makeAction("a2", "high", "pending"), confidence: 0.35 };
+    mockGetActions.mockResolvedValue([highConfAction, lowConfAction]);
+
+    // Act
+    const res = await GET(makeRequest());
+    const data = await res.json();
+
+    // Assert — only the high-confidence action triggers CIBA
+    expect(mockInitiateCiba).toHaveBeenCalledOnce();
+    // The batch should include only 1 action (a1), not the low-confidence a2
+    expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
+      "user-1",
+      ["a1"],
+      "ciba-pending"
+    );
+  });
+
+  it("AC-4 (confidence): actions without confidence are not filtered out", async () => {
+    // Arrange — actions without confidence (heuristic fallback) should pass through
+    mockGetUsersForScheduleHour.mockResolvedValue(["user-1"]);
+    mockGetUserSettings.mockResolvedValue({
+      ...baseSettings,
+      autonomyLevel: 1,
+      confidenceThresholds: { autoApprove: 0.85, requireReview: 0.5 },
+    });
+    const noConfAction = makeAction("a1", "high", "pending"); // no confidence field
+    mockGetActions.mockResolvedValue([noConfAction]);
+
+    // Act
+    const res = await GET(makeRequest());
+    const data = await res.json();
+
+    // Assert — action without confidence is eligible
+    expect(mockInitiateCiba).toHaveBeenCalledOnce();
+    expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
+      "user-1",
+      ["a1"],
+      "ciba-pending"
+    );
+  });
 });
