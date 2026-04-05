@@ -92,6 +92,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
 | **Scope awareness** | Tools self-declare minimum scopes | UI shows voluntary least-privilege |
+| **Trust calibration** | Per-tool approval stats → upgrade nudge | After 5+ decisions at >80% approval, suggests auto-approve |
 
 ### User Control (Judging: User Control, Design)
 | Feature | User Value |
@@ -102,6 +103,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Batch approve** | Approve multiple actions at once for efficiency |
 | **Status feedback** | Pending → Approved → Executing → Completed/Failed in real-time |
 | **Trust enforcement** | Same controls apply across chat, Action Center, and MCP |
+| **Trust calibration** | System observes approval patterns and suggests upgrading tools to auto-approve — user decides, never auto-escalates |
 
 ### Technical Innovation (Judging: Technical Execution)
 | Feature | Why it matters |
@@ -164,9 +166,10 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 - **AI-generated justifications**: Every suggested action explains WHY, making human-in-the-loop meaningful rather than ceremonial
 - **MCP as ecosystem security**: Turned one app's Token Vault integration into a reusable pattern for external AI agents
 - **CIBA batch consent with scheduled execution**: One Guardian push approves all high/medium priority actions — time-boxed execution within the CIBA token's lifetime
-- **290 tests passing**: Comprehensive coverage across data layer, API routes, approval logic, CIBA module, and capability filtering
-- **12 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, and OAuth patterns that benefit the Auth0 community
-- **Architecture Decision Records**: Four ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, and CIBA implementation
+- **Trust calibration**: System observes per-tool approval patterns and recommends autonomy upgrades — genuine feedback loop, not just telemetry
+- **310+ tests passing**: Comprehensive coverage across data layer, API routes, approval logic, CIBA module, trust calibration, and capability filtering
+- **22 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, and trust calibration that benefit the Auth0 community
+- **Architecture Decision Records**: Eight ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, and trust calibration
 
 ## What we learned
 
@@ -177,6 +180,7 @@ Auth0 Token Vault is a powerful primitive, but "Authorized to Act" requires more
 3. **Controls are consistent** — same rules regardless of how the AI acts (chat, queue, MCP)
 4. **Everything is auditable** — token metadata, parameters, duration, success/failure
 5. **The pattern is reusable** — MCP turns app-level security into ecosystem-level security
+6. **Trust should be earned, not assumed** — The system tracks per-tool approval rates and suggests upgrading to auto-approve when the user's behavior warrants it. But it never auto-escalates — even the system's own recommendations require explicit consent
 
 ## What's next
 
