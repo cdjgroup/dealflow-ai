@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.5.2 — AI Autonomy Selector (Graduated Trust Spectrum)
+## Current Version: 0.5.2 — AI Autonomy Selector, AI-Powered Actions, Trust Calibration
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

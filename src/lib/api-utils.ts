@@ -53,7 +53,10 @@ export async function resolveSlackChannelId(
 
     const listData = await listRes.json();
     if (!listData.ok) {
-      return { error: `Slack API error: ${listData.error}` };
+      const friendly: Record<string, string> = {
+        missing_scope: "Slack connection is missing required permissions. Disconnect and reconnect Slack in Permissions to grant the correct scopes.",
+      };
+      return { error: friendly[listData.error] || `Slack API error: ${listData.error}` };
     }
 
     const found = (listData.channels || []).find(

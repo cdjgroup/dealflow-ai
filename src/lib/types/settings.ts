@@ -1,6 +1,19 @@
 export type TrustLevel = "always" | "ask" | "never";
 export type AutonomyLevel = 1 | 2 | 3;
 
+export interface ActionTypeStats {
+  approved: number;
+  dismissed: number;
+}
+
+export type TrustStats = Record<"email" | "calendar" | "slack", ActionTypeStats>;
+
+export const DEFAULT_TRUST_STATS: TrustStats = {
+  email: { approved: 0, dismissed: 0 },
+  calendar: { approved: 0, dismissed: 0 },
+  slack: { approved: 0, dismissed: 0 },
+};
+
 export interface UserSettings {
   capabilities: {
     crmRead: boolean;

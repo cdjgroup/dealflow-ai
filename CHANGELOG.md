@@ -10,17 +10,28 @@ All notable changes to this project will be documented in this file.
 - Level 3 auto-executes routine actions (<$50K deal value) without CIBA; high-value actions retain Guardian consent
 - Confirmation dialog when enabling Full Autonomous mode
 - Autonomy level persisted in user settings with Zod validation
-
-### Security
-- Auto-execute path enforces capability toggles (gmail/calendar/slack) before execution
-- Auto-execute path checks connection disabled state (respects user disconnecting in Permissions)
-- Low priority actions excluded from auto-approve at all autonomy levels
+- LLM-powered action suggestions: `analyzePipeline` tool now calls Claude Haiku to generate personalized email drafts, meeting agendas, and Slack messages with AI reasoning instead of hardcoded templates
+- AI confidence scores (0-1) on suggested actions, displayed as badges in the Action Center
+- Trust calibration tracking: per-action-type approval/dismiss stats stored in Redis
+- Trust stats displayed in Permissions UI with approval rates and "Consider auto-approve" recommendation at >80%
+- Batch approve confirmation panel: type breakdown summary before approving (prevents accidental bulk approval)
+- `generationMethod` field in analyzePipeline return value distinguishes AI vs heuristic suggestions
 
 ### Changed
 - SchedulePanel accepts `initialAutonomyLevel` prop, renders segmented control with color-coded states
 - Schedule description text adapts to current autonomy level
 - Cron schedule-initiate and schedule-trigger routes branch on autonomyLevel for CIBA vs direct execute
 - analyze-pipeline tool reads user settings to gate initial action status
+- `analyzePipeline` activities fetched in parallel (Promise.all) instead of sequential N+1 queries
+- Batch approve route now enforces same capability/trust guards as single-action approval
+- LLM-generated drafts validated against strict draftSchema before Redis write (defense-in-depth)
+
+### Security
+- Auto-execute path enforces capability toggles (gmail/calendar/slack) before execution
+- Auto-execute path checks connection disabled state (respects user disconnecting in Permissions)
+- Low priority actions excluded from auto-approve at all autonomy levels
+- LLM output validated through Zod draftSchema before persistence (prevents oversized/malformed drafts from prompt injection)
+- Batch route capability guard prevents approving actions for disabled integrations
 
 ### Accessibility
 - Autonomy selector: `role="group"`, `aria-pressed` on toggle buttons
