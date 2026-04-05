@@ -6,6 +6,7 @@ import { listSlackChannels } from "@/lib/tools/slack";
 import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
+import { checkToolRateLimit } from "@/lib/circuit-breaker";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface, getReadToolNamesForScopes } from "@/lib/surface-policy";
 
@@ -163,6 +164,24 @@ export function adaptToolsForMcp() {
                 isError: true,
               };
             }
+          }
+
+          // Per-tool rate limiting — same limits as chat endpoint, enforced across all surfaces
+          const cbResult = await checkToolRateLimit(userId, toolEntry.name);
+          if (!cbResult.allowed) {
+            writeAuditEntry(userId, {
+              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
+              toolName: toolEntry.name,
+              input: params,
+              result: "error",
+              errorMessage: `Per-tool rate limit: ${cbResult.tier} tier, resets in ${cbResult.resetMs}ms`,
+              durationMs: 0,
+              surface: "mcp",
+            });
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: `Rate limit exceeded for ${toolEntry.name}. Resets in ${Math.ceil((cbResult.resetMs ?? 0) / 1000)}s.` }) }],
+              isError: true,
+            };
           }
 
           const start = Date.now();
