@@ -303,10 +303,11 @@ export function adaptToolsForMcp(_userId?: string) {
           }
 
           // Layer 2: Per-request scope check (from surface policy + user settings)
-          const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
+          // Re-derive scopes at execution time so capability toggle changes
+          // take effect immediately — not stale from token verification time.
           const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+          let clientScopes: string[] = extra?.authInfo?.scopes ?? [];
 
-          // For Auth0 token users (default), enforce scope-based filtering
           if (!mcpClientId || mcpClientId === "default") {
             const scopeAllowedTools = new Set(getToolNamesForScopes(clientScopes));
             if (!scopeAllowedTools.has(toolEntry.name)) {

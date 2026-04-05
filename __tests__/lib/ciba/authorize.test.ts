@@ -46,6 +46,7 @@ describe("initiateCiba", () => {
     const body = new URLSearchParams(options.body);
     expect(body.get("client_id")).toBe("test-client-id");
     expect(body.get("client_secret")).toBe("test-client-secret");
+    // $ is stripped by Auth0 CIBA binding_message sanitization (only alphanumerics, whitespace, +-_.,:#)
     expect(body.get("binding_message")).toBe("Approve creating 75,000 deal: Acme Enterprise");
     expect(body.get("login_hint")).toContain("auth0|user123");
     expect(body.get("scope")).toBe("openid");

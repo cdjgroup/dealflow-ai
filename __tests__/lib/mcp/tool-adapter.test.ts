@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
 import { getToolNamesForSurface } from "@/lib/surface-policy";
+import { getUserSettings } from "@/lib/data/settings";
+import { DEFAULT_SETTINGS } from "@/lib/types/settings";
 
 // Mock all tool imports so tests don't need real Auth0/Redis
 vi.mock("@/lib/auth0", () => ({
@@ -140,6 +142,13 @@ describe("MCP tool adapter", () => {
     });
 
     it("AC-6: handler denies tool call when scope doesn't match", async () => {
+      // Mock getUserSettings to return settings with calendar disabled
+      // so fresh scope derivation excludes calendar:read
+      vi.mocked(getUserSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        capabilities: { ...DEFAULT_SETTINGS.capabilities, calendar: false },
+      });
+
       let capturedHandler: ((args: unknown, extra: unknown) => Promise<unknown>) | null = null;
       const mockServer = {
         registerTool: (name: string, _config: unknown, handler: (args: unknown, extra: unknown) => Promise<unknown>) => {
@@ -154,20 +163,21 @@ describe("MCP tool adapter", () => {
 
       expect(capturedHandler).not.toBeNull();
 
-      // Call with scopes that don't include calendar:read
+      // Capability toggles are enforced at Step 0 in the tool handler,
+      // so even with valid scopes, a disabled category is denied
       const result = await capturedHandler!({}, {
         authInfo: {
           clientId: "user-123",
-          scopes: ["crm:read"], // no calendar:read
+          scopes: ["crm:read", "calendar:read"],
         },
       });
 
       expect(result).toMatchObject({
         isError: true,
       });
-      // Verify the error message mentions scope/authorization
+      // Verify the error message mentions disabled/scope/authorization
       const text = (result as { content: Array<{ text: string }> }).content[0].text;
-      expect(text).toMatch(/not authorized|scope/i);
+      expect(text).toMatch(/disabled|not authorized|scope/i);
     });
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {
