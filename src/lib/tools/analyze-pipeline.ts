@@ -296,7 +296,8 @@ export function createAnalyzePipelineTool(userId: string) {
           focus,
           abortSignal
         );
-      } catch {
+      } catch (err) {
+        console.error("LLM suggestion generation failed, falling back to heuristics:", err);
         generationMethod = "heuristic";
         suggestions = generateHeuristicSuggestions(
           deals,
@@ -308,7 +309,13 @@ export function createAnalyzePipelineTool(userId: string) {
       }
 
       // Validate drafts against strict schema before writing to Redis
-      const validated = suggestions.filter((s) => draftSchema.safeParse(s.draft).success);
+      const validated = suggestions.filter((s) => {
+        const result = draftSchema.safeParse(s.draft);
+        if (!result.success) {
+          console.warn(`Draft validation failed for ${s.type} action (${s.dealName}):`, result.error.issues);
+        }
+        return result.success;
+      });
 
       // Create actions in Redis
       // Autonomy gate: level 2+ auto-approves high/medium priority actions
