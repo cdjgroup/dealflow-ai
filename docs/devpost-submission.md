@@ -19,7 +19,20 @@ What makes it different is the security and control model — a **policy-driven 
 
 Each tool invocation evaluates all six layers in sequence. The result isn't a single yes/no — it's a graduated response: proceed silently, prompt for approval, require device consent, or block entirely. This mirrors how enterprise access control works: context-dependent authorization, not blanket permissions.
 
-**Design philosophy:** We treat AI agency as a spectrum of delegation, not a binary. Users grant specific capabilities, set trust levels per tool, approve high-value actions inline, and confirm critical mutations on their phone. The AI is authorized to act — but only within bounds the user controls in real-time
+**Design philosophy:** We treat AI agency as a spectrum of delegation, not a binary. Users grant specific capabilities, set trust levels per tool, approve high-value actions inline, and confirm critical mutations on their phone. The AI is authorized to act — but only within bounds the user controls in real-time.
+
+### Graduated Trust Architecture
+
+Our four execution surfaces map to the delegation patterns described in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/) (March 2026):
+
+| Surface | Trust Level | Consent Model | Delegation Pattern |
+|---------|------------|---------------|-------------------|
+| Action Center | Low | In-app review + inline edit | Pre-authorized (human reviews before execution) |
+| Chat UI | Medium | Real-time approval + value-based step-up | Interactive (human-in-the-loop per action) |
+| MCP + CIBA | High | Guardian push notification | Agent-to-agent with out-of-band device consent |
+| MCP (read-only) | Autonomous | None needed | Pre-authorized within configured boundaries |
+
+Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model satisfies the human oversight requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit.
 
 The agent supports 13 tools across 4 services:
 - **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
@@ -37,7 +50,7 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
-**Built in 4 days** (March 31 – April 4, 2026) with 146 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026) with 219 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
@@ -72,6 +85,7 @@ The Token Vault integration uses direct RFC 8693 token exchange rather than the 
 - **Multi-user workspaces** — Team-level permissions and delegation policies
 - **OpenClaw reference integration** — Published example showing OpenClaw agents using DealFlow tools via MCP with full Token Vault security
 - Additional Token Vault connections (GitHub, Salesforce, Microsoft 365)
+- **What we deliberately excluded (and why):** We evaluated [OpenFGA](https://openfga.dev/) for relationship-based authorization and [WIMSE](https://datatracker.ietf.org/wg/wimse/about/) for workload-level identity. OpenFGA would formalize our capability/trust policy as a Zanzibar-style tuple store — valuable for multi-tenant enterprises, but our per-tool trust levels provide equivalent control at the individual-user level appropriate for a sales assistant. WIMSE would enable cryptographic identity for the MCP server as a distinct workload — the right next step for production multi-agent deployments. Both exceeded the hackathon's 4-day scope.
 
 ## Built With
 

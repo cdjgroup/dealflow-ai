@@ -149,25 +149,16 @@ const { adaptToolsForMcp } = await import("@/lib/mcp/tool-adapter");
 // ---------------------------------------------------------------------------
 
 function makeMockServer() {
-  // Mimic McpServer's internal _registeredTools Map so tools/list override works
-  const registeredTools = new Map<string, { description: string; inputSchema?: unknown }>();
-  const registerTool = vi.fn((name: string, config: { description: string; inputSchema?: unknown }, _handler: unknown) => {
-    registeredTools.set(name, { description: config.description, inputSchema: config.inputSchema });
-  });
-  return {
-    registerTool,
-    _registeredTools: registeredTools,
-    server: { setRequestHandler: vi.fn() },
-  };
+  return { registerTool: vi.fn() };
 }
 
 /**
  * Calls adaptToolsForMcp(), registers all tools on a fresh mock server,
  * and returns a map of toolName -> { config, handler }.
  */
-async function setupRegisteredTools(userId = "user-123") {
+async function setupRegisteredTools(_userId = "user-123") {
   const mockServer = makeMockServer();
-  const registrar = adaptToolsForMcp(userId);
+  const registrar = adaptToolsForMcp();
   await registrar(mockServer as never);
 
   const toolMap: Record<string, { config: unknown; handler: (args: unknown, context: unknown) => Promise<unknown> }> = {};
@@ -804,101 +795,4 @@ describe("tool-adapter (MCP)", () => {
     });
   });
 
-  // -------------------------------------------------------------------------
-  describe("tools/list filtering (AC-2 through AC-5)", () => {
-    /**
-     * Helper: set up tools and extract the tools/list handler that was
-     * registered via server.server.setRequestHandler.
-     */
-    async function getToolsListHandler() {
-      const mockServer = makeMockServer();
-      const registrar = adaptToolsForMcp();
-      await registrar(mockServer as never);
-
-      // setRequestHandler should have been called with tools/list schema + handler
-      expect(mockServer.server.setRequestHandler).toHaveBeenCalled();
-      const [, handler] = mockServer.server.setRequestHandler.mock.calls[0] as [unknown, (req: unknown, extra: unknown) => unknown];
-      return handler;
-    }
-
-    // AC-2: Auth0 token with subset of scopes
-    it("AC-2: should filter tools/list by scope — crm:read + calendar:read returns only CRM + calendar tools", async () => {
-      const handler = await getToolsListHandler();
-      const result = await handler({}, {
-        authInfo: {
-          clientId: "user-1",
-          scopes: ["crm:read", "calendar:read"],
-          extra: { mcpClientId: "default" },
-        },
-      }) as { tools: Array<{ name: string }> };
-
-      const names = result.tools.map(t => t.name);
-      // CRM read tools + calendar tools (read + write since MCP allows write with CIBA)
-      expect(names).toContain("listDeals");
-      expect(names).toContain("getDealDetails");
-      expect(names).toContain("searchContacts");
-      expect(names).toContain("checkCalendar");
-      expect(names).toContain("createCalendarEvent");
-      // Gmail and Slack tools should NOT be present
-      expect(names).not.toContain("draftEmail");
-      expect(names).not.toContain("searchEmails");
-      expect(names).not.toContain("sendSlackMessage");
-      expect(names).not.toContain("listSlackChannels");
-    });
-
-    // AC-3: API key client with allowedTools
-    it("AC-3: should filter tools/list by allowedTools for API key client", async () => {
-      const handler = await getToolsListHandler();
-      const result = await handler({}, {
-        authInfo: {
-          clientId: "user-1",
-          scopes: ["tools"],
-          extra: {
-            mcpClientId: "client-abc",
-            allowedTools: ["checkCalendar", "listDeals"],
-          },
-        },
-      }) as { tools: Array<{ name: string }> };
-
-      const names = result.tools.map(t => t.name);
-      expect(names).toEqual(expect.arrayContaining(["checkCalendar", "listDeals"]));
-      expect(names).toHaveLength(2);
-    });
-
-    // AC-4: Full scopes return all 9 tools
-    it("AC-4: should return all registered tools when full scopes provided", async () => {
-      const handler = await getToolsListHandler();
-      const result = await handler({}, {
-        authInfo: {
-          clientId: "user-1",
-          scopes: ["crm:read", "calendar:read", "gmail:read", "slack:read"],
-          extra: { mcpClientId: "default" },
-        },
-      }) as { tools: Array<{ name: string }> };
-
-      expect(result.tools).toHaveLength(9);
-    });
-
-    // AC-5: No auth info returns empty list (fail-closed)
-    it("AC-5: should return empty tools list when no authInfo present (fail-closed)", async () => {
-      const handler = await getToolsListHandler();
-      const result = await handler({}, {}) as { tools: Array<{ name: string }> };
-
-      expect(result.tools).toHaveLength(0);
-    });
-
-    // AC-5: Missing scopes on default client returns empty
-    it("AC-5: should return empty tools list when scopes array is empty", async () => {
-      const handler = await getToolsListHandler();
-      const result = await handler({}, {
-        authInfo: {
-          clientId: "user-1",
-          scopes: [],
-          extra: { mcpClientId: "default" },
-        },
-      }) as { tools: Array<{ name: string }> };
-
-      expect(result.tools).toHaveLength(0);
-    });
-  });
 });

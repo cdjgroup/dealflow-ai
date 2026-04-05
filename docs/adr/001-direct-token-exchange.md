@@ -39,3 +39,7 @@ The utility:
 ### Neutral
 - The Auth0 token exchange API is stable (RFC 8693) — unlikely to change
 - The error-swallowing issue (#175) may be fixed in a future SDK release, at which point migration back to the wrapper would be viable
+
+## Standards Alignment
+
+This decision aligns with the delegation transparency principle in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/), which recommends that AI agent frameworks maintain full observability of token exchange flows rather than abstracting away authorization errors behind opaque interrupts.

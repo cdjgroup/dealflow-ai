@@ -10,7 +10,8 @@ export async function GET(req: Request, ctx: RouteContext) {
 
   const { clientId } = await ctx.params;
   const url = new URL(req.url);
-  const days = parseInt(url.searchParams.get("days") || "7", 10);
+  const rawDays = parseInt(url.searchParams.get("days") || "7", 10);
+  const days = Math.min(Math.max(isNaN(rawDays) ? 7 : rawDays, 1), 90);
 
   const analytics = await getMcpAnalytics(auth.userId, clientId, days);
   return NextResponse.json(analytics);
