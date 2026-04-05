@@ -1,6 +1,6 @@
 # ADR 008: Per-Client MCP Policy System
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-05
 
 ## Context

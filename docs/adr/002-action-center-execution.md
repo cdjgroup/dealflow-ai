@@ -1,6 +1,6 @@
 # ADR 002: Action Center — Pragmatic Execution via Direct Tool Calls
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-03
 
 ## Context

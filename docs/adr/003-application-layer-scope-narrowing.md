@@ -1,6 +1,6 @@
 # ADR 003: Application-Layer Scope Narrowing
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-03
 
 ## Context

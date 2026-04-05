@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Conformance scorer for Sherlock/Holmes sessions.
 
 Compares a .sherlock-plan.md against the actual git diff to produce a

@@ -1,6 +1,6 @@
 # ADR 006: Two-Layer Rate Limiting for AI Tool Execution
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-05
 
 ## Context

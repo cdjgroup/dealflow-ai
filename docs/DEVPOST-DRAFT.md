@@ -38,7 +38,7 @@ The same capability toggles, trust levels, and connection controls govern all th
 - **RFC 8693** federated connection access token exchange (direct — see Challenges)
 - **Model Context Protocol** for external agent interop
 
-**Built in 5 days** (March 31 – April 5, 2026), 219 commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026), 250+ commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
 
 ### Architecture
 
@@ -144,7 +144,7 @@ This pattern is reusable: any application with Auth0 Token Vault can expose its 
 
 ### Insight Value (Judging: Insight Value)
 
-We documented 23 non-obvious discoveries during development, including:
+We documented 27 non-obvious discoveries during development, including:
 
 1. **@auth0/ai-vercel SDK swallows token exchange errors** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — failed exchanges return "Authorization required" instead of the real error. Fix: call Auth0's token exchange endpoint directly for full error observability.
 2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
@@ -173,7 +173,7 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 - **MCP as ecosystem security**: Turned one app's Token Vault integration into a reusable pattern for external AI agents
 - **CIBA batch consent with scheduled execution**: One Guardian push approves all high/medium priority actions — time-boxed execution within the CIBA token's lifetime
 - **Trust calibration**: System observes per-tool approval patterns and recommends autonomy upgrades — genuine feedback loop, not just telemetry
-- **310+ tests passing**: Comprehensive coverage across data layer, API routes, approval logic, CIBA module, trust calibration, and capability filtering
+- **676 tests passing across 64 files**: Comprehensive coverage across data layer, API routes, components, approval logic, CIBA module, trust calibration, confidence routing, MCP adapters, parameter constraints, and capability filtering
 - **IETF draft alignment**: Three surfaces implement the three delegation patterns from `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI's Nick Steele) — real code for what the IETF is still drafting
 - **27 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, trust calibration, and IETF alignment that benefit the Auth0 community
 - **Architecture Decision Records**: Nine ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, MCP policy, and trust calibration
@@ -212,11 +212,14 @@ Auth0, Token Vault, Next.js, React, TypeScript, Vercel AI SDK, Claude, Upstash R
 6. **Permissions page** — integration cards with connection status, toggles, trust levels
 7. **MCP Explorer** — LIVE badge, tool list, connection config snippets
 8. **Audit log** — entries showing tool calls with duration, status, and token metadata
+9. **Confidence routing** — action cards showing confidence scores with auto-approve/manual-review routing
+10. **MCP parameter constraints** — client config showing regex constraints on tool parameters
 
 ## Video demo
 
-Record a 3-minute walkthrough following `docs/DEMO-SCRIPT.md`. Four acts:
+Record a 3-minute walkthrough following `docs/DEMO-SCRIPT.md`. Five acts:
 1. AI chat with Token Vault tool execution (45s)
-2. Action Center review, edit, execute (60s)
-3. Trust controls + audit + MCP story (45s)
-4. Closing — three levels of "Authorized to Act" (30s)
+2. Action Center review, edit, execute (45s)
+3. Scheduled execution via CIBA (45s) + Confidence routing & MCP constraints (20s)
+4. Trust controls + audit + MCP story (30s)
+5. Closing — four levels of "Authorized to Act" (15s)

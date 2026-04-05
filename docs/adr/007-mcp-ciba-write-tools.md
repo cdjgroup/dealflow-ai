@@ -1,6 +1,6 @@
 # ADR 007: CIBA-Gated Write Tools for MCP (Inline Executors)
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-05
 
 ## Context

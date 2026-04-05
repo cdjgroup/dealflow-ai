@@ -34,11 +34,13 @@ Our four execution surfaces map to the delegation patterns described in [IETF dr
 
 Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model aligns with [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (Human Oversight, effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit. Confidence-based routing adds adaptive oversight: the AI's own uncertainty drives which actions surface for human review, regardless of the user's autonomy setting.
 
-The agent supports 13 tools across 4 services:
-- **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
-- **Google Calendar** (1): check availability and events
+The agent supports 15 tools across 5 services:
+- **CRM** (7 tools): deals, contacts, activities — stored in Upstash Redis
+- **Google Calendar** (2): check availability and create events
 - **Gmail** (2): draft emails (never auto-send) and search correspondence
 - **Slack** (2): list channels and send team messages
+- **Pipeline Analysis** (1): AI-powered deal analysis with prioritized action suggestions via Claude Haiku subagent
+- **Delegation** (1): scoped, time-limited cross-agent delegation tokens
 
 Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up emails, demo meetings, team updates) for human review. Each suggestion includes the AI's reasoning. Users configure scheduled review times (8am, 12pm, 5pm) or use "Run Now" for on-demand batch execution. At the scheduled time, one CIBA Guardian push approves all high/medium priority actions — the binding message describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar"). Low-priority actions stay for manual review. A "Reseed Demo Data" button resets the queue for repeatable demos. An **MCP Server** exposes the same secure, audited tools to external AI agents (OpenClaw, Claude Desktop, Cursor).
 
@@ -50,7 +52,7 @@ Beyond chat, the **Action Center** queues AI-suggested next steps (follow-up ema
 - **Upstash Redis** for CRM data, user settings, audit logs, and conversation persistence
 - **Vercel** for deployment
 
-**Built in 5 days** (March 31 – April 5, 2026) with 219 commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026) with 250+ commits. We started with `create-next-app` and shipped a complete AI sales agent with layered auth in under a week. Verifiable via `git log` — every commit is timestamped.
 
 We followed a structured development methodology with test-driven development and multi-agent code review. The pipeline demo seeds 8 deals (including closed-won and closed-lost), 7 contacts, 12 activities, and 8 AI-suggested actions across all stages.
 
