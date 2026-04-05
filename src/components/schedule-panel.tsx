@@ -21,6 +21,8 @@ const SCHEDULE_OPTIONS = [
 export function SchedulePanel({ initialSchedule }: Props) {
   const [schedule, setSchedule] = useState<ScheduleSettings>(initialSchedule);
   const [saving, setSaving] = useState(false);
+  const [triggering, setTriggering] = useState(false);
+  const [triggerResult, setTriggerResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function toggleHour(hour: number) {
@@ -105,9 +107,43 @@ export function SchedulePanel({ initialSchedule }: Props) {
       </div>
 
       {schedule.enabled && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Timezone: {schedule.timezone}
-        </p>
+        <div className="flex items-center gap-3 mt-3">
+          <p className="text-xs text-muted-foreground">
+            Timezone: {schedule.timezone}
+          </p>
+          <button
+            onClick={async () => {
+              setTriggering(true);
+              setTriggerResult(null);
+              setError(null);
+              try {
+                const res = await fetch("/api/cron/schedule-trigger", {
+                  method: "POST",
+                  headers: { "X-Requested-With": "XMLHttpRequest" },
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  throw new Error(data.error || "Trigger failed");
+                }
+                setTriggerResult(
+                  `Guardian push sent for ${data.actionCount} action${data.actionCount === 1 ? "" : "s"}`
+                );
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Trigger failed");
+              } finally {
+                setTriggering(false);
+              }
+            }}
+            disabled={triggering}
+            className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+          >
+            {triggering ? "Sending..." : "Run Now"}
+          </button>
+        </div>
+      )}
+
+      {triggerResult && (
+        <p className="text-xs text-emerald-500 mt-2">{triggerResult}</p>
       )}
 
       {error && (
