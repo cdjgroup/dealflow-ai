@@ -37,9 +37,9 @@ export function PipelineMetrics({ deals }: Props) {
           key={m.label}
           className="rounded-lg border border-border bg-card/80 backdrop-blur-sm p-3"
         >
-          <p className="text-xs text-muted-foreground mb-0.5">{m.label}</p>
+          <p className="text-xs text-muted-foreground mb-0.5 text-center">{m.label}</p>
           <p
-            className={`text-lg font-semibold ${m.accent ? "text-accent" : "text-foreground"}`}
+            className={`text-lg font-semibold text-center ${m.accent ? "text-accent" : "text-foreground"}`}
           >
             {m.value}
           </p>
