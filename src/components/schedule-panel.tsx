@@ -56,7 +56,7 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
   const [schedule, setSchedule] = useState<ScheduleSettings>(initialSchedule);
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>(initialAutonomyLevel);
   const [confidenceThresholds, setConfidenceThresholds] = useState<ConfidenceThresholds>(
-    initialConfidenceThresholds ?? { autoApprove: 0.85, requireReview: 0.5 }
+    initialConfidenceThresholds ?? { enabled: true, autoApprove: 0.85, requireReview: 0.5 }
   );
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
@@ -314,110 +314,153 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
 
       {/* Confidence-Based Routing */}
       <div>
-        <h3 className="text-sm font-semibold mb-1">Confidence Routing</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Drag the handles to control how the AI routes actions based on its confidence score.
-        </p>
-
-        {/* Zone labels above the bar */}
-        <div className="flex mb-1" aria-hidden="true">
-          <div className="transition-all overflow-hidden" style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}>
-            {confidenceThresholds.requireReview >= 0.15 && (
-              <span className="text-[10px] font-medium text-red-600 block text-center truncate px-1">Always review</span>
-            )}
-          </div>
-          <div className="transition-all overflow-hidden" style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}>
-            {(confidenceThresholds.autoApprove - confidenceThresholds.requireReview) >= 0.15 && (
-              <span className="text-[10px] font-medium text-amber-600 block text-center truncate px-1">Follows autonomy</span>
-            )}
-          </div>
-          <div className="transition-all overflow-hidden" style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}>
-            {(1 - confidenceThresholds.autoApprove) >= 0.12 && (
-              <span className="text-[10px] font-medium text-emerald-600 block text-center truncate px-1">Auto-approved</span>
-            )}
-          </div>
-        </div>
-
-        {/* Unified dual-thumb slider */}
-        <div className="relative h-8 select-none">
-          {/* Colored track (visual only) */}
-          <div className="absolute inset-0 rounded-full overflow-hidden flex">
-            <div
-              className="bg-red-400/25 transition-all"
-              style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
-            />
-            <div
-              className="bg-amber-400/25 transition-all"
-              style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}
-            />
-            <div
-              className="bg-emerald-400/25 transition-all"
-              style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}
-            />
-          </div>
-
-          {/* Left thumb — requireReview */}
-          <input
-            type="range"
-            min={0}
-            max={Math.max(0, Math.round(confidenceThresholds.autoApprove * 100) - 5)}
-            step={5}
-            value={Math.round(confidenceThresholds.requireReview * 100)}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) / 100;
-              if (val >= confidenceThresholds.autoApprove) return;
+        <div className="flex items-center justify-between mb-1">
+          <h3 id="confidence-routing-label" className="text-base font-semibold">Confidence Routing</h3>
+          <button
+            role="switch"
+            aria-checked={confidenceThresholds.enabled !== false}
+            aria-labelledby="confidence-routing-label"
+            onClick={() => {
               const previous = confidenceThresholds;
-              const updated = { ...previous, requireReview: val };
-              setConfidenceThresholds(updated);
-              saveSettings({ confidenceThresholds: updated }).catch(() => {
+              const toggled = { ...previous, enabled: previous.enabled === false };
+              setConfidenceThresholds(toggled);
+              saveSettings({ confidenceThresholds: toggled }).catch(() => {
                 setConfidenceThresholds(previous);
                 setError("Failed to save. Please try again.");
               });
             }}
             disabled={saving}
-            aria-label={`Review threshold: ${Math.round(confidenceThresholds.requireReview * 100)}%`}
-            className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none z-[3] [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-red-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-red-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-grab [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-8 [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:h-8 focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-red-500 focus-visible:[&::-webkit-slider-thumb]:ring-offset-2 focus-visible:[&::-moz-range-thumb]:ring-2 focus-visible:[&::-moz-range-thumb]:ring-red-500 focus-visible:[&::-moz-range-thumb]:ring-offset-2 disabled:opacity-50"
-          />
-
-          {/* Right thumb — autoApprove */}
-          <input
-            type="range"
-            min={Math.min(100, Math.round(confidenceThresholds.requireReview * 100) + 5)}
-            max={100}
-            step={5}
-            value={Math.round(confidenceThresholds.autoApprove * 100)}
-            onChange={(e) => {
-              const val = parseInt(e.target.value) / 100;
-              if (val <= confidenceThresholds.requireReview) return;
-              const previous = confidenceThresholds;
-              const updated = { ...previous, autoApprove: val };
-              setConfidenceThresholds(updated);
-              saveSettings({ confidenceThresholds: updated }).catch(() => {
-                setConfidenceThresholds(previous);
-                setError("Failed to save. Please try again.");
-              });
-            }}
-            disabled={saving}
-            aria-label={`Auto-approve threshold: ${Math.round(confidenceThresholds.autoApprove * 100)}%`}
-            className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none z-[4] [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-emerald-500 [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-6 [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-emerald-500 [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-grab [&::-webkit-slider-runnable-track]:appearance-none [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-8 [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:h-8 focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-emerald-500 focus-visible:[&::-webkit-slider-thumb]:ring-offset-2 focus-visible:[&::-moz-range-thumb]:ring-2 focus-visible:[&::-moz-range-thumb]:ring-emerald-500 focus-visible:[&::-moz-range-thumb]:ring-offset-2 disabled:opacity-50"
-          />
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 ${
+              confidenceThresholds.enabled !== false ? "bg-primary" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+                confidenceThresholds.enabled !== false ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
         </div>
 
-        {/* Percentage callouts below the bar */}
-        <div className="relative h-5 mt-1" aria-hidden="true">
-          <span
-            className="absolute text-[11px] font-semibold text-red-600 tabular-nums -translate-x-1/2 transition-all"
-            style={{ left: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
-          >
-            {Math.round(confidenceThresholds.requireReview * 100)}%
-          </span>
-          <span
-            className="absolute text-[11px] font-semibold text-emerald-600 tabular-nums -translate-x-1/2 transition-all"
-            style={{ left: `${Math.max(Math.round(confidenceThresholds.requireReview * 100) + 10, Math.round(confidenceThresholds.autoApprove * 100))}%` }}
-          >
-            {Math.round(confidenceThresholds.autoApprove * 100)}%
-          </span>
-        </div>
+        {confidenceThresholds.enabled === false ? (
+          <p className="text-sm text-muted-foreground">
+            Confidence routing is off. Actions are routed based on your autonomy level only.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-3">
+              AI confidence scores override your autonomy level at the extremes.
+            </p>
+
+            {/* Read-only visualization bar */}
+            <div className="flex rounded-lg overflow-hidden h-10 mb-4" aria-hidden="true">
+              <div
+                className="bg-red-500/20 flex items-center justify-center gap-1 transition-all min-w-0"
+                style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
+              >
+                {confidenceThresholds.requireReview >= 0.15 && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-red-600 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                    <span className="text-xs font-semibold text-red-700 truncate">Always Review</span>
+                  </>
+                )}
+              </div>
+              <div
+                className="bg-amber-500/20 flex items-center justify-center gap-1 transition-all min-w-0"
+                style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}
+              >
+                {(confidenceThresholds.autoApprove - confidenceThresholds.requireReview) >= 0.15 && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-amber-700 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.577-3.007-9.963-7.178Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+                    <span className="text-xs font-semibold text-amber-700 truncate">Follows Autonomy</span>
+                  </>
+                )}
+              </div>
+              <div
+                className="bg-emerald-500/20 flex items-center justify-center gap-1 transition-all min-w-0"
+                style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}
+              >
+                {(1 - confidenceThresholds.autoApprove) >= 0.12 && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    <span className="text-xs font-semibold text-emerald-700 truncate">Auto-Approved</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Threshold numeric inputs */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1">
+                  Review below
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={Math.round(confidenceThresholds.autoApprove * 100) - 5}
+                    step={5}
+                    value={Math.round(confidenceThresholds.requireReview * 100)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) / 100;
+                      if (isNaN(val) || val < 0 || val >= confidenceThresholds.autoApprove) return;
+                      const previous = confidenceThresholds;
+                      const updated = { ...previous, requireReview: val };
+                      setConfidenceThresholds(updated);
+                      saveSettings({ confidenceThresholds: updated }).catch(() => {
+                        setConfidenceThresholds(previous);
+                        setError("Failed to save. Please try again.");
+                      });
+                    }}
+                    disabled={saving}
+                    aria-label="Review threshold (percent)"
+                    aria-describedby="confidence-zone-descriptions"
+                    className="w-20 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-semibold text-red-600 tabular-nums text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  />
+                  <span className="text-sm font-medium text-muted-foreground">%</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1">
+                  Auto-approve above
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={Math.round(confidenceThresholds.requireReview * 100) + 5}
+                    max={100}
+                    step={5}
+                    value={Math.round(confidenceThresholds.autoApprove * 100)}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) / 100;
+                      if (isNaN(val) || val > 1 || val <= confidenceThresholds.requireReview) return;
+                      const previous = confidenceThresholds;
+                      const updated = { ...previous, autoApprove: val };
+                      setConfidenceThresholds(updated);
+                      saveSettings({ confidenceThresholds: updated }).catch(() => {
+                        setConfidenceThresholds(previous);
+                        setError("Failed to save. Please try again.");
+                      });
+                    }}
+                    disabled={saving}
+                    aria-label="Auto-approve threshold (percent)"
+                    aria-describedby="confidence-zone-descriptions"
+                    className="w-20 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-semibold text-emerald-600 tabular-nums text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                  />
+                  <span className="text-sm font-medium text-muted-foreground">%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Zone descriptions */}
+            <div id="confidence-zone-descriptions" className="space-y-1 text-sm text-muted-foreground">
+              <p><span className="font-medium text-red-600">Below {Math.round(confidenceThresholds.requireReview * 100)}%</span> — Always requires manual review</p>
+              <p><span className="font-medium text-amber-700">{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}%</span> — Routed by your autonomy level (currently {AUTONOMY_LEVELS.find(l => l.level === autonomyLevel)?.label ?? "Unknown"})</p>
+              <p><span className="font-medium text-emerald-600">Above {Math.round(confidenceThresholds.autoApprove * 100)}%</span> — Auto-approved regardless of autonomy level</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Scheduled Review Section */}

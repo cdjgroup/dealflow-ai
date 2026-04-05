@@ -26,6 +26,9 @@ export async function updateUserSettings(
       ? patch.mcpClients
       : current.mcpClients,
     autonomyLevel: patch.autonomyLevel ?? current.autonomyLevel,
+    confidenceThresholds: patch.confidenceThresholds
+      ? { ...current.confidenceThresholds, ...patch.confidenceThresholds }
+      : current.confidenceThresholds,
   };
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);
