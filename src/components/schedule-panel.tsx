@@ -63,6 +63,7 @@ export function SchedulePanel({ initialSchedule }: Props) {
           const remaining = (data.remaining || 0) + 1;
           setTriggerResult(`${completed} done — approve next on Guardian (${remaining} left)...`);
           attempts = 0; // reset timeout for next action
+          router.refresh(); // update action list immediately
         } else if (data.status === "done") {
           stopPolling();
           completed += data.executed ? 1 : 0;
