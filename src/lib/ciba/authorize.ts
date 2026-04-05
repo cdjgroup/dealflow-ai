@@ -17,8 +17,8 @@ export async function initiateCiba(
     sub: userId,
   });
 
-  // Binding message max 64 chars per CIBA spec
-  const truncatedMessage = bindingMessage.slice(0, 64);
+  // Sanitize + truncate: Auth0 CIBA allows only alphanumerics, whitespace, +-_.,:#
+  const truncatedMessage = bindingMessage.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
 
   const body = new URLSearchParams({
     client_id: process.env.AUTH0_CLIENT_ID!,
