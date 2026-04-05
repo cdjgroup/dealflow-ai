@@ -434,7 +434,7 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
               disabled={triggering || polling}
               className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
             >
-              {triggering ? "Sending..." : polling ? "Awaiting approval..." : "Run Now"}
+              {triggering ? "Sending..." : polling ? "Awaiting approval..." : "Run Now (demo mode)"}
             </button>
           </div>
         )}
