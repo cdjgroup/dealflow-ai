@@ -316,21 +316,49 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
       <div>
         <h3 className="text-sm font-semibold mb-1">Confidence Routing</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          AI confidence scores determine how actions are routed. High-confidence actions auto-approve; low-confidence actions always require manual review.
+          When the AI suggests an action, it assigns a confidence score. These thresholds control what happens next:
         </p>
-        <div className="grid grid-cols-2 gap-4">
+
+        {/* Visual zone bar */}
+        <div className="relative h-8 rounded-full overflow-hidden mb-3 flex">
+          <div
+            className="bg-red-400/20 border-r border-red-300/40 flex items-center justify-center transition-all"
+            style={{ width: `${Math.round(confidenceThresholds.requireReview * 100)}%` }}
+          >
+            <span className="text-[9px] font-medium text-red-600 truncate px-1">Always review</span>
+          </div>
+          <div
+            className="bg-amber-400/20 border-r border-amber-300/40 flex items-center justify-center transition-all"
+            style={{ width: `${Math.round((confidenceThresholds.autoApprove - confidenceThresholds.requireReview) * 100)}%` }}
+          >
+            <span className="text-[9px] font-medium text-amber-600 truncate px-1">Follows autonomy level</span>
+          </div>
+          <div
+            className="bg-emerald-400/20 flex items-center justify-center transition-all"
+            style={{ width: `${Math.round((1 - confidenceThresholds.autoApprove) * 100)}%` }}
+          >
+            <span className="text-[9px] font-medium text-emerald-600 truncate px-1">Auto-approved</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
           <div>
-            <label className="text-[10px] font-medium text-muted-foreground block mb-1">
-              Auto-approve above: {Math.round(confidenceThresholds.autoApprove * 100)}%
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-medium text-muted-foreground">
+                Auto-approve when AI is above
+              </label>
+              <span className="text-xs font-semibold text-emerald-600 tabular-nums">
+                {Math.round(confidenceThresholds.autoApprove * 100)}%
+              </span>
+            </div>
             <input
               type="range"
-              min={0.1}
-              max={1.0}
-              step={0.05}
-              value={confidenceThresholds.autoApprove}
+              min={10}
+              max={100}
+              step={5}
+              value={Math.round(confidenceThresholds.autoApprove * 100)}
               onChange={(e) => {
-                const val = parseFloat(e.target.value);
+                const val = parseInt(e.target.value) / 100;
                 if (val <= confidenceThresholds.requireReview) return;
                 const updated = { ...confidenceThresholds, autoApprove: val };
                 setConfidenceThresholds(updated);
@@ -340,21 +368,29 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
                 });
               }}
               disabled={saving}
-              className="w-full accent-emerald-500"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-emerald-500 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Higher = stricter — fewer actions auto-approve
+            </p>
           </div>
           <div>
-            <label className="text-[10px] font-medium text-muted-foreground block mb-1">
-              Require review below: {Math.round(confidenceThresholds.requireReview * 100)}%
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-medium text-muted-foreground">
+                Always require review when below
+              </label>
+              <span className="text-xs font-semibold text-amber-600 tabular-nums">
+                {Math.round(confidenceThresholds.requireReview * 100)}%
+              </span>
+            </div>
             <input
               type="range"
               min={0}
-              max={0.9}
-              step={0.05}
-              value={confidenceThresholds.requireReview}
+              max={90}
+              step={5}
+              value={Math.round(confidenceThresholds.requireReview * 100)}
               onChange={(e) => {
-                const val = parseFloat(e.target.value);
+                const val = parseInt(e.target.value) / 100;
                 if (val >= confidenceThresholds.autoApprove) return;
                 const updated = { ...confidenceThresholds, requireReview: val };
                 setConfidenceThresholds(updated);
@@ -364,14 +400,12 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
                 });
               }}
               disabled={saving}
-              className="w-full accent-amber-500"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-amber-500 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Lower = more trust — fewer actions flagged for review
+            </p>
           </div>
-        </div>
-        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-          <span>Below {Math.round(confidenceThresholds.requireReview * 100)}%: always manual review</span>
-          <span>{Math.round(confidenceThresholds.requireReview * 100)}%–{Math.round(confidenceThresholds.autoApprove * 100)}%: follows autonomy level</span>
-          <span>Above {Math.round(confidenceThresholds.autoApprove * 100)}%: auto-approved</span>
         </div>
       </div>
 
