@@ -131,7 +131,6 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ToolBadge toolName={toolName} state="completed" />
                   <ToolResultCard toolName={toolName} output={output} />
                 </motion.div>
               );
