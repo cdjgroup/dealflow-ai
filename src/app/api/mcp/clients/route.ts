@@ -28,6 +28,7 @@ const CreateClientSchema = z.object({
   trustTier: z.enum(["full", "standard", "restricted", "readonly"]).optional(),
   rateLimit: z.number().int().min(1).max(1000).optional(),
   parameterConstraints: z.record(
+    z.string(),
     z.array(ParameterConstraintSchema).max(5)
   ).refine((r) => Object.keys(r).length <= 10, {
     message: "Cannot constrain more than 10 tools",

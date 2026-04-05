@@ -97,6 +97,12 @@ function DetailPanel({ entry }: { entry: AuditEntry }) {
                 </dd>
               </div>
             )}
+            {entry.policyReason && (
+              <div className="contents">
+                <dt className="text-muted-foreground font-medium">Policy Decision</dt>
+                <dd className="text-amber-400">{entry.policyReason}</dd>
+              </div>
+            )}
             <div className="contents">
               <dt className="text-muted-foreground font-medium">Thread</dt>
               <dd className="text-muted-foreground">{entry.threadId}</dd>
