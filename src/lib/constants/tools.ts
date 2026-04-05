@@ -53,7 +53,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   sendSlackMessage: "Send Message",
 };
 
-/** Tools that are safe for MCP surface (read-only, no high-risk writes) */
+/** Tools available on MCP surface (read + CIBA-gated writes) */
 export const MCP_SAFE_TOOLS = new Set([
   "listDeals",
   "getDealDetails",
@@ -61,6 +61,9 @@ export const MCP_SAFE_TOOLS = new Set([
   "checkCalendar",
   "searchEmails",
   "listSlackChannels",
+  "draftEmail",
+  "createCalendarEvent",
+  "sendSlackMessage",
 ]);
 
 /** Tool access by trust tier */
