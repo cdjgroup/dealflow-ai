@@ -4,6 +4,18 @@
 
 External AI agents now get individually scoped access through named MCP clients with API keys, trust tiers, and per-client tool allowlists. Additionally, write operations (email, calendar, Slack) are now available via MCP with device-level CIBA consent.
 
+### Confidence-Informed Autonomy
+
+- **Downgrade-only confidence gate**: Actions with LLM confidence < 0.5 are forced to "pending" regardless of autonomy level. High confidence never overrides existing safety gates.
+- **Structured confidence rubric**: LLM prompt anchors confidence at four levels (0.9+ strong evidence, 0.7-0.9 good, 0.5-0.7 moderate, <0.5 weak) for better calibration.
+- **Level 3 confidence routing**: Low-confidence actions route to CIBA (device consent) instead of auto-executing, even for routine (<$50K) deals.
+
+### Reasoning-Aware Audit Trail
+
+- **`policyReason` field**: Every audit entry now explains which policy layer triggered the decision (capability, scope, rate limit, CIBA, autonomy level).
+- **Amber "Policy Decision" row** in audit detail panel shows the reason at a glance.
+- **Per-client API key denials** now audited (previously returned error without audit entry).
+
 ### Per-Client MCP Policies
 
 - **Per-Client MCP Policies**: Create named MCP clients (e.g., "Claude Desktop", "Research Bot") each with a unique API key (`dfk_...`), a trust tier, and a tool allowlist. Different agents get different access levels to the same MCP endpoint.

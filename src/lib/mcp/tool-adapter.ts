@@ -172,7 +172,7 @@ function auditAndErrorResponse(
   params: Record<string, unknown>,
   errorMessage: string,
   durationMs: number,
-  extra?: { mcpClientId?: string; mcpClientName?: string; surface?: "chat" | "mcp" | "actions" }
+  extra?: { mcpClientId?: string; mcpClientName?: string; surface?: "chat" | "mcp" | "actions"; policyReason?: string }
 ) {
   writeAuditEntry(userId, {
     threadId: extra?.mcpClientId ? `mcp:${extra.mcpClientId}` : "mcp",
@@ -184,6 +184,7 @@ function auditAndErrorResponse(
     surface: extra?.surface ?? "mcp",
     mcpClientId: extra?.mcpClientId,
     mcpClientName: extra?.mcpClientName,
+    policyReason: extra?.policyReason,
   });
 
   if (extra?.mcpClientId) {
@@ -322,7 +323,8 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
                 userId, toolEntry.name, params,
                 "Scope denied: tool not authorized for this client's scope",
                 0,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp",
+                  policyReason: `Scope denied: ${toolEntry.name} requires scope not in [${clientScopes.join(", ")}]` }
               );
             }
           }
@@ -332,10 +334,15 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
 
           if (mcpClientId && mcpClientId !== "default" && allowedTools) {
             if (!allowedTools.includes(toolEntry.name)) {
-              return {
-                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not available for this client" }) }],
-                isError: true,
-              };
+              const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+              const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+              return auditAndErrorResponse(
+                userId, toolEntry.name, params,
+                "Tool not available for this client",
+                0,
+                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp",
+                  policyReason: `Client policy: ${toolEntry.name} not in allowedTools for ${clientName ?? mcpClientId}` }
+              );
             }
           }
 
@@ -384,10 +391,12 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
           const settings = await getUserSettings(userId);
           const category = TOOL_CATEGORIES[toolEntry.name] as keyof typeof settings.capabilities | undefined;
           if (settings.toolTrust?.[toolEntry.name] === "never") {
-            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool disabled by user", Date.now() - start);
+            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool disabled by user", Date.now() - start,
+              { policyReason: `Capability: ${toolEntry.name} disabled (trustLevel: never)` });
           }
           if (category && !settings.capabilities[category]) {
-            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool category disabled by user", Date.now() - start);
+            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool category disabled by user", Date.now() - start,
+              { policyReason: `Capability: ${category} category disabled by user` });
           }
 
           const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
@@ -414,6 +423,7 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
                 surface: "mcp",
                 mcpClientId: clientId,
                 mcpClientName: clientName,
+                policyReason: "Capability: enabled, scope: granted, rate limit: within budget",
               });
 
               // Record analytics for named clients
@@ -445,7 +455,8 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
             if (disabled) {
               return auditAndErrorResponse(
                 userId, toolEntry.name, params, "Connection disabled", Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp",
+                  policyReason: `Connection: ${connection} disabled by user` }
               );
             }
 

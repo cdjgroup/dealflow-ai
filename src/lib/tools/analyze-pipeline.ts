@@ -7,6 +7,7 @@ import { createAction, getActions } from "@/lib/data/actions";
 import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 import { draftSchema } from "@/lib/schemas/action-draft";
+import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/constants/tools";
 
 interface SuggestionInput {
   type: ActionType;
@@ -73,7 +74,11 @@ const SYSTEM_PROMPT = `You are a sales pipeline AI assistant. Analyze the provid
 Rules:
 - Only suggest these action types: email (follow-up), calendar (meeting/demo), slack (team update)
 - Do NOT suggest actions for deals that already have a suggestion (listed in existingActions)
-- Add a confidence score (0.0-1.0) reflecting how certain you are this action is needed right now
+- Rate your confidence (0.0-1.0) for each suggestion using this rubric:
+  0.9+: Strong evidence — recent activity, clear next step, time-sensitive
+  0.7-0.9: Good evidence — reasonable next step but timing or approach has some ambiguity
+  0.5-0.7: Moderate evidence — plausible action but based on assumptions about intent or timing
+  Below 0.5: Weak evidence — speculative, missing key context, or multiple equally valid alternatives
 - Personalize all content using the contact's name, role, company, and deal context
 - For email drafts: include "to" (email), "subject", and "body" fields. Body should be professional but warm.
 - For calendar drafts: include "title", "date" (YYYY-MM-DD, schedule 3 days from now), "time" (HH:MM, default 14:00), "duration" (minutes), "attendees" (array of emails), and optional "notes"
@@ -331,11 +336,15 @@ export function createAnalyzePipelineTool(userId: string) {
 
       // Create actions in Redis
       // Autonomy gate: level 2+ auto-approves high/medium priority actions
+      // Confidence gate: low-confidence actions forced to pending (downgrade-only)
       let created = 0;
-      // Autonomy gate: level 2+ auto-approves high/medium priority actions
       for (const suggestion of validated) {
+        const isLowConfidence = suggestion.confidence !== undefined
+          && suggestion.confidence < LOW_CONFIDENCE_THRESHOLD;
         const initialStatus =
-          settings.autonomyLevel >= 2 && suggestion.priority !== "low"
+          settings.autonomyLevel >= 2
+          && suggestion.priority !== "low"
+          && !isLowConfidence
             ? "approved"
             : "pending";
         await createAction(userId, { ...suggestion, status: initialStatus });

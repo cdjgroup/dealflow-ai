@@ -302,6 +302,8 @@ export async function POST(req: Request) {
       input: {},
       result: "error",
       errorMessage: `Per-tool rate limit: ${result.tier} tier, resets in ${result.resetMs}ms`,
+      policyReason: `Rate limit: ${result.tier} tier exceeded (resets in ${Math.ceil((result.resetMs ?? 0) / 1000)}s)`,
+      surface: "chat",
     });
   };
   const tools = attachCircuitBreaker(withCiba, userId, handleToolBlocked);
@@ -399,6 +401,9 @@ Some actions require user approval before they execute (drafting emails, sending
               durationMs: event.durationMs,
               tokenMeta,
               surface: "chat",
+              policyReason: event.success
+                ? "Capability: enabled, trust: passed, rate limit: within budget"
+                : undefined,
             });
 
             // Circuit breaker Layer B: per-request tool call limit
