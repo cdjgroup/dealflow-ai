@@ -1,6 +1,6 @@
 # ADR 009: Trust Calibration via Threshold-Based Nudge (Not Auto-Escalation)
 
-**Status:** PROPOSED
+**Status:** ACCEPTED
 **Date:** 2026-04-05
 
 ## Context

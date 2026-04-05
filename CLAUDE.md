@@ -62,6 +62,8 @@
 | updateDeal | Upstash Redis | No (needsApproval closed-won + CIBA) | No |
 | createContact | Upstash Redis | No | No |
 | logActivity | Upstash Redis | No | No |
+| analyzePipeline | Upstash Redis + Claude Haiku | No | No |
+| delegateResearch | Redis (delegation tokens) | No | No |
 
 ---
 

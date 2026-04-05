@@ -25,8 +25,8 @@ source "$SCRIPT_DIR/_framework.sh"
 PROJECT_NAME=$(fw_get_nested "project.name" "project")
 PROJECT_REPO=$(fw_get_nested "project.repo" "")
 WORKTREE_BASE=$(fw_resolve_path "$(fw_get_nested "paths.worktree_base" "${HOME}/worktrees")")
-BACKEND_PORT=$(fw_get_nested "stack.backend.port" "8000")
-FRONTEND_PORT_START=$(fw_get_nested "stack.frontend.port" "3003")
+BACKEND_PORT=$(fw_get_nested "stack.backend.port" "")
+FRONTEND_PORT_START=$(fw_get_nested "stack.frontend.port" "3000")
 BACKEND_LANG=$(fw_get_nested "stack.backend.language" "")
 BACKEND_VERSION=$(fw_get_nested "stack.backend.version" "")
 NOTIFICATION_PROVIDER=$(fw_get_nested "notifications.provider" "none")
@@ -115,7 +115,12 @@ start_frontend_server() {
 
     echo "   Starting frontend on port $port..."
 
-    cd "$worktree/frontend"
+    # Support both monorepo (frontend/ subdir) and single-app (root) layouts
+    if [ -d "$worktree/frontend" ]; then
+        cd "$worktree/frontend"
+    else
+        cd "$worktree"
+    fi
     local logfile="/tmp/frontend-$port.log"
     touch "$logfile" && chmod 600 "$logfile"
     BROWSER=none $start_cmd -- --port $port > "$logfile" 2>&1 &
@@ -202,7 +207,7 @@ else
     echo ""
     echo "  Setting up dependencies..."
 
-    # Bootstrap backend dependencies
+    # Bootstrap backend dependencies (Python projects with backend/ subdir)
     if [ -d "$WORKTREE_DIR/backend" ] && [ -f "$WORKTREE_DIR/backend/requirements.txt" ]; then
         echo "   Setting up Python virtual environment..."
         cd "$WORKTREE_DIR"
@@ -225,6 +230,7 @@ else
     fi
 
     # Bootstrap frontend dependencies
+    # Supports both monorepo (frontend/ subdir) and single-app (root package.json) layouts
     if [ -f "$WORKTREE_DIR/frontend/package.json" ]; then
         echo "   Installing frontend dependencies..."
         cd "$WORKTREE_DIR/frontend"
@@ -232,6 +238,14 @@ else
             echo "   Frontend dependencies installed"
         else
             echo "   Frontend dependencies failed - run 'npm install' manually"
+        fi
+    elif [ -f "$WORKTREE_DIR/package.json" ] && [ ! -d "$WORKTREE_DIR/backend" ]; then
+        echo "   Installing dependencies (single-app layout)..."
+        cd "$WORKTREE_DIR"
+        if HUSKY=0 npm install --silent 2>/dev/null; then
+            echo "   Dependencies installed"
+        else
+            echo "   npm install failed - run 'npm install' manually"
         fi
     fi
 
@@ -257,8 +271,9 @@ else
     fi
 
     # Symlink .env files from main repo (single source of truth)
+    # Supports both monorepo (backend/.env, frontend/.env.local) and single-app (.env.local) layouts
     echo "   Linking environment files..."
-    for env_file in backend/.env backend/.env.local frontend/.env.local; do
+    for env_file in .env.local backend/.env backend/.env.local frontend/.env.local; do
         if [ -f "$FW_PROJECT_ROOT/$env_file" ] && [ ! -e "$WORKTREE_DIR/$env_file" ]; then
             ln -s "$FW_PROJECT_ROOT/$env_file" "$WORKTREE_DIR/$env_file"
             echo "   Linked $env_file"
@@ -356,24 +371,26 @@ fi
 
 if [ "$START_SERVERS" = true ]; then
     echo ""
-    echo "  Starting frontend dev server..."
-    echo "   Note: Uses shared backend on port $BACKEND_PORT (ensure it's running)"
+    echo "  Starting dev server..."
 
-    if ! lsof -i :"$BACKEND_PORT" >/dev/null 2>&1; then
-        echo ""
-        echo "   WARNING: Backend not running on port $BACKEND_PORT!"
-        echo "   Start it with: cd $FW_PROJECT_ROOT && ./scripts/manage-servers.sh start"
-        echo ""
+    if [ -n "$BACKEND_PORT" ] && [ "$BACKEND_PORT" != "0" ]; then
+        echo "   Note: Uses shared backend on port $BACKEND_PORT (ensure it's running)"
+        if ! lsof -i :"$BACKEND_PORT" >/dev/null 2>&1; then
+            echo ""
+            echo "   WARNING: Backend not running on port $BACKEND_PORT!"
+            echo "   Start it with: cd $FW_PROJECT_ROOT && ./scripts/manage-servers.sh start"
+            echo ""
+        fi
     fi
 
     ASSIGNED_FRONTEND_PORT=$(find_available_port $FRONTEND_PORT_START)
     echo "   Assigned frontend port: $ASSIGNED_FRONTEND_PORT"
     echo "ASSIGNED_FRONTEND_PORT=$ASSIGNED_FRONTEND_PORT" > "$PORT_FILE"
 
-    if [ -f "$WORKTREE_DIR/frontend/package.json" ]; then
+    if [ -f "$WORKTREE_DIR/frontend/package.json" ] || [ -f "$WORKTREE_DIR/package.json" ]; then
         start_frontend_server $ASSIGNED_FRONTEND_PORT "$WORKTREE_DIR"
     else
-        echo "   Frontend package.json not found - skipping frontend server"
+        echo "   No package.json found - skipping dev server"
     fi
 fi
 
@@ -383,8 +400,10 @@ echo "  Worktree ready! Launching Claude Code..."
 if [ -n "$ASSIGNED_FRONTEND_PORT" ]; then
     echo ""
     echo "  TEST YOUR CHANGES AT:"
-    echo "   Frontend: http://localhost:$ASSIGNED_FRONTEND_PORT"
-    echo "   Backend:  http://localhost:$BACKEND_PORT (shared)"
+    echo "   http://localhost:$ASSIGNED_FRONTEND_PORT"
+    if [ -n "$BACKEND_PORT" ] && [ "$BACKEND_PORT" != "0" ]; then
+        echo "   Backend:  http://localhost:$BACKEND_PORT (shared)"
+    fi
 fi
 echo "==================================================================="
 echo ""

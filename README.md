@@ -182,7 +182,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens (stor
 
 #### AI Agent
 - Chat-based interface with Claude for sales pipeline management
-- 13 tools: CRM (7), Calendar (1), Gmail (2), Slack (2), Delegation (1)
+- 15 tools: CRM (7), Calendar (2), Gmail (2), Slack (2), Pipeline Analysis (1), Delegation (1)
 - Multi-turn tool chaining (e.g., check calendar → draft email with availability)
 - Rich tool result cards (calendar events, email drafts, deal pipeline, Slack messages)
 - Conversation management: new chat, history sidebar, auto-save to Redis
@@ -312,7 +312,10 @@ src/
   app/
     api/
       chat/          # AI agent streaming endpoint
-      mcp/           # MCP server for external AI agents
+      mcp/           # MCP server + client management endpoints
+      ciba/          # CIBA initiate + status polling
+      cron/          # Scheduled action execution (initiate + poll)
+      actions/       # Action Center CRUD + batch approve
       settings/      # User capability + trust level settings
       audit/         # Audit log retrieval
       conversations/ # Chat thread persistence
@@ -323,52 +326,73 @@ src/
       page.tsx       # Main chat + deal sidebar
       permissions/   # Settings, toggles, trust levels, connections
       audit/         # Audit log table with token metadata
+      actions/       # Action Center — AI suggestions queue
+      mcp/           # MCP Explorer — client management
   components/
     chat-container.tsx       # Conversation list + chat orchestration
     chat-window.tsx          # Chat interface (useChat)
     chat-message.tsx         # Message renderer with tool cards
-    tool-result-card.tsx     # Rich cards (7 tool types)
+    tool-result-card.tsx     # Rich cards for tool results
     capability-toggles.tsx   # Per-tool ON/OFF switches + trust levels
     approval-card.tsx        # Action approval UI (incl. delegation consent)
+    ciba-waiting-card.tsx    # CIBA polling with countdown timer
+    ciba-inline-card.tsx     # Inline CIBA status display
     scope-indicator.tsx      # Active OAuth scope display
     audit-table.tsx          # Expandable audit log with token metadata
+    action-card.tsx          # Action Center suggestion cards
+    action-list.tsx          # Action list with filters
+    schedule-panel.tsx       # Scheduled execution + confidence thresholds
+    trust-nudge-banner.tsx   # Trust calibration upgrade suggestion
+    mcp-explorer.tsx         # MCP client management UI
+    mcp-client-card.tsx      # Per-client policy card
     revoke-button.tsx        # Disconnect connection
     conversation-list.tsx    # Chat history sidebar
     token-status.tsx         # Live connection status
   lib/
     data/
-      crm.ts          # Deals, contacts, activities (Redis)
-      settings.ts     # User preferences + trust levels (Redis)
-      audit.ts        # Audit log with TokenMeta (Redis lists)
-      conversations.ts # Chat persistence (Redis)
+      crm.ts            # Deals, contacts, activities (Redis)
+      settings.ts       # User preferences + trust levels (Redis)
+      audit.ts          # Audit log with TokenMeta (Redis lists)
+      conversations.ts  # Chat persistence (Redis)
+      actions.ts        # Action Center CRUD (Redis)
+      mcp-clients.ts    # Per-client MCP policies (Redis)
+      mcp-analytics.ts  # Per-client usage tracking (Redis)
+      schedule-tokens.ts # Encrypted refresh token storage (Redis)
+      scheduled-ciba.ts # Scheduled CIBA batch management (Redis)
     tools/
-      calendar.ts      # Google Calendar tool (+ _tokenMeta)
-      gmail.ts         # Gmail draft + search tools (+ _tokenMeta)
-      slack.ts         # Slack channels + messaging tools (+ _tokenMeta)
-      crm.ts           # CRM tools (7)
-      delegate.ts      # Cross-agent delegation tool
+      calendar.ts        # Google Calendar tools (+ _tokenMeta)
+      gmail.ts           # Gmail draft + search tools (+ _tokenMeta)
+      slack.ts           # Slack channels + messaging tools (+ _tokenMeta)
+      crm.ts             # CRM tools (7)
+      analyze-pipeline.ts # LLM subagent for pipeline analysis + suggestions
+      delegate.ts        # Cross-agent delegation tool
       capability-filter.ts  # Filter by capabilities + "never" trust
       approval-logic.ts     # T1/S3/S1/U2 approval layers
       scope-map.ts          # TOOL_SCOPE_CONFIG (single source of truth)
     mcp/
       tool-adapter.ts  # MCP tool registration + CIBA-gated execution
       ciba-gate.ts     # Synchronous CIBA gate for MCP write tools
+      auth.ts          # Dual auth: API key + Auth0 bearer token
+      tool-auth.ts     # Per-client tool filtering + parameter constraints
     delegation.ts      # Redis-backed delegation token store
     token-exchange.ts  # Auth0 RFC 8693 exchange (+ scope metadata)
     types/
-      settings.ts      # UserSettings + TrustLevel
+      settings.ts      # UserSettings + TrustLevel + ConfidenceThresholds
       audit.ts         # AuditEntry + TokenMeta
+      actions.ts       # Action + ActionDraft types
+      policy.ts        # SurfacePolicy + McpClient types
+      scheduled-ciba.ts # ScheduledCiba types
 ```
 
 ## Testing
 
 ```bash
-npm test              # 298 tests across 34 files
+npm test              # 676 tests across 64 files
 npm run build         # TypeScript + Next.js production build
 npx playwright test   # E2E smoke tests
 ```
 
-Test coverage spans API routes (32), components (22), data layer (71), tools & approval logic (82), CIBA device consent (22), core library (46), and E2E smoke tests (8).
+Test coverage spans API routes, components, data layer, tools & approval logic, CIBA device consent, MCP adapters, trust calibration, confidence routing, parameter constraints, core library, and E2E smoke tests.
 
 ## License
 

@@ -1,7 +1,7 @@
 # Demo Video Script — DealFlow AI (3 minutes)
 
 ## Pre-Recording Checklist
-- [ ] Seed demo data (click "Load Demo Data" or POST /api/seed)
+- [ ] Seed demo data (click "Reseed Demo Data" or POST /api/seed)
 - [ ] Ensure Google is connected (Calendar + Gmail)
 - [ ] Clear any previous chat history
 - [ ] Browser in dark mode for visual impact
