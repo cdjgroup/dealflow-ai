@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI's MCP server originally exposed only read-only tools because "MCP has no approval UI." Write tools (draftEmail, createCalendarEvent, sendSlackMessage) were excluded entirely. This made MCP a second-class execution surface — external agents could read data but not act on it.
+DealFlow's MCP server originally exposed only read-only tools because "MCP has no approval UI." Write tools (draftEmail, createCalendarEvent, sendSlackMessage) were excluded entirely. This made MCP a second-class execution surface — external agents could read data but not act on it.
 
 The existing CIBA infrastructure (v0.5.0) provides device-level consent via Auth0 Guardian push notifications. CIBA is a backchannel protocol designed precisely for server-initiated flows without user sessions — making it a natural fit for MCP's headless, stateless model.
 

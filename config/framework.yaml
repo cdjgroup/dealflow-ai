@@ -1,12 +1,12 @@
 # ============================================================================
-# dev-framework Configuration — DealFlow AI
+# dev-framework Configuration — DealFlow
 # ============================================================================
 # Hackathon entry for "Authorized to Act: Auth0 for AI Agents"
 # AI sales agent with Auth0 Token Vault + Claude + Upstash Redis
 # ============================================================================
 
 project:
-  name: "dealflow-ai"
+  name: "dealflow"
   repo: "cdjgroup/dealflow-ai"
   description: "AI sales agent with Auth0 Token Vault — hackathon entry for Authorized to Act"
 

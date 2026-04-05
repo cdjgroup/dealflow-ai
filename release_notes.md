@@ -1,6 +1,6 @@
 # Release Notes — v0.6.3
 
-## DealFlow AI: MCP Playground + Claude Code Integration
+## DealFlow: MCP Playground + Claude Code Integration
 
 Interactive MCP tool testing page and Claude Code project configuration for external agent demos.
 

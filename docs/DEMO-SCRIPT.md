@@ -1,4 +1,4 @@
-# DealFlow AI — Demo Script
+# DealFlow — Demo Script
 
 > 3-minute max. Every second counts. No filler, no fumbling.
 
@@ -17,7 +17,7 @@
 
 ## Act 1: The AI Acts Through Token Vault (45 sec)
 
-> "DealFlow AI is a sales assistant that acts on the user's behalf through Auth0 Token Vault. The AI never stores credentials."
+> "DealFlow is a sales assistant that acts on the user's behalf through Auth0 Token Vault. The AI never stores credentials."
 
 1. Type: **"What's on my calendar tomorrow?"**
    - "Auth0 exchanges a refresh token for a short-lived Google access token. The AI gets a scoped token, never credentials."
@@ -90,7 +90,7 @@
 
 > Deliver standing at the Permissions page or MCP Explorer.
 
-"DealFlow AI demonstrates four levels of 'Authorized to Act':
+"DealFlow demonstrates four levels of 'Authorized to Act':
 1. **Per-tool** — capability toggles, trust levels, step-up approval
 2. **Per-action** — the Action Center queues AI suggestions for human review
 3. **Per-schedule** — CIBA batch consent with time-boxed execution for autonomous agent action

@@ -213,7 +213,7 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
 ### MCP Server for External AI Agents
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.
@@ -221,7 +221,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens store
 ## v0.2.1 — UI Polish & Visual Storytelling
 
 ### Animated Landing Page
-Gradient "DealFlow AI" title (text-7xl), staggered feature card animations, Token Vault architecture diagram showing the full auth flow (User → Auth0 → Token Vault → AI Agent → Google/Slack), and glow CTA button with indigo shadow.
+Gradient "DealFlow" title (text-7xl), staggered feature card animations, Token Vault architecture diagram showing the full auth flow (User → Auth0 → Token Vault → AI Agent → Google/Slack), and glow CTA button with indigo shadow.
 
 ### Chat Animations
 Staggered fade-in on messages and tool result cards via framer-motion. AI messages show a gradient "D" avatar badge; user messages show "You". Glassmorphism (backdrop-blur-sm) on chat bubbles. Animated suggestion chips on empty state.

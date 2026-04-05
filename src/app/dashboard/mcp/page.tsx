@@ -17,7 +17,7 @@ export default async function McpPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">MCP</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          External AI agents can discover and use DealFlow AI&apos;s tools via the
+          External AI agents can discover and use DealFlow&apos;s tools via the
           Model Context Protocol. Test tools interactively in the Playground below.
         </p>
       </div>

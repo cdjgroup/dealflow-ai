@@ -1,4 +1,4 @@
-# DealFlow AI — Claude Integration
+# DealFlow — Claude Integration
 
 > AI sales agent with Auth0 Token Vault — hackathon entry for "Authorized to Act"
 

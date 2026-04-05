@@ -1,4 +1,4 @@
-# DealFlow AI
+# DealFlow
 
 AI-powered sales agent that securely manages your pipeline, checks calendars, drafts emails, and sends Slack updates — all authenticated through **Auth0 Token Vault** with boundary-pushing authorization controls.
 
@@ -8,7 +8,7 @@ Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.d
 
 ## What Makes This Different
 
-Most AI agents get blanket access to your data. DealFlow AI demonstrates five authorization patterns that put the user in control:
+Most AI agents get blanket access to your data. DealFlow demonstrates five authorization patterns that put the user in control:
 
 1. **Dynamic Scope Narrowing** — The AI voluntarily restricts itself to minimum required scopes, even though the token grants broader access
 2. **Consent-Aware Tool Selection** — Per-tool trust levels (always / ask each time / never) that override default approval behavior
@@ -19,7 +19,7 @@ Most AI agents get blanket access to your data. DealFlow AI demonstrates five au
 ## Architecture
 
 ```
-                              DealFlow AI Architecture
+                              DealFlow Architecture
   ┌─────────────────────────────────────────────────────────────────────────┐
   │                           USER BROWSER                                 │
   │                                                                        │
@@ -208,7 +208,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens (stor
 
 ## MCP Integration
 
-External AI agents can connect to DealFlow AI's tools:
+External AI agents can connect to DealFlow's tools:
 
 ```bash
 # Discover available tools
@@ -228,7 +228,7 @@ curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \
 ```json
 {
   "mcpServers": {
-    "dealflow-ai": {
+    "dealflow": {
       "url": "https://dealflow-ai-seven.vercel.app/api/mcp"
     }
   }
