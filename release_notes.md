@@ -1,6 +1,33 @@
-# Release Notes — v0.6.1
+# Release Notes — v0.6.2
 
-## DealFlow AI: Trust Calibration Nudge
+## DealFlow AI: Confidence Routing + Intent Constraints
+
+AI confidence scores now drive the action approval flow. The `resolveInitialStatus` function routes actions through a three-band system: high confidence (>=85%) auto-approves regardless of autonomy level, low confidence (<=50%) forces manual review regardless of autonomy level, and the middle band defers to the existing autonomy toggle. Low-confidence actions are also excluded from scheduled batch CIBA execution.
+
+Per-client MCP parameter constraints add semantic intent verification. Each MCP client can now include regex-based constraints on tool parameters — e.g., restrict `searchEmails` to only `from:.*@acme\.com` queries. Constraints are validated at creation time and enforced fail-closed at runtime (Layer 3.5, between client allowlist and CIBA gate).
+
+EU AI Act Article 14 references connect DealFlow's trust spectrum to upcoming regulation, positioning the architecture as forward-looking compliance.
+
+### Confidence-Based Routing
+- **Auto-approve threshold**: confidence >= 0.85 → approved (overrides autonomy level)
+- **Require-review threshold**: confidence <= 0.5 → pending (overrides autonomy level)
+- **Middle band**: defers to existing autonomy level logic
+- **Batch filtering**: low-confidence actions excluded from scheduled execution
+- **UI**: two range sliders in schedule panel, defaults enabled (0.85/0.5)
+
+### MCP Parameter Constraints
+- **Per-client regex constraints**: stored in McpClient, enforced in tool-adapter.ts
+- **Fail-closed**: invalid regex patterns block the call, never pass
+- **Audit trail**: constraint violations recorded with tool name, param, and description
+- **Bounded**: max 5 constraints per tool, 10 tools per client
+- **UI**: collapsible constraint editor in MCP client create form
+
+### EU AI Act Article 14
+- Blog post: new section mapping trust spectrum to Article 14 human oversight requirements
+- Devpost: confidence routing mention in graduated trust architecture section
+- Insights 025 (Article 14 alignment) and 026 (parameter constraints as intent verification)
+
+### Previous: v0.6.1 — Trust Calibration Nudge
 
 The trust stats feedback loop is now closed. After approving 5+ actions of the same type with >80% approval rate, a nudge banner appears in the Action Center suggesting the user upgrade that tool to auto-approve. This is genuine trust calibration — the system observes user behavior and recommends autonomy changes, but never auto-escalates.
 

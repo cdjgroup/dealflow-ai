@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-04-05
+
+### Added
+- Confidence-based routing: AI confidence scores drive action approval — high confidence (>=85%) auto-approves, low confidence (<=50%) forces manual review regardless of autonomy level
+- Per-client MCP parameter constraints: regex-based semantic filtering on tool parameters (e.g., restrict searchEmails to @acme.com domains)
+- Layer 3.5 enforcement in MCP tool handler: parameter constraints validated between client allowlist and CIBA gate, fail-closed on invalid regex
+- Confidence threshold sliders in schedule panel UI with three-band visualization
+- Parameter constraint editor in MCP client create form (collapsible, tool+param+regex+description)
+- EU AI Act Article 14 references in blog post, Devpost submission, and insights docs (025, 026)
+- Regex validation at MCP client creation time (defense-in-depth with runtime fail-closed)
+- Constraints bounded: max 5 per tool, max 10 tools per client
+
 ## [0.6.1] - 2026-04-05
 
 ### Added
