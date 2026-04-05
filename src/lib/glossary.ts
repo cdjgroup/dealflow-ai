@@ -15,4 +15,14 @@ export const GLOSSARY: Record<string, string> = {
     "The OAuth 2.0 Token Exchange standard. DealFlow AI uses this to exchange a user's refresh token for a short-lived access token scoped to a specific API (Google Calendar, Gmail, Slack).",
   "needs-approval":
     "A tool flag that triggers user confirmation before execution. Used for external actions (email, Slack) and high-value CRM operations.",
+  ciba: "Client Initiated Backchannel Authentication — Auth0 Guardian sends a push notification to your phone for device-level consent. Used for high-value chat actions (deals >$50K) and batch scheduled execution.",
+  mcp: "Model Context Protocol — an open standard that lets external AI agents (Claude Desktop, Cursor, OpenClaw) discover and invoke DealFlow AI's tools via the /api/mcp endpoint. Same Token Vault pipeline, same audit trail.",
+  "confidence-routing":
+    "AI confidence scores (0.0–1.0) drive action routing. High confidence (≥85%) auto-approves; low confidence (≤50%) forces manual review. The middle band defers to your autonomy setting.",
+  "trust-calibration":
+    "The system tracks per-tool approval rates and suggests upgrading frequently-approved tools to auto-approve. After 5+ decisions at >80% approval rate, a nudge appears. You decide — the system never auto-escalates.",
+  "circuit-breaker":
+    "Two-layer rate limiting for AI tool execution. Per-tool limits (read 10/min, write 5/min) and a per-request cap (15 tools max). Prevents runaway tool loops.",
+  "scheduled-actions":
+    "Opt into review times (8am, 12pm, 5pm). At each scheduled time, a single CIBA Guardian push approves all high/medium priority pending actions in a batch. The token lifetime serves as the execution boundary.",
 };
