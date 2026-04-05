@@ -24,12 +24,21 @@ export const metadata: Metadata = {
     siteName: "DealFlow AI",
     type: "website",
     url: "https://dealflow-ai-seven.vercel.app",
+    images: [
+      {
+        url: "https://dealflow-ai-seven.vercel.app/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DealFlow AI — AI Sales Agent with Auth0 Token Vault",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "DealFlow AI — AI Sales Agent with Auth0 Token Vault",
     description:
       "AI sales agent with Auth0 Token Vault: CIBA device consent, MCP integration, scheduled actions, and full user control.",
+    images: ["https://dealflow-ai-seven.vercel.app/og-image.png"],
   },
 };
 
