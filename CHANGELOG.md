@@ -15,12 +15,21 @@ All notable changes to this project will be documented in this file.
 - Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
 - MCP client management UI in MCP Explorer: create/delete clients, trust tier visualization, tool checkboxes
 - MCP client card component: trust tier badge, allowed tools display, key rotation, delete confirmation
+- Real-time circuit breaking for AI tool execution (two-layer protection)
+- Per-tool rate limiting: 4 tiers (read: 10/min, write: 5/min, crm-read: 20/min, crm-write: 5/min)
+- Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
+- Circuit breaker audit trail: rate limit denials logged with tier, remaining budget, reset time
+- Amber-styled circuit breaker alerts in chat UI (distinct from red error banners)
+
+### Changed
+- Chat route refactored from `toUIMessageStreamResponse` to `createUIMessageStream` wrapper for clean error injection before stream abort
 
 ### Security
 - API keys hashed with SHA-256 before storage; raw key shown only once on creation
 - CSRF enforcement on all MCP client management mutations
 - Per-client tool filtering: disallowed tools return error at `tools/call` time
 - User-scoped Redis keys prevent cross-user client access
+- AbortController kills runaway streams mid-flight when tool call limit exceeded
 
 ## [0.5.2] - 2026-04-05
 

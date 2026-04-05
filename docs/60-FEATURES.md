@@ -23,6 +23,11 @@ Each client has a configurable rate limit (requests/minute). Independent Upstash
 ### Cross-Surface Audit Telemetry
 The audit log now tracks which surface (Chat, MCP, Actions) each tool call came from. Filter by source to see cross-surface activity. MCP entries include the client name for per-agent attribution.
 
+### Real-Time Circuit Breaking
+Two-layer protection against runaway AI tool loops:
+- **Layer A (surgical):** Per-tool rate limits (read 10/min, write 5/min, crm-read 20/min, crm-write 5/min, compound 3/min). Blocks one tool, model adapts.
+- **Layer B (nuclear):** 15 tool calls max per request. AbortController kills stream with amber error message.
+
 ### Known Limitations
 - `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
 - Write tools remain excluded from MCP (no approval UI in the protocol)
