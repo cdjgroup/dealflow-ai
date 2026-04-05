@@ -3,7 +3,7 @@ import {
   getUsersForScheduleHour,
   getUserSettings,
 } from "@/lib/data/settings";
-import { getActions, batchUpdateStatus, getAction, updateAction } from "@/lib/data/actions";
+import { getActions, batchUpdateStatus, updateAction } from "@/lib/data/actions";
 import { initiateCiba } from "@/lib/ciba/authorize";
 import {
   storeScheduledCibaSession,

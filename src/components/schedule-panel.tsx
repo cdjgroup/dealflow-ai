@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { AutonomyLevel } from "@/lib/types/settings";
 
@@ -61,7 +61,15 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
   const [error, setError] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+
+  // Focus the confirm button when dialog appears
+  useEffect(() => {
+    if (showConfirmDialog) {
+      confirmRef.current?.focus();
+    }
+  }, [showConfirmDialog]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -248,7 +256,7 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
         <p className="text-xs text-muted-foreground mb-3">
           Control how much the AI can do without your intervention
         </p>
-        <div className="flex gap-1">
+        <div className="flex gap-1" role="group" aria-label="AI autonomy level">
           {AUTONOMY_LEVELS.map((opt) => {
             const isActive = autonomyLevel === opt.level;
             return (
@@ -256,7 +264,8 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
                 key={opt.level}
                 onClick={() => handleAutonomyChange(opt.level)}
                 disabled={saving}
-                className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+                aria-pressed={isActive}
+                className={`flex-1 rounded-md border px-3 py-3 text-xs font-medium transition-colors ${
                   isActive
                     ? opt.activeColor
                     : "border-border bg-muted/50 hover:border-muted-foreground/30 " + opt.color
@@ -282,6 +291,7 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
           </p>
           <div className="flex gap-2 mt-3">
             <button
+              ref={confirmRef}
               onClick={confirmLevel3}
               disabled={saving}
               className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
@@ -364,11 +374,11 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
       </div>
 
       {triggerResult && (
-        <p className="text-xs text-emerald-500">{triggerResult}</p>
+        <p className="text-xs text-emerald-500" aria-live="polite">{triggerResult}</p>
       )}
 
       {error && (
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-destructive" aria-live="assertive">{error}</p>
       )}
     </div>
   );

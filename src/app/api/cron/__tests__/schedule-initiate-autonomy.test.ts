@@ -133,7 +133,9 @@ describe("schedule-initiate autonomy branching", () => {
     const res = await GET(makeRequest());
     const data = await res.json();
 
-    // Assert — CIBA should still be initiated (level 2 requires device consent)
+    // Assert — fetches "approved" actions (level 2 auto-approved at creation)
+    expect(mockGetActions).toHaveBeenCalledWith("user-1", { status: "approved" });
+    // CIBA should still be initiated (level 2 requires device consent)
     expect(mockInitiateCiba).toHaveBeenCalledOnce();
     const result = data.results.find((r: { userId: string }) => r.userId === "user-1");
     expect(result.status).toBe("initiated");
