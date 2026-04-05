@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { getAction, updateAction } from "@/lib/data/actions";
-import { getUserSettings } from "@/lib/data/settings";
+import { getUserSettings, incrementTrustStat } from "@/lib/data/settings";
 import { checkCsrf } from "@/lib/api-guard";
 import { z } from "zod";
 import { draftSchema } from "@/lib/schemas/action-draft";
@@ -71,5 +71,11 @@ export async function PUT(
   }
 
   const updated = await updateAction(auth.userId, id, parsed.data as Parameters<typeof updateAction>[2]);
+
+  // Track approval/dismiss for trust calibration
+  if (parsed.data.status === "approved" || parsed.data.status === "dismissed") {
+    incrementTrustStat(auth.userId, existing.type, parsed.data.status).catch(() => {});
+  }
+
   return NextResponse.json({ action: updated });
 }

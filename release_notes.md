@@ -1,3 +1,31 @@
+# Release Notes — v0.5.2
+
+## DealFlow AI: AI-Powered Actions, Trust Calibration, Batch Review
+
+The Action Center now generates truly AI-powered suggestions — Claude Haiku analyzes your pipeline context and writes personalized drafts with confidence scores. Trust calibration tracks your approval patterns and recommends when to auto-approve. Batch approve now requires confirmation with a type breakdown.
+
+### What's new
+
+- **AI-Powered Action Suggestions**: `analyzePipeline` calls Claude Haiku with full deal context (stage, value, contact history, activity timeline) to generate personalized email drafts, meeting agendas, and Slack messages. Each suggestion includes a confidence score (0-1) and AI-reasoned justification. Falls back to heuristic rules if the LLM call fails.
+- **Confidence Badges**: Action cards display an AI confidence badge (e.g., "87% confident") with tooltip explaining the score.
+- **Trust Calibration**: Every approve/dismiss increments per-action-type stats in Redis. The Permissions page shows approval rates (e.g., "12/14 approved (86%)") and recommends "Consider auto-approve" when the rate exceeds 80%.
+- **Batch Approve Confirmation**: "Approve All Pending" now shows an inline confirmation panel with type breakdown (e.g., "3 emails, 1 calendar event, 1 Slack message"). Escape key dismisses, focus auto-moves to Cancel for keyboard safety.
+- **Batch Route Capability Guard**: Batch approve now enforces the same capability/trust checks as individual approval — disabled integrations or "never" trust tools are filtered out.
+
+### Security
+
+- LLM-generated drafts validated through strict Zod draftSchema before Redis persistence (defense-in-depth against prompt injection via deal data)
+- Batch route enforces capability and trust-level guards (closes gap where batch could bypass per-tool settings)
+
+### Architecture
+
+- `generateText()` + `Output.object()` with Zod schema for structured LLM output (AI SDK v6 subagent pattern)
+- Heuristic fallback extracted to `generateHeuristicSuggestions()` — called automatically if LLM fails
+- Activities fetched in parallel via `Promise.all` (eliminates N+1 sequential Redis queries)
+- Trust stats: `{userId}:trustStats` Redis key with get-modify-set pattern (documented race condition acceptable for demo scale)
+
+---
+
 # Release Notes — v0.5.1
 
 ## DealFlow AI: Scheduled Action Review with CIBA Approval

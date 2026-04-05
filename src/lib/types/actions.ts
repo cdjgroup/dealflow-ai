@@ -43,6 +43,7 @@ export interface SuggestedAction {
   contactName: string;
   justification: string;
   draft: ActionDraft;
+  confidence?: number;
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;

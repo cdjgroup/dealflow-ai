@@ -1,5 +1,5 @@
 import { getRedis } from "@/lib/redis";
-import { type UserSettings, DEFAULT_SETTINGS } from "@/lib/types/settings";
+import { type UserSettings, DEFAULT_SETTINGS, type TrustStats, DEFAULT_TRUST_STATS } from "@/lib/types/settings";
 
 function settingsKey(userId: string): string {
   return `${userId}:settings`;
@@ -26,6 +26,31 @@ export async function updateUserSettings(
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);
   return merged;
+}
+
+function trustStatsKey(userId: string): string {
+  return `${userId}:trustStats`;
+}
+
+export async function getTrustStats(userId: string): Promise<TrustStats> {
+  const redis = getRedis();
+  const raw = await redis.get<TrustStats>(trustStatsKey(userId));
+  if (!raw) return { ...DEFAULT_TRUST_STATS, email: { ...DEFAULT_TRUST_STATS.email }, calendar: { ...DEFAULT_TRUST_STATS.calendar }, slack: { ...DEFAULT_TRUST_STATS.slack } };
+  return raw;
+}
+
+// Note: read-modify-write without atomicity — concurrent batch approvals may
+// under-count. Acceptable for hackathon demo; production should use HINCRBY
+// on a Redis hash for atomic increments.
+export async function incrementTrustStat(
+  userId: string,
+  actionType: "email" | "calendar" | "slack",
+  outcome: "approved" | "dismissed"
+): Promise<void> {
+  const stats = await getTrustStats(userId);
+  stats[actionType][outcome]++;
+  const redis = getRedis();
+  await redis.set(trustStatsKey(userId), stats);
 }
 
 const VALID_HOURS = [8, 12, 17];
