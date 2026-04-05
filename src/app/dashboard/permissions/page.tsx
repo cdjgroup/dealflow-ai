@@ -1,6 +1,6 @@
 import { auth0, getUser } from "@/lib/auth0";
 import { redirect } from "next/navigation";
-import { getUserSettings } from "@/lib/data/settings";
+import { getUserSettings, getTrustStats } from "@/lib/data/settings";
 import { getDisabledConnections } from "@/lib/data/connections";
 import { IntegrationPermissions } from "@/components/integration-permissions";
 import { CapabilityMatrix } from "@/components/capability-matrix";
@@ -14,10 +14,11 @@ export default async function PermissionsPage() {
   const user = await getUser();
   if (!user?.sub) redirect("/auth/login?returnTo=/dashboard/permissions");
 
-  const [settings, recentActivity, disabledConnections] = await Promise.all([
+  const [settings, recentActivity, disabledConnections, trustStats] = await Promise.all([
     getUserSettings(user.sub),
     getAuditLog(user.sub, { limit: 20 }),
     getDisabledConnections(user.sub),
+    getTrustStats(user.sub),
   ]);
 
   return (
@@ -35,6 +36,7 @@ export default async function PermissionsPage() {
       <IntegrationPermissions
         initialSettings={settings}
         disabledConnections={disabledConnections}
+        trustStats={trustStats}
       />
 
       {/* Tool reference matrix — collapsed */}

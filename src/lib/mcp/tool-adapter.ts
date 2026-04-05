@@ -7,9 +7,7 @@ import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
-
-// CRM read-only tool names exposed via MCP
-const CRM_READ_TOOLS = new Set(["listDeals", "getDealDetails", "searchContacts"]);
+import { getToolNamesForSurface, getReadToolNamesForScopes } from "@/lib/surface-policy";
 
 type AiTool = {
   description?: string;
@@ -27,24 +25,35 @@ interface ToolEntry {
 
 /**
  * Build the list of tools safe for MCP exposure.
- * Non-CRM tools (calendar, gmail search, slack list) are stateless.
- * CRM tools are created per-request with the authenticated userId.
+ *
+ * Uses the surface policy registry to determine which tools are allowed,
+ * replacing the previous hardcoded CRM_READ_TOOLS set. The policy is the
+ * single source of truth — adding a new read tool only requires updating
+ * TOOL_CATEGORIES in capability-filter.ts.
  */
 function getMcpSafeTools(): ToolEntry[] {
-  const toolDefs: ToolEntry[] = [
-    { name: "checkCalendar", tool: checkCalendar as unknown as AiTool, isCrmTool: false },
-    { name: "searchEmails", tool: searchEmails as unknown as AiTool, isCrmTool: false },
-    { name: "listSlackChannels", tool: listSlackChannels as unknown as AiTool, isCrmTool: false },
-  ].map((t) => ({
-    ...t,
-    description: t.tool.description || t.name,
-    schema: t.tool.inputSchema,
-  }));
+  const allowedNames = new Set(getToolNamesForSurface("mcp"));
 
-  // Register CRM read-only tool schemas (execution uses per-request userId)
+  // Non-CRM tools (stateless, no userId needed for schema registration)
+  const statelessTools: Array<{ name: string; tool: AiTool }> = [
+    { name: "checkCalendar", tool: checkCalendar as unknown as AiTool },
+    { name: "searchEmails", tool: searchEmails as unknown as AiTool },
+    { name: "listSlackChannels", tool: listSlackChannels as unknown as AiTool },
+  ];
+
+  const toolDefs: ToolEntry[] = statelessTools
+    .filter((t) => allowedNames.has(t.name))
+    .map((t) => ({
+      ...t,
+      description: t.tool.description || t.name,
+      schema: t.tool.inputSchema,
+      isCrmTool: false,
+    }));
+
+  // CRM read-only tools (created per-request with userId, schema-only here)
   const schemaCrmTools = createCrmTools("schema-only");
   for (const [name, t] of Object.entries(schemaCrmTools)) {
-    if (!CRM_READ_TOOLS.has(name)) continue;
+    if (!allowedNames.has(name)) continue;
     const tool = t as unknown as AiTool;
     toolDefs.push({
       name,
@@ -61,10 +70,18 @@ function getMcpSafeTools(): ToolEntry[] {
 /**
  * Returns a function that registers MCP-safe tools on an MCP server.
  *
- * Security: Only read-only tools are exposed. Tools requiring approval
- * (external actions, CRM writes, delegation) are excluded because MCP
- * has no interactive approval flow. This mirrors filterToolsByCapabilities
- * and attachApprovalChecks from the chat route.
+ * Security model (three-layer enforcement):
+ * - Layer 1 (registration): Tool SET is determined by the surface policy registry.
+ *   Only read-only tools are registered. This is a server-init-time decision.
+ *   Note: tools/list returns the full registered set regardless of client scopes.
+ *   This is intentional — discovery is not access. Clients see available tools
+ *   but scope enforcement at execution prevents unauthorized calls.
+ * - Layer 2 (scope check): Per-REQUEST scope check validates authInfo.scopes against
+ *   the tool's category. Different clients can have different scopes derived from
+ *   user settings (per-client MCP policies).
+ * - Layer 3 (client policy): Per-client API key users get additional tool allowlist
+ *   filtering, rate limiting, and usage analytics.
+ * - Audit trail records both successful calls and scope/policy denials.
  *
  * CRM tools are created per-request using the authenticated userId from
  * the MCP auth context (extra.authInfo.clientId).
@@ -91,8 +108,31 @@ export function adaptToolsForMcp() {
             };
           }
 
-          // Per-client tool filtering (AC-10, AC-11, AC-12)
+          // Layer 2: Per-request scope check (from surface policy + user settings)
+          const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
           const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+
+          // For Auth0 token users (default), enforce scope-based filtering
+          if (!mcpClientId || mcpClientId === "default") {
+            const scopeAllowedTools = new Set(getReadToolNamesForScopes(clientScopes));
+            if (!scopeAllowedTools.has(toolEntry.name)) {
+              writeAuditEntry(userId, {
+                threadId: "mcp",
+                toolName: toolEntry.name,
+                input: params,
+                result: "error",
+                errorMessage: "Scope denied: tool not authorized for this client's scope",
+                durationMs: 0,
+                surface: "mcp",
+              });
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not authorized for this client's scope" }) }],
+                isError: true,
+              };
+            }
+          }
+
+          // Layer 3: Per-client API key filtering (AC-10, AC-11, AC-12)
           const allowedTools = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
 
           if (mcpClientId && mcpClientId !== "default" && allowedTools) {
@@ -129,7 +169,6 @@ export function adaptToolsForMcp() {
           try {
             let result: unknown;
             if (toolEntry.isCrmTool) {
-              // Create CRM tools with the authenticated userId
               const crmTools = createCrmTools(userId);
               const crmTool = (crmTools as Record<string, unknown>)[toolEntry.name] as AiTool;
               result = await crmTool.execute!(params as never, {
@@ -177,6 +216,7 @@ export function adaptToolsForMcp() {
             };
           } catch (err) {
             const durationMs = Date.now() - start;
+
             const errClientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
             const errClientName = extra?.authInfo?.extra?.clientName as string | undefined;
 
@@ -195,6 +235,7 @@ export function adaptToolsForMcp() {
             if (errClientId) {
               recordMcpCall(userId, errClientId, toolEntry.name, false).catch(() => {});
             }
+
             return {
               content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool execution failed" }) }],
               isError: true,

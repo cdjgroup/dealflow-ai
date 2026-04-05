@@ -12,6 +12,14 @@ vi.mock("@/lib/data/mcp-clients", () => ({
   getMcpClient: mockGetMcpClient,
 }));
 
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn().mockResolvedValue({ capabilities: {}, mcpClients: {} }),
+}));
+
+vi.mock("@/lib/surface-policy", () => ({
+  deriveMcpScopes: vi.fn().mockReturnValue(["crm:read", "calendar:read", "gmail:read", "slack:read"]),
+}));
+
 // Replace global fetch so Auth0 /userinfo calls can be intercepted
 vi.stubGlobal("fetch", mockFetch);
 

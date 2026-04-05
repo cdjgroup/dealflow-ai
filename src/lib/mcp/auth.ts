@@ -1,5 +1,7 @@
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { lookupByApiKey, getMcpClient } from "@/lib/data/mcp-clients";
+import { getUserSettings } from "@/lib/data/settings";
+import { deriveMcpScopes } from "@/lib/surface-policy";
 
 const API_KEY_PREFIX = "dfk_";
 
@@ -7,7 +9,7 @@ const API_KEY_PREFIX = "dfk_";
  * Dual-path MCP token verification.
  *
  * - dfk_-prefixed tokens: API key path — hash and look up in Redis
- * - All other tokens: Auth0 /userinfo path (backward compatible)
+ * - All other tokens: Auth0 /userinfo path with scope derivation
  *
  * Returns AuthInfo with client metadata in `extra` for per-client
  * tool filtering and rate limiting in tool handlers.
@@ -22,7 +24,7 @@ export async function verifyMcpToken(
     return verifyApiKey(bearerToken);
   }
 
-  // Auth0 /userinfo path (existing behavior)
+  // Auth0 /userinfo path with scope derivation
   return verifyAuth0Token(bearerToken);
 }
 
@@ -65,10 +67,14 @@ async function verifyAuth0Token(
     const userinfo = await response.json();
     if (!userinfo.sub) return undefined;
 
+    // Derive scopes from surface policy + user's per-client MCP config
+    const settings = await getUserSettings(userinfo.sub);
+    const scopes = deriveMcpScopes(settings, userinfo.sub);
+
     return {
       token: bearerToken,
       clientId: userinfo.sub,
-      scopes: ["tools"],
+      scopes,
       extra: {
         mcpClientId: "default",
       },

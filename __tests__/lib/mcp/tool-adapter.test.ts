@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
+import { getToolNamesForSurface } from "@/lib/surface-policy";
 
 // Mock all tool imports so tests don't need real Auth0/Redis
 vi.mock("@/lib/auth0", () => ({
@@ -63,6 +64,52 @@ describe("MCP tool adapter", () => {
       // CRM write tools should NOT be registered
       expect(registered).not.toContain("createDeal");
       expect(registered).not.toContain("updateDeal");
+    });
+
+    it("AC-5: registered tools match surface policy for 'mcp'", async () => {
+      const registered: string[] = [];
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, _handler: unknown) => {
+          registered.push(name);
+        },
+      };
+
+      const registerFn = adaptToolsForMcp();
+      await registerFn(mockServer as never);
+
+      const policyTools = getToolNamesForSurface("mcp");
+      expect(registered.sort()).toEqual(policyTools.sort());
+    });
+
+    it("AC-6: handler denies tool call when scope doesn't match", async () => {
+      let capturedHandler: ((args: unknown, extra: unknown) => Promise<unknown>) | null = null;
+      const mockServer = {
+        registerTool: (name: string, _config: unknown, handler: (args: unknown, extra: unknown) => Promise<unknown>) => {
+          if (name === "checkCalendar") {
+            capturedHandler = handler;
+          }
+        },
+      };
+
+      const registerFn = adaptToolsForMcp();
+      await registerFn(mockServer as never);
+
+      expect(capturedHandler).not.toBeNull();
+
+      // Call with scopes that don't include calendar:read
+      const result = await capturedHandler!({}, {
+        authInfo: {
+          clientId: "user-123",
+          scopes: ["crm:read"], // no calendar:read
+        },
+      });
+
+      expect(result).toMatchObject({
+        isError: true,
+      });
+      // Verify the error message mentions scope/authorization
+      const text = (result as { content: Array<{ text: string }> }).content[0].text;
+      expect(text).toMatch(/not authorized|scope/i);
     });
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {

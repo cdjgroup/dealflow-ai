@@ -42,6 +42,9 @@ const settingsSchema = z.object({
       message: "toolTrust cannot contain more than 20 entries",
     })
     .optional(),
+  autonomyLevel: z
+    .union([z.literal(1), z.literal(2), z.literal(3)])
+    .optional(),
   schedule: z
     .object({
       enabled: z.boolean(),
@@ -63,6 +66,20 @@ const settingsSchema = z.object({
         },
         { message: "Invalid IANA timezone identifier" }
       ),
+    })
+    .optional(),
+  mcpClients: z
+    .record(
+      z.string().max(128),
+      z.object({
+        allowedCategories: z.array(
+          z.enum(["crmRead", "crmWrite", "calendar", "gmail", "slack"])
+        ).min(1).max(5),
+        label: z.string().max(64).optional(),
+      })
+    )
+    .refine((obj) => Object.keys(obj).length <= 10, {
+      message: "mcpClients cannot contain more than 10 entries",
     })
     .optional(),
 });

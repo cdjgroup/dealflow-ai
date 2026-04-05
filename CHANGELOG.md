@@ -22,6 +22,14 @@ All notable changes to this project will be documented in this file.
 - Per-client tool filtering: disallowed tools return error at `tools/call` time
 - User-scoped Redis keys prevent cross-user client access
 
+## [0.5.2] - 2026-04-05
+
+### Added
+- AI Autonomy Selector: 3-level control (Suggest Only / Auto-Approve / Full Autonomous)
+- LLM-powered action suggestions via Claude Haiku subagent with confidence scores
+- Trust calibration tracking with approval rate display in Permissions UI
+- Surface policy registry + scope-aware MCP auth
+
 ## [0.5.1] - 2026-04-05
 
 ### Added
