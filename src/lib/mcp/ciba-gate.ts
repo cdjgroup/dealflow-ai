@@ -104,25 +104,33 @@ export async function cibaGate(
   });
 }
 
+/** Strip characters not allowed in Auth0 CIBA binding messages.
+ * Auth0 allows: alphanumerics, whitespace, +-_.,:#@ */
+function sanitizeCiba(s: string): string {
+  return s.replace(/[^\w\s+\-_.,:#@]/g, "").trim();
+}
+
 export function buildMcpBindingMessage(
   toolName: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  clientName?: string
 ): string {
-  let message: string;
+  let action: string;
 
   if (toolName === "draftEmail") {
-    const to = params.to ? String(params.to) : "";
-    message = `MCP: draft email to ${to}`;
+    const to = params.to ? sanitizeCiba(String(params.to)) : "";
+    action = `draft email to ${to}`;
   } else if (toolName === "createCalendarEvent") {
-    const summary = params.summary ? String(params.summary) : "";
-    message = `MCP: calendar "${summary}"`;
+    const summary = params.summary ? sanitizeCiba(String(params.summary)) : "";
+    action = `calendar "${summary}"`;
   } else if (toolName === "sendSlackMessage") {
-    const channel = params.channel ? String(params.channel) : "";
-    const text = params.text ? String(params.text) : "";
-    message = `MCP: slack #${channel} "${text}"`;
+    const channel = params.channel ? sanitizeCiba(String(params.channel)) : "";
+    const text = params.text ? sanitizeCiba(String(params.text)) : "";
+    action = `slack #${channel} "${text}"`;
   } else {
-    message = `MCP: ${toolName}`;
+    action = toolName;
   }
 
-  return message.slice(0, 64);
+  const prefix = clientName ? `${sanitizeCiba(clientName)} - ` : "MCP: ";
+  return `${prefix}${action}`.slice(0, 64);
 }

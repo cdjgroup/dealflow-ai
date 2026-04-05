@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 import { searchEmails, draftEmail } from "@/lib/tools/gmail";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
@@ -261,9 +262,8 @@ function getMcpSafeTools(): ToolEntry[] {
  * - Layer 1 (registration): Tool SET is determined by the surface policy registry.
  *   Read-only tools and CIBA-gated write tools are registered. This is a
  *   server-init-time decision.
- *   Note: tools/list returns the full registered set regardless of client scopes.
- *   This is intentional — discovery is not access. Clients see available tools
- *   but scope enforcement at execution prevents unauthorized calls.
+ *   Note: tools/list is filtered per-client using the same scope/allowedTools
+ *   enforcement as tool execution. Clients only see tools they can call.
  * - Layer 2 (scope check): Per-REQUEST scope check validates authInfo.scopes against
  *   the tool's category. Different clients can have different scopes derived from
  *   user settings (per-client MCP policies).
@@ -445,7 +445,7 @@ export function adaptToolsForMcp(_userId?: string) {
 
             // Step 2: CIBA gate for write tools (Layer 4)
             if (shouldRequireCibaMcp(toolEntry.name)) {
-              const bindingMessage = buildMcpBindingMessage(toolEntry.name, params);
+              const bindingMessage = buildMcpBindingMessage(toolEntry.name, params, clientName);
               const cibaResult = await cibaGate(userId, toolEntry.name, bindingMessage);
               if (!cibaResult.approved) {
                 const errorMsg = (cibaResult as { error?: string }).error ?? "CIBA approval failed";
@@ -530,5 +530,53 @@ export function adaptToolsForMcp(_userId?: string) {
         }
       );
     }
+
+    // Override tools/list to filter by client scope and allowedTools.
+    // HACK: _registeredTools is private on McpServer — no public getter exists
+    // in the SDK. Acceptable for hackathon; production should use an SDK extension.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const registeredTools = (server as any)._registeredTools as Map<string, { description: string; inputSchema?: unknown }> | undefined;
+
+    if (!registeredTools || registeredTools.size === 0) {
+      console.error("[tool-adapter] _registeredTools is undefined or empty — SDK may have changed private field name");
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    server.server.setRequestHandler(ListToolsRequestSchema, (request: any, extra: any) => {
+      const authInfo = extra?.authInfo;
+      if (!authInfo) {
+        console.warn("[MCP tools/list] No authInfo — returning empty tool list");
+        return { tools: [] };
+      }
+
+      // Build the full tool list from the registered tools map
+      const allTools: Array<{ name: string; description?: string; inputSchema?: unknown }> = [];
+      if (registeredTools) {
+        for (const [name, entry] of registeredTools.entries()) {
+          allTools.push({ name, description: entry.description, inputSchema: entry.inputSchema });
+        }
+      }
+
+      const clientScopes: string[] = authInfo.scopes ?? [];
+      const mcpClientId = authInfo.extra?.mcpClientId as string | undefined;
+      const allowedToolsList = authInfo.extra?.allowedTools as string[] | undefined;
+
+      let visible = allTools;
+
+      // Auth0 token path (default client): filter by scope
+      if (!mcpClientId || mcpClientId === "default") {
+        const scopeAllowed = new Set(getToolNamesForScopes(clientScopes));
+        visible = visible.filter(t => scopeAllowed.has(t.name));
+      }
+
+      // API key path: filter by per-client allowedTools.
+      // allowedTools undefined = no per-tool restriction (client sees all registered tools).
+      if (mcpClientId && mcpClientId !== "default" && allowedToolsList) {
+        const allowed = new Set(allowedToolsList);
+        visible = visible.filter(t => allowed.has(t.name));
+      }
+
+      return { tools: visible };
+    });
   };
 }

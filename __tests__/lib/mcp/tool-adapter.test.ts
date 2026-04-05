@@ -77,11 +77,17 @@ vi.mock("@/lib/rate-limit", () => ({
   getMcpClientLimiter: vi.fn().mockReturnValue({
     limit: vi.fn().mockResolvedValue({ success: true }),
   }),
+  getToolRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ success: true, remaining: 9, reset: Date.now() + 60000, limit: 10 }),
+  }),
 }));
 
 vi.mock("@/lib/data/mcp-analytics", () => ({
   recordMcpCall: vi.fn().mockResolvedValue(undefined),
 }));
+
+/** Stub for McpServer.server — absorbs setRequestHandler calls from tools/list override. */
+const mockInnerServer = () => ({ setRequestHandler: vi.fn() });
 
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
@@ -96,6 +102,8 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        _registeredTools: new Map(),
+        server: mockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -130,6 +138,8 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        _registeredTools: new Map(),
+        server: mockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -147,6 +157,8 @@ describe("MCP tool adapter", () => {
             capturedHandler = handler;
           }
         },
+        _registeredTools: new Map(),
+        server: mockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -176,6 +188,8 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, config: Record<string, unknown>, _handler: unknown) => {
           tools.push({ name, config });
         },
+        _registeredTools: new Map(),
+        server: mockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
