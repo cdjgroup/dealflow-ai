@@ -1,5 +1,6 @@
 import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
 import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
+import { CONNECTION_MAP } from "@/lib/constants/tools";
 import type {
   SuggestedAction,
   EmailDraft,
@@ -13,21 +14,12 @@ export interface ExecutionResult {
   [key: string]: unknown;
 }
 
-const CONNECTION_MAP: Record<string, string> = {
-  email: "google-oauth2",
-  calendar: "google-oauth2",
-  slack: "sign-in-with-slack",
-};
-
 const CONNECTION_ERRORS: Record<string, string> = {
   email: "Gmail not connected. Connect your Google Account in Permissions.",
   calendar: "Google Calendar not connected. Connect your Google Account in Permissions.",
   slack: "Slack not connected. Connect your Slack account in Permissions.",
 };
 
-/**
- * Execute an action using session-based token exchange (interactive UI flow).
- */
 export async function executeAction(
   action: SuggestedAction
 ): Promise<ExecutionResult> {
@@ -39,9 +31,6 @@ export async function executeAction(
   return executeWithToken(action, result.token);
 }
 
-/**
- * Execute an action with a pre-obtained access token (scheduled/cron flow).
- */
 export async function executeActionWithToken(
   action: SuggestedAction,
   token: string
