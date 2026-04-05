@@ -96,7 +96,7 @@ describe("analyze-pipeline autonomy gate", () => {
 
     // Act
     const tool = createAnalyzePipelineTool(USER_ID);
-    await tool.execute({ focus: "all" }, { toolCallId: "tc1", messages: [], abortSignal: undefined as unknown as AbortSignal });
+    await tool.execute!({ focus: "all" }, { toolCallId: "tc1", messages: [], abortSignal: undefined as unknown as AbortSignal });
 
     // Assert — action created with status "pending"
     expect(mockCreateAction).toHaveBeenCalled();
@@ -111,13 +111,14 @@ describe("analyze-pipeline autonomy gate", () => {
 
     // Act
     const tool = createAnalyzePipelineTool(USER_ID);
-    await tool.execute({ focus: "all" }, { toolCallId: "tc2", messages: [], abortSignal: undefined as unknown as AbortSignal });
+    await tool.execute!({ focus: "all" }, { toolCallId: "tc2", messages: [], abortSignal: undefined as unknown as AbortSignal });
 
     // Assert — high priority action auto-approved
     expect(mockCreateAction).toHaveBeenCalled();
     // Find the high-priority action creation call
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const highPriorityCall = mockCreateAction.mock.calls.find(
-      ([, data]: [string, Record<string, unknown>]) => data.priority === "high"
+      (call: any[]) => call[1].priority === "high"
     );
     expect(highPriorityCall).toBeDefined();
     expect(highPriorityCall![1].status).toBe("approved");
@@ -130,7 +131,7 @@ describe("analyze-pipeline autonomy gate", () => {
 
     // Act
     const tool = createAnalyzePipelineTool(USER_ID);
-    await tool.execute({ focus: "all" }, { toolCallId: "tc3", messages: [], abortSignal: undefined as unknown as AbortSignal });
+    await tool.execute!({ focus: "all" }, { toolCallId: "tc3", messages: [], abortSignal: undefined as unknown as AbortSignal });
 
     // Assert — medium priority action auto-approved
     expect(mockCreateAction).toHaveBeenCalled();
@@ -149,7 +150,7 @@ describe("analyze-pipeline autonomy gate", () => {
 
     // Act
     const tool = createAnalyzePipelineTool(USER_ID);
-    await tool.execute({ focus: "all" }, { toolCallId: "tc4", messages: [], abortSignal: undefined as unknown as AbortSignal });
+    await tool.execute!({ focus: "all" }, { toolCallId: "tc4", messages: [], abortSignal: undefined as unknown as AbortSignal });
 
     // Assert — all created actions: medium/high should be "approved", any low should be "pending"
     for (const [, actionData] of mockCreateAction.mock.calls) {
@@ -168,7 +169,7 @@ describe("analyze-pipeline autonomy gate", () => {
 
     // Act
     const tool = createAnalyzePipelineTool(USER_ID);
-    await tool.execute({ focus: "all" }, { toolCallId: "tc5", messages: [], abortSignal: undefined as unknown as AbortSignal });
+    await tool.execute!({ focus: "all" }, { toolCallId: "tc5", messages: [], abortSignal: undefined as unknown as AbortSignal });
 
     // Assert — all non-low-priority actions are "approved"
     expect(mockCreateAction).toHaveBeenCalled();
