@@ -258,12 +258,11 @@ function getMcpSafeTools(): ToolEntry[] {
  * Returns a function that registers MCP-safe tools on an MCP server.
  *
  * Security model (four-layer enforcement):
- * - Layer 1 (registration): Tool SET is determined by the surface policy registry.
- *   Read-only tools and CIBA-gated write tools are registered. This is a
- *   server-init-time decision.
- *   Note: tools/list returns the full registered set regardless of client scopes.
- *   This is intentional — discovery is not access. Clients see available tools
- *   but scope enforcement at execution prevents unauthorized calls.
+ * - Layer 1 (registration): Tool SET is determined by the surface policy registry,
+ *   then narrowed by the optional `allowedToolFilter` parameter. When a per-client
+ *   API key provides an `allowedTools` list, only those tools are registered —
+ *   so `tools/list` returns only what the client can actually call.
+ *   Auth0 token clients (no filter) see all MCP-surface tools.
  * - Layer 2 (scope check): Per-REQUEST scope check validates authInfo.scopes against
  *   the tool's category. Different clients can have different scopes derived from
  *   user settings (per-client MCP policies).
@@ -280,9 +279,16 @@ function getMcpSafeTools(): ToolEntry[] {
  * CRM tools are created per-request using the authenticated userId from
  * the MCP auth context (extra.authInfo.clientId).
  */
-export function adaptToolsForMcp(_userId?: string) {
+export function adaptToolsForMcp(allowedToolFilter?: string[]) {
   return async (server: McpServer) => {
-    const tools = getMcpSafeTools();
+    let tools = getMcpSafeTools();
+
+    // Per-client tools/list filtering: only register tools the client is allowed to use.
+    // Defense-in-depth — execution-layer enforcement (Layer 3) remains as a fallback.
+    if (allowedToolFilter) {
+      const allowed = new Set(allowedToolFilter);
+      tools = tools.filter((t) => allowed.has(t.name));
+    }
 
     for (const toolEntry of tools) {
       server.registerTool(

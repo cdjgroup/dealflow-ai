@@ -153,9 +153,9 @@ function makeMockServer() {
  * Calls adaptToolsForMcp(), registers all tools on a fresh mock server,
  * and returns a map of toolName -> { config, handler }.
  */
-async function setupRegisteredTools(userId = "user-123") {
+async function setupRegisteredTools(_userId = "user-123") {
   const mockServer = makeMockServer();
-  const registrar = adaptToolsForMcp(userId);
+  const registrar = adaptToolsForMcp();
   await registrar(mockServer as Parameters<typeof registrar>[0]);
 
   const toolMap: Record<string, { config: unknown; handler: (args: unknown, context: unknown) => Promise<unknown> }> = {};

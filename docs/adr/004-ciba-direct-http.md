@@ -41,3 +41,7 @@ Integrate via the existing interrupt pattern: JSON error thrown from tool execut
 ### Neutral
 - The `@auth0/ai` package remains installed (used by other dependencies) but CIBA-specific features are unused
 - If Auth0 fixes SDK error handling (#175), migration path is straightforward — replace direct HTTP calls with SDK wrapper
+
+## Standards Alignment
+
+CIBA device-level consent for high-value operations satisfies the human oversight requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), ensuring that humans can intervene in and override AI-initiated actions that exceed value or risk thresholds.
