@@ -70,7 +70,11 @@ Per-action CIBA (one Guardian push per action) creates notification fatigue. Wit
 
 Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#` characters. Email addresses (containing `@`) are rejected with a validation error. This isn't documented prominently — discovered via runtime error. Fix: sanitize with `/[^\w\s+\-_.,:#]/g` and use contact names instead of email addresses in messages. The 64-character limit also requires careful message construction: prioritize action type counts over individual details.
 
-## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
+## 017 — Surface policy as architecture, not just filtering (2026-04-05)
+
+When three surfaces (Chat UI, Action Center, MCP) share the same tool set but apply different access rules, the filtering code can easily become scattered ad-hoc checks that look like "we called exchangeToken() from three files." The fix: formalize the security constraints into a **surface policy registry** — a single source of truth declaring what each surface allows, why (security rationale), and what trust properties it has (interactive session, approval capability, read/write access level). The policy joins with the tool-to-category mapping to produce concrete tool sets. Key design insight: category-level filtering is too coarse when a single category (e.g., "calendar") contains both read (checkCalendar) and write (createCalendarEvent) tools. An explicit `WRITE_TOOLS` set plus `accessLevel` on the surface policy handles this. The MCP scope derivation also respects user capability toggles — if a user disables calendar in their settings, MCP clients lose calendar access too, maintaining consistency across surfaces.
+
+## 018 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
 
 React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
 

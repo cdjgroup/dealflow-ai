@@ -134,4 +134,55 @@ describe("settings data layer", () => {
       expect(result.approvalRequired.crmWrite).toBe(true);
     });
   });
+
+  describe("mcpClients merge (AC-12)", () => {
+    it("AC-12: full-replaces mcpClients when present in patch", async () => {
+      const existing = {
+        ...DEFAULT_SETTINGS,
+        mcpClients: {
+          "client-a": { allowedCategories: ["crmRead" as const], label: "A" },
+        },
+      };
+      mockGet.mockResolvedValue(existing);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        mcpClients: {
+          "client-b": { allowedCategories: ["calendar" as const], label: "B" },
+        },
+      });
+
+      // Full replace: client-a is gone, only client-b exists
+      expect(result.mcpClients?.["client-a"]).toBeUndefined();
+      expect(result.mcpClients?.["client-b"]).toBeDefined();
+    });
+
+    it("AC-12: can remove all clients by sending empty object", async () => {
+      const existing = {
+        ...DEFAULT_SETTINGS,
+        mcpClients: {
+          "client-a": { allowedCategories: ["crmRead" as const], label: "A" },
+        },
+      };
+      mockGet.mockResolvedValue(existing);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        mcpClients: {},
+      });
+
+      expect(Object.keys(result.mcpClients ?? {})).toHaveLength(0);
+    });
+
+    it("AC-12: preserves undefined mcpClients when not in patch", async () => {
+      mockGet.mockResolvedValue(DEFAULT_SETTINGS);
+      mockSet.mockResolvedValue("OK");
+
+      const result = await updateUserSettings(TEST_USER, {
+        capabilities: { ...DEFAULT_SETTINGS.capabilities, gmail: false },
+      });
+
+      expect(result.mcpClients).toBeUndefined();
+    });
+  });
 });

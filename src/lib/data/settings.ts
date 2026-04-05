@@ -22,6 +22,9 @@ export async function updateUserSettings(
     approvalRequired: patch.approvalRequired ?? current.approvalRequired,
     toolTrust: { ...current.toolTrust, ...(patch.toolTrust ?? {}) },
     schedule: patch.schedule ?? current.schedule,
+    mcpClients: patch.mcpClients !== undefined
+      ? patch.mcpClients
+      : current.mcpClients,
     autonomyLevel: patch.autonomyLevel ?? current.autonomyLevel,
   };
   const redis = getRedis();

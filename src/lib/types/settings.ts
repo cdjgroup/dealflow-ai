@@ -1,3 +1,5 @@
+import type { CapabilityCategory } from "@/lib/surface-policy";
+
 export type TrustLevel = "always" | "ask" | "never";
 export type AutonomyLevel = 1 | 2 | 3;
 
@@ -13,6 +15,11 @@ export const DEFAULT_TRUST_STATS: TrustStats = {
   calendar: { approved: 0, dismissed: 0 },
   slack: { approved: 0, dismissed: 0 },
 };
+
+export interface McpClientPolicy {
+  allowedCategories: CapabilityCategory[];
+  label?: string;
+}
 
 export interface UserSettings {
   capabilities: {
@@ -31,6 +38,7 @@ export interface UserSettings {
     hours: number[];
     timezone: string;
   };
+  mcpClients?: Record<string, McpClientPolicy>;
   autonomyLevel: AutonomyLevel;
 }
 

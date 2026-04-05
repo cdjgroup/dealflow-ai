@@ -153,8 +153,19 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 ### Token Vault Audit Visualization
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
-### MCP Server for External AI Agents
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.
+### MCP Server with Surface Policy & Per-Client Scopes
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (Claude Desktop, Cursor, CI pipelines) discover and invoke tools through standard MCP protocol.
+
+**Surface Policy Registry**: A formal policy registry (`src/lib/surface-policy.ts`) declares what each surface allows and why — the security constraints adapt per surface. If a surface can't support human consent, write access is revoked. The three surfaces:
+- **Chat UI** (full access): All 13 tools with SDK approval flow + CIBA step-up
+- **Action Center** (write-only): Pre-approved email/calendar/slack actions
+- **MCP** (read-only): Bearer token auth, no approval UI available
+
+**Scope-Aware Auth**: Bearer tokens validated against Auth0 `/userinfo`. Scopes derived from the surface policy (`crm:read`, `calendar:read`, `gmail:read`, `slack:read`) — not hardcoded. Per-request scope enforcement at tool execution time.
+
+**Per-Client Policies**: Different MCP clients can have different access levels. Configurable at `/dashboard/mcp` — e.g., Cursor IDE gets CRM + calendar, while a CI pipeline gets CRM-only. Client policies intersect with the MCP surface ceiling (can't exceed read-only). User capability toggles are respected — disabling calendar in settings also removes it from MCP scopes.
+
+All MCP calls logged to audit trail with scope denial tracking.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.

@@ -1,15 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { motion } from "framer-motion";
+import type { McpClientPolicy } from "@/lib/types/settings";
+import type { CapabilityCategory } from "@/lib/surface-policy";
+
+const CATEGORY_OPTIONS: Array<{ value: CapabilityCategory; label: string; description: string }> = [
+  { value: "crmRead", label: "CRM Read", description: "List deals, contacts, pipeline data" },
+  { value: "calendar", label: "Calendar", description: "Check calendar events and availability" },
+  { value: "gmail", label: "Gmail", description: "Search email inbox" },
+  { value: "slack", label: "Slack", description: "List accessible channels" },
+];
 
 const MCP_TOOLS = [
-  { name: "checkCalendar", description: "Check Google Calendar for events or availability", scope: "read", provider: "Google" },
-  { name: "searchEmails", description: "Search Gmail inbox for matching emails", scope: "read", provider: "Google" },
-  { name: "listSlackChannels", description: "List Slack channels the user has access to", scope: "read", provider: "Slack" },
-  { name: "listDeals", description: "List all deals in the CRM pipeline", scope: "read", provider: "CRM" },
-  { name: "getDealDetails", description: "Get detailed information about a specific deal", scope: "read", provider: "CRM" },
-  { name: "searchContacts", description: "Search contacts by name or company", scope: "read", provider: "CRM" },
+  { name: "checkCalendar", description: "Check Google Calendar for events or availability", scope: "read", provider: "Google", category: "calendar" as CapabilityCategory },
+  { name: "searchEmails", description: "Search Gmail inbox for matching emails", scope: "read", provider: "Google", category: "gmail" as CapabilityCategory },
+  { name: "listSlackChannels", description: "List Slack channels the user has access to", scope: "read", provider: "Slack", category: "slack" as CapabilityCategory },
+  { name: "listDeals", description: "List all deals in the CRM pipeline", scope: "read", provider: "CRM", category: "crmRead" as CapabilityCategory },
+  { name: "getDealDetails", description: "Get detailed information about a specific deal", scope: "read", provider: "CRM", category: "crmRead" as CapabilityCategory },
+  { name: "searchContacts", description: "Search contacts by name or company", scope: "read", provider: "CRM", category: "crmRead" as CapabilityCategory },
 ];
 
 const EXCLUDED_TOOLS = [
@@ -66,10 +75,21 @@ curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \\
   },
 };
 
-export function McpExplorer() {
+interface McpExplorerProps {
+  initialMcpClients?: Record<string, McpClientPolicy>;
+}
+
+export function McpExplorer({ initialMcpClients }: McpExplorerProps) {
   const [activeTab, setActiveTab] = useState<keyof typeof CLIENT_CONFIGS>("claude_desktop");
   const [copied, setCopied] = useState(false);
   const [endpointStatus, setEndpointStatus] = useState<"checking" | "live" | "down">("checking");
+  const [mcpClients, setMcpClients] = useState<Record<string, McpClientPolicy>>(initialMcpClients ?? {});
+  const [isPending, startTransition] = useTransition();
+
+  // New client form state
+  const [newLabel, setNewLabel] = useState("");
+  const [newCategories, setNewCategories] = useState<Set<CapabilityCategory>>(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     fetch("/api/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", method: "initialize", id: 0 }) })
@@ -85,6 +105,57 @@ export function McpExplorer() {
     } catch {
       // Fallback: select text for manual copy
     }
+  }
+
+  function saveClients(updated: Record<string, McpClientPolicy>) {
+    setMcpClients(updated);
+    startTransition(async () => {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify({ mcpClients: updated }),
+      });
+    });
+  }
+
+  function addClient() {
+    if (!newLabel.trim() || newCategories.size === 0) return;
+    const clientId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const updated = {
+      ...mcpClients,
+      [clientId]: {
+        allowedCategories: Array.from(newCategories),
+        label: newLabel.trim(),
+      },
+    };
+    saveClients(updated);
+    setNewLabel("");
+    setNewCategories(new Set());
+    setShowAddForm(false);
+  }
+
+  function removeClient(clientId: string) {
+    const updated = { ...mcpClients };
+    delete updated[clientId];
+    saveClients(updated);
+  }
+
+  function toggleCategory(cat: CapabilityCategory) {
+    setNewCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }
+
+  // For a client policy, show which tools it gets
+  function getToolsForClient(policy: McpClientPolicy): typeof MCP_TOOLS {
+    const cats = new Set(policy.allowedCategories);
+    return MCP_TOOLS.filter((t) => cats.has(t.category));
   }
 
   return (
@@ -129,11 +200,129 @@ export function McpExplorer() {
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-400">
               Auth Required
             </span>
+            <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-blue-400">
+              Scope-Based Access
+            </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Bearer token authentication via Auth0. Tokens validated against <code className="text-foreground/70">/userinfo</code> endpoint.
+            Bearer token authentication via Auth0. Scopes derived from surface policy
+            (<code className="text-foreground/70">crm:read</code>, <code className="text-foreground/70">calendar:read</code>, etc.).
+            Per-client policies can restrict which tool categories each agent accesses.
           </p>
         </div>
+      </motion.div>
+
+      {/* Client Policies */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-card border border-border rounded-lg p-6"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold text-foreground">Client Policies</h2>
+          <span className="text-[10px] text-muted-foreground">{Object.keys(mcpClients).length} configured</span>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Restrict which tool categories each MCP client can access.
+          Clients without a policy get the default: all read-only tools.
+        </p>
+
+        {/* Existing clients */}
+        {Object.keys(mcpClients).length > 0 && (
+          <div className="space-y-2 mb-4">
+            {Object.entries(mcpClients).map(([id, policy]) => (
+              <div key={id} className="rounded-md bg-secondary/50 border border-border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {policy.label || id}
+                  </span>
+                  <button
+                    onClick={() => removeClient(id)}
+                    disabled={isPending}
+                    className="text-[10px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {policy.allowedCategories.map((cat) => {
+                    const opt = CATEGORY_OPTIONS.find((o) => o.value === cat);
+                    return (
+                      <span
+                        key={cat}
+                        className="text-[10px] rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-primary"
+                      >
+                        {opt?.label || cat}
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {getToolsForClient(policy).length} tools: {getToolsForClient(policy).map((t) => t.name).join(", ")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add client form */}
+        {showAddForm ? (
+          <div className="rounded-md border border-border bg-secondary/30 p-4 space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Client Label</label>
+              <input
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="e.g., Cursor IDE, CI Pipeline"
+                className="w-full text-sm bg-background border border-border rounded-md px-3 py-1.5 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                maxLength={64}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Allowed Categories</label>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => toggleCategory(opt.value)}
+                    className={`text-left text-xs rounded-md border p-2 transition-all ${
+                      newCategories.has(opt.value)
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground"
+                    }`}
+                  >
+                    <span className="font-medium block">{opt.label}</span>
+                    <span className="text-[10px] opacity-70">{opt.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={addClient}
+                disabled={!newLabel.trim() || newCategories.size === 0 || isPending}
+                className="text-xs font-medium bg-primary text-primary-foreground rounded-md px-3 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                Add Client
+              </button>
+              <button
+                onClick={() => { setShowAddForm(false); setNewLabel(""); setNewCategories(new Set()); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            + Add client policy
+          </button>
+        )}
       </motion.div>
 
       {/* Available tools */}
@@ -144,11 +333,11 @@ export function McpExplorer() {
         className="bg-card border border-border rounded-lg p-6"
       >
         <h2 className="text-lg font-semibold text-foreground mb-2">
-          Available Tools ({MCP_TOOLS.length})
+          Default Tool Set ({MCP_TOOLS.length})
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Only read-only tools are exposed via MCP. Write operations and tools requiring
-          approval are excluded because MCP has no interactive approval UI.
+          Clients without a policy get all read-only tools. The surface policy restricts MCP
+          to read operations — if the surface can&apos;t support human consent, write access is revoked.
         </p>
         <div className="space-y-2">
           {MCP_TOOLS.map((tool, i) => (
@@ -247,23 +436,22 @@ export function McpExplorer() {
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">2.</span>
             <p>
-              DealFlow AI validates the token against Auth0 <code className="text-foreground/70">/userinfo</code> and
-              identifies the user.
+              DealFlow AI validates the token against Auth0 <code className="text-foreground/70">/userinfo</code>,
+              then derives scopes from the surface policy. Per-client policies narrow the scope further.
             </p>
           </div>
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">3.</span>
             <p>
               Agent discovers available tools via <code className="text-foreground/70">tools/list</code>.
-              Only read-only tools are exposed — write operations require the chat UI for approval.
+              Only read-only tools matching the client&apos;s scopes are returned.
             </p>
           </div>
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">4.</span>
             <p>
               Agent calls tools via <code className="text-foreground/70">tools/call</code>.
-              Each call goes through the same Token Vault pipeline — Auth0 exchanges a short-lived
-              token, the API call executes, and the action is logged to the audit trail.
+              Each call is scope-checked, executed through Token Vault, and logged to the audit trail.
             </p>
           </div>
         </div>
