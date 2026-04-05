@@ -30,7 +30,7 @@ function getHourInTimezone(date: Date, timezone: string): number {
 }
 
 function sanitize(msg: string): string {
-  return msg.replace(/[^\w\s+\-_.,:#@]/g, "").trim().slice(0, 64);
+  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
 }
 
 function buildActionMessage(action: SuggestedAction): string {
@@ -40,7 +40,7 @@ function buildActionMessage(action: SuggestedAction): string {
   switch (action.type) {
     case "email": {
       const d = draft as EmailDraft;
-      return sanitize(`${prio}: Email ${d.to} - ${d.subject}`);
+      return sanitize(`${prio}: Email ${action.contactName} - ${d.subject}`);
     }
     case "calendar": {
       const d = draft as CalendarDraft;
@@ -48,7 +48,7 @@ function buildActionMessage(action: SuggestedAction): string {
     }
     case "slack": {
       const d = draft as SlackDraft;
-      return sanitize(`${prio}: Slack #${d.channel} - ${d.message}`);
+      return sanitize(`${prio}: Slack ${d.channel} - ${action.dealName}`);
     }
     default:
       return sanitize(`${prio}: ${action.type} for ${action.dealName}`);
