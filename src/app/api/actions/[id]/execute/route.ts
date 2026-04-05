@@ -141,9 +141,16 @@ export async function POST(
       } catch (err) {
         console.error("Action CIBA initiation failed:", err);
         const raw = err instanceof Error ? err.message : "";
-        const msg = raw.includes("not enrolled")
-          ? "Device verification requires Auth0 Guardian enrollment"
-          : "Step-up authentication unavailable";
+        let msg: string;
+        if (raw.includes("not enrolled")) {
+          msg = "Device verification requires Auth0 Guardian enrollment";
+        } else if (raw.includes("missing_enrollment")) {
+          msg = "Guardian MFA enrollment required. Enroll at Auth0 Guardian on your phone.";
+        } else if (raw.includes("slow_down") || raw.includes("too_many")) {
+          msg = "Too many CIBA requests — please wait a moment and retry";
+        } else {
+          msg = `Step-up authentication failed: ${raw || "unknown error"}`;
+        }
         return NextResponse.json({ error: msg }, { status: 502 });
       }
     }
