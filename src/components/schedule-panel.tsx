@@ -64,9 +64,12 @@ export function SchedulePanel({ initialSchedule }: Props) {
           setTriggerResult(parts.join(", ") || "All actions processed");
           router.refresh();
         } else if (data.status === "no-sessions") {
-          stopPolling();
-          setTriggerResult(null);
-          setError("No active sessions");
+          // Sessions may not be stored yet on early polls — keep waiting
+          if (attempts > 10) {
+            stopPolling();
+            setTriggerResult(null);
+            setError("Sessions expired or not found");
+          }
         } else if (data.status === "pending") {
           // Update progress as individual actions resolve
           const resolved = (data.executed || 0) + (data.denied || 0) + (data.failed || 0);
@@ -183,7 +186,11 @@ export function SchedulePanel({ initialSchedule }: Props) {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                  throw new Error(data.error || "Trigger failed");
+                  throw new Error(data.error || `Trigger failed (${res.status})`);
+                }
+                if (data.actionCount === 0) {
+                  setError("No eligible actions were initiated");
+                  return;
                 }
                 startPolling(data.actionCount, data.interval || 5);
               } catch (err) {

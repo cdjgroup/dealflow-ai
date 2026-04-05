@@ -114,6 +114,15 @@ export async function POST(req: Request) {
   }
 
   const initiated = results.filter((r) => r.status === "initiated");
+  const errors = results.filter((r) => r.status === "error");
+
+  if (initiated.length === 0 && errors.length > 0) {
+    return NextResponse.json(
+      { error: `CIBA initiation failed for all ${errors.length} actions`, results },
+      { status: 502 }
+    );
+  }
+
   return NextResponse.json({
     status: "initiated",
     actionCount: initiated.length,
