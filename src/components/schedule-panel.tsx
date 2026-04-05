@@ -418,6 +418,22 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
             {Math.round(confidenceThresholds.autoApprove * 100)}%
           </span>
         </div>
+
+        {/* Zone legend */}
+        <div className="flex flex-col items-center gap-0.5 mt-3 text-xs">
+          <p>
+            <span className="font-medium text-red-600">Below {Math.round(confidenceThresholds.requireReview * 100)}%</span>
+            <span className="text-muted-foreground"> — Always requires manual review</span>
+          </p>
+          <p>
+            <span className="font-medium text-amber-600">{Math.round(confidenceThresholds.requireReview * 100)}–{Math.round(confidenceThresholds.autoApprove * 100)}%</span>
+            <span className="text-muted-foreground"> — Routed by your autonomy level (currently {AUTONOMY_LEVELS.find(a => a.level === autonomyLevel)?.label ?? "unknown"})</span>
+          </p>
+          <p>
+            <span className="font-medium text-emerald-600">Above {Math.round(confidenceThresholds.autoApprove * 100)}%</span>
+            <span className="text-muted-foreground"> — Auto-approved regardless of autonomy level</span>
+          </p>
+        </div>
       </div>
 
       {/* Scheduled Review Section */}

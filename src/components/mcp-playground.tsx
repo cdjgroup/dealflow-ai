@@ -217,6 +217,12 @@ export function McpPlayground() {
           </div>
         </div>
 
+        {error && tools.length === 0 && (
+          <p className="text-xs text-red-400 mt-3">
+            {error}
+          </p>
+        )}
+
         {!hasKey && clients.length === 0 && (
           <p className="text-xs text-amber-400 mt-3">
             No MCP clients found.{" "}
