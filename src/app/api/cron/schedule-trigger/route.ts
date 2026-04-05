@@ -134,6 +134,8 @@ export async function POST(req: Request) {
               input: action.draft as unknown as Record<string, unknown>,
               result: "success",
               durationMs: 0,
+              surface: "actions",
+              policyReason: "Autonomy L3: routine action, auto-executed without CIBA",
             }).catch(() => {});
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Execution failed";

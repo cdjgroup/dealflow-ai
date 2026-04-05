@@ -336,7 +336,8 @@ export function createAnalyzePipelineTool(userId: string) {
 
       // Create actions in Redis
       // Autonomy gate: level 2+ auto-approves high/medium priority actions
-      // Confidence gate: low-confidence actions forced to pending (downgrade-only)
+      // Confidence gate: low-confidence actions forced to pending (downgrade-only).
+      // Heuristic suggestions omit confidence (undefined) — they bypass the gate by design.
       let created = 0;
       for (const suggestion of validated) {
         const isLowConfidence = suggestion.confidence !== undefined

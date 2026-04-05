@@ -526,6 +526,7 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
               surface: "mcp",
               mcpClientId: clientId,
               mcpClientName: clientName,
+              policyReason: "Capability: enabled, scope: granted, connection: active, rate limit: within budget",
             });
 
             // Record analytics for named clients

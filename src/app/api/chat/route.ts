@@ -304,7 +304,7 @@ export async function POST(req: Request) {
       errorMessage: `Per-tool rate limit: ${result.tier} tier, resets in ${result.resetMs}ms`,
       policyReason: `Rate limit: ${result.tier} tier exceeded (resets in ${Math.ceil((result.resetMs ?? 0) / 1000)}s)`,
       surface: "chat",
-    });
+    }).catch(() => {});
   };
   const tools = attachCircuitBreaker(withCiba, userId, handleToolBlocked);
 
