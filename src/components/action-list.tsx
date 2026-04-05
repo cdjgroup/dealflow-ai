@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import type { SuggestedAction, ActionStatus, ActionDraft } from "@/lib/types/actions";
 import { ActionCard } from "@/components/action-card";
@@ -18,6 +18,11 @@ interface Props {
 export function ActionList({ initialActions }: Props) {
   const [actions, setActions] = useState<SuggestedAction[]>(initialActions);
   const [filter, setFilter] = useState<ActionStatus | "all">("all");
+
+  // Sync with server data when initialActions changes (e.g., after router.refresh())
+  useEffect(() => {
+    setActions(initialActions);
+  }, [initialActions]);
 
   const updateLocal = useCallback(
     (id: string, update: Partial<SuggestedAction>) => {
