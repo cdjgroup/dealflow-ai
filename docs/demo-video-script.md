@@ -63,7 +63,7 @@
 
 ---
 
-## 1:45–2:25 — Two-Step Consent: Inline + CIBA Device Approval (40s)
+## 1:45–2:15 — Two-Step Consent: Inline + CIBA Device Approval (30s)
 
 **Say:** "Now the key security feature. Watch what happens with a high-value deal."
 
@@ -93,7 +93,17 @@
 
 ---
 
-## 2:15–2:40 — Disconnect & Token Vault Scoping (25s)
+## 2:15–2:25 — Confidence Routing + MCP Constraints (10s)
+
+**Action:** Navigate to Action Center or Actions page
+
+**Say:** "The AI scores its own confidence on every suggestion. Above 85%, actions auto-approve. Below 50%, they're forced to manual review. And for external agents connecting via MCP, we enforce parameter-level constraints — regex patterns that restrict what queries they can run."
+
+**Show:** Confidence indicators on action cards, then briefly flash MCP client config showing parameter constraints
+
+---
+
+## 2:25–2:45 — Disconnect & Token Vault Scoping (20s)
 
 **Action:** Navigate back to Permissions
 
@@ -109,7 +119,7 @@
 
 ---
 
-## 2:40–3:00 — Architecture + Closing (20s)
+## 2:45–3:00 — Architecture + Closing (15s)
 
 **Show:** README architecture diagram (open GitHub repo) or a prepared slide
 

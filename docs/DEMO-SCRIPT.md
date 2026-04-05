@@ -61,6 +61,16 @@
    - **Approve on phone** → watch actions flip from Pending to Sent in real-time
    - "Token Vault exchanged tokens for Google and Slack — emails drafted, meetings scheduled, Slack updated. All within the CIBA token's time-boxed window."
 
+## Act 3b: Confidence Routing + MCP Constraints (20 sec)
+
+> "The AI scores its own confidence, and the system routes accordingly."
+
+8b. **Show confidence routing** (in Action Center or Actions page)
+   - Point at confidence indicators: "The AI scores its confidence 0 to 1. Above 85%, actions auto-approve. Below 50%, forced to manual review. The middle band follows the user's autonomy setting — graduated trust, not binary."
+
+8c. **Show MCP parameter constraints** (in MCP client config at /dashboard/mcp)
+   - Click into a client's policy: "External agents can be constrained at the parameter level — regex patterns restrict what queries they can run. Defense in depth for the agent ecosystem."
+
 ## Act 4: Trust Controls & Security (30 sec)
 
 > "The same authorization model governs every surface — chat, Action Center, scheduled execution, and external agents."
@@ -97,8 +107,9 @@ All through Auth0 Token Vault. The AI never stores credentials. Every action is 
 | 1 | Multi-step orchestration + pipeline analysis | 0:00–0:45 |
 | 2 | Action Center review + execute | 0:45–1:30 |
 | 3 | Scheduled execution via CIBA | 1:30–2:15 |
-| 4 | Trust controls + audit + MCP | 2:15–2:45 |
-| 5 | Closing statement | 2:45–3:00 |
+| 3b | Confidence routing + MCP constraints | 2:15–2:35 |
+| 4 | Trust controls + audit + MCP | 2:35–2:50 |
+| 5 | Closing statement | 2:50–3:00 |
 
 ## If something breaks
 

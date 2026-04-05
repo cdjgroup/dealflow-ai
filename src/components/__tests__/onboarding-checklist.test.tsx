@@ -26,7 +26,7 @@ describe("OnboardingChecklist", () => {
     localStorage.clear();
   });
 
-  it("renders 5 onboarding steps (AC-4)", () => {
+  it("renders 8 onboarding steps (AC-4)", () => {
     renderChecklist();
     expect(screen.getByText("Getting Started")).toBeInTheDocument();
     expect(screen.getByText("Connect Google")).toBeInTheDocument();
@@ -34,11 +34,14 @@ describe("OnboardingChecklist", () => {
     expect(screen.getByText("Try a chat command")).toBeInTheDocument();
     expect(screen.getByText("Check your pipeline")).toBeInTheDocument();
     expect(screen.getByText("Review permissions")).toBeInTheDocument();
+    expect(screen.getByText("Explore MCP")).toBeInTheDocument();
+    expect(screen.getByText("Set up scheduled actions")).toBeInTheDocument();
+    expect(screen.getByText("Set up Guardian")).toBeInTheDocument();
   });
 
-  it("shows 0 of 5 progress initially (AC-4)", () => {
+  it("shows 0 of 8 progress initially (AC-4)", () => {
     renderChecklist();
-    expect(screen.getByText("0 of 5")).toBeInTheDocument();
+    expect(screen.getByText("0 of 8")).toBeInTheDocument();
   });
 
   it("can complete a step by clicking (AC-6)", async () => {
@@ -46,7 +49,7 @@ describe("OnboardingChecklist", () => {
     renderChecklist();
     const markBtn = screen.getByLabelText("Mark Connect Google as complete");
     await user.click(markBtn);
-    expect(screen.getByText("1 of 5")).toBeInTheDocument();
+    expect(screen.getByText("1 of 8")).toBeInTheDocument();
   });
 
   it("can dismiss the checklist", async () => {
