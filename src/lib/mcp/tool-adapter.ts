@@ -12,24 +12,9 @@ import { cibaGate, buildMcpBindingMessage } from "@/lib/mcp/ciba-gate";
 import { shouldRequireCibaMcp } from "@/lib/ciba/should-require";
 import { TOOL_SCOPE_CONFIG, type TokenVaultToolName } from "@/lib/tools/scope-map";
 import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
-import { getUserSettings } from "@/lib/data/settings";
-import { getMcpClientLimiter } from "@/lib/rate-limit";
-import { checkToolRateLimit } from "@/lib/circuit-breaker";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
-import { getToolNamesForSurface, getToolNamesForScopes } from "@/lib/surface-policy";
-
-// Tool-to-capability category mapping (subset of capability-filter.ts — CRM write tools excluded from MCP)
-const TOOL_CATEGORIES: Record<string, string> = {
-  checkCalendar: "calendar",
-  createCalendarEvent: "calendar",
-  searchEmails: "gmail",
-  draftEmail: "gmail",
-  listSlackChannels: "slack",
-  sendSlackMessage: "slack",
-  listDeals: "crmRead",
-  getDealDetails: "crmRead",
-  searchContacts: "crmRead",
-};
+import { getToolNamesForSurface } from "@/lib/surface-policy";
+import { enforceToolAuth, type ToolAuthContext } from "@/lib/mcp/tool-auth";
 
 type AiTool = {
   description?: string;
@@ -126,13 +111,11 @@ const MCP_EXECUTORS: Record<string, ToolExecutor> = {
 
   sendSlackMessage: async (params, accessToken) => {
     const channel = params.channel as string;
-    // Resolve channel name to ID if not already an ID (C/G prefix + alphanumeric)
     const SLACK_CHANNEL_ID_RE = /^[CG][A-Z0-9]{8,11}$/;
     let channelId = channel;
     if (!SLACK_CHANNEL_ID_RE.test(channel)) {
       const resolved = await resolveSlackChannelId(channel, accessToken);
       if ("error" in resolved) {
-        // Return a synthetic Response that the caller can handle like an API error
         return new Response(JSON.stringify({ error: resolved.error }), {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -194,6 +177,31 @@ function auditAndErrorResponse(
     content: [{ type: "text" as const, text: JSON.stringify({ error: errorMessage }) }],
     isError: true,
   };
+}
+
+/** Write a success audit entry and record analytics. */
+function auditSuccess(
+  userId: string,
+  toolName: string,
+  params: Record<string, unknown>,
+  durationMs: number,
+  ctx: Pick<ToolAuthContext, "mcpClientId" | "clientName">,
+  mcpClientIdRaw?: string
+) {
+  writeAuditEntry(userId, {
+    threadId: mcpClientIdRaw ? `mcp:${mcpClientIdRaw}` : "mcp",
+    toolName,
+    input: params,
+    result: "success",
+    durationMs,
+    surface: "mcp",
+    mcpClientId: ctx.mcpClientId,
+    mcpClientName: ctx.clientName,
+  });
+
+  if (ctx.mcpClientId) {
+    recordMcpCall(userId, ctx.mcpClientId, toolName, true).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -294,176 +302,88 @@ export function adaptToolsForMcp(_userId?: string) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: unknown, extra: any) => {
           const params = (args ?? {}) as Record<string, unknown>;
-          const userId = extra?.authInfo?.clientId;
-          if (!userId) {
-            return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Authentication required" }) }],
-              isError: true,
-            };
-          }
+          const mcpClientIdRaw = extra?.authInfo?.extra?.mcpClientId as string | undefined;
 
-          // Layer 2: Per-request scope check (from surface policy + user settings)
-          const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
-          const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
-
-          // For Auth0 token users (default), enforce scope-based filtering
-          if (!mcpClientId || mcpClientId === "default") {
-            const scopeAllowedTools = new Set(getToolNamesForScopes(clientScopes));
-            if (!scopeAllowedTools.has(toolEntry.name)) {
-              const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
-              const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+          // Layers 2-4: Auth, scope, client policy, rate limiting, capability check
+          const authResult = await enforceToolAuth(toolEntry.name, extra);
+          if (!authResult.ok) {
+            if (authResult.userId) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params,
-                "Scope denied: tool not authorized for this client's scope",
-                0,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                authResult.userId, toolEntry.name, params, authResult.error, 0,
+                { mcpClientId: authResult.mcpClientId, mcpClientName: authResult.clientName, surface: "mcp" }
               );
             }
-          }
-
-          // Layer 3: Per-client API key filtering (AC-10, AC-11, AC-12)
-          const allowedTools = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
-
-          if (mcpClientId && mcpClientId !== "default" && allowedTools) {
-            if (!allowedTools.includes(toolEntry.name)) {
-              return {
-                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not available for this client" }) }],
-                isError: true,
-              };
-            }
-          }
-
-          // Per-client rate limiting (AC-13, AC-14)
-          const clientRateLimit = extra?.authInfo?.extra?.rateLimit as number | undefined;
-          if (mcpClientId && mcpClientId !== "default" && clientRateLimit) {
-            try {
-              const limiter = getMcpClientLimiter(mcpClientId, clientRateLimit);
-              const { success } = await limiter.limit(mcpClientId);
-              if (!success) {
-                return {
-                  content: [{ type: "text" as const, text: JSON.stringify({ error: "Rate limit exceeded" }) }],
-                  isError: true,
-                };
-              }
-            } catch (err) {
-              console.error("MCP rate limit check failed (fail-closed):", err);
-              return {
-                content: [{ type: "text" as const, text: JSON.stringify({ error: "Service temporarily unavailable" }) }],
-                isError: true,
-              };
-            }
-          }
-
-          // Per-tool rate limiting — same limits as chat endpoint, enforced across all surfaces
-          const cbResult = await checkToolRateLimit(userId, toolEntry.name);
-          if (!cbResult.allowed) {
-            writeAuditEntry(userId, {
-              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
-              toolName: toolEntry.name,
-              input: params,
-              result: "error",
-              errorMessage: `Per-tool rate limit: ${cbResult.tier} tier, resets in ${cbResult.resetMs}ms`,
-              durationMs: 0,
-              surface: "mcp",
-            });
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: `Rate limit exceeded for ${toolEntry.name}. Resets in ${Math.ceil((cbResult.resetMs ?? 0) / 1000)}s.` }) }],
+              content: [{ type: "text" as const, text: JSON.stringify({ error: authResult.error }) }],
               isError: true,
             };
           }
 
+          const { ctx } = authResult;
           const start = Date.now();
-
-          // Step 0: Capability check — respect user's per-tool permission settings
-          const settings = await getUserSettings(userId);
-          const category = TOOL_CATEGORIES[toolEntry.name] as keyof typeof settings.capabilities | undefined;
-          if (settings.toolTrust?.[toolEntry.name] === "never") {
-            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool disabled by user", Date.now() - start);
-          }
-          if (category && !settings.capabilities[category]) {
-            return auditAndErrorResponse(userId, toolEntry.name, params, "Tool category disabled by user", Date.now() - start);
-          }
-
-          const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
-          const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
 
           // CRM tool path
           if (toolEntry.isCrmTool) {
             try {
-              const crmTools = createCrmTools(userId);
+              const crmTools = createCrmTools(ctx.userId);
               const crmTool = (crmTools as Record<string, unknown>)[toolEntry.name] as AiTool;
               const result = await crmTool.execute!(params as never, {
                 toolCallId: "mcp",
                 messages: [],
                 abortSignal: AbortSignal.timeout(55000),
               } as never);
-              const durationMs = Date.now() - start;
 
-              writeAuditEntry(userId, {
-                threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
-                toolName: toolEntry.name,
-                input: params,
-                result: "success",
-                durationMs,
-                surface: "mcp",
-                mcpClientId: clientId,
-                mcpClientName: clientName,
-              });
-
-              // Record analytics for named clients
-              if (clientId) {
-                recordMcpCall(userId, clientId, toolEntry.name, true).catch(() => {});
-              }
+              auditSuccess(ctx.userId, toolEntry.name, params, Date.now() - start, ctx, mcpClientIdRaw);
 
               return {
                 content: [{ type: "text" as const, text: JSON.stringify(stripTokenMeta(result)) }],
               };
             } catch (err) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params,
+                ctx.userId, toolEntry.name, params,
                 err instanceof Error ? err.message : "Unknown error",
                 Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
           }
 
-          // Token Vault tool path — wrapped in try/catch for Redis/network errors
+          // Token Vault tool path
           try {
             const toolName = toolEntry.name as TokenVaultToolName;
             const scopeConfig = TOOL_SCOPE_CONFIG[toolName];
             const connection = scopeConfig?.connection ?? "google-oauth2";
 
             // Step 1: Check connection disabled (before CIBA)
-            const disabled = await isConnectionDisabled(userId, connection);
+            const disabled = await isConnectionDisabled(ctx.userId, connection);
             if (disabled) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params, "Connection disabled", Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                ctx.userId, toolEntry.name, params, "Connection disabled", Date.now() - start,
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
 
             // Step 2: CIBA gate for write tools (Layer 4)
             if (shouldRequireCibaMcp(toolEntry.name)) {
               const bindingMessage = buildMcpBindingMessage(toolEntry.name, params);
-              const cibaResult = await cibaGate(userId, toolEntry.name, bindingMessage);
+              const cibaResult = await cibaGate(ctx.userId, toolEntry.name, bindingMessage);
               if (!cibaResult.approved) {
                 const errorMsg = (cibaResult as { error?: string }).error ?? "CIBA approval failed";
                 return auditAndErrorResponse(
-                  userId, toolEntry.name, params, errorMsg, Date.now() - start,
-                  { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                  ctx.userId, toolEntry.name, params, errorMsg, Date.now() - start,
+                  { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
                 );
               }
             }
 
             // Step 3: Get stored refresh token
-            const refreshToken = await getScheduleRefreshToken(userId);
+            const refreshToken = await getScheduleRefreshToken(ctx.userId);
             if (!refreshToken) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params,
+                ctx.userId, toolEntry.name, params,
                 "No stored refresh token. Enable scheduled actions in the app to use MCP tools.",
                 Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
 
@@ -471,8 +391,8 @@ export function adaptToolsForMcp(_userId?: string) {
             const tokenResult = await exchangeTokenWithRefresh(connection, refreshToken);
             if ("error" in tokenResult) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params, tokenResult.error, Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                ctx.userId, toolEntry.name, params, tokenResult.error, Date.now() - start,
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
             const accessToken = tokenResult.token;
@@ -481,50 +401,34 @@ export function adaptToolsForMcp(_userId?: string) {
             const executor = MCP_EXECUTORS[toolEntry.name];
             if (!executor) {
               return auditAndErrorResponse(
-                userId, toolEntry.name, params, "No executor configured", Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                ctx.userId, toolEntry.name, params, "No executor configured", Date.now() - start,
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
             const fetchResult = await executor(params, accessToken);
             const data = await fetchResult.json();
 
-            // Check HTTP status — API errors (4xx/5xx) should not be treated as success
             if (!fetchResult.ok) {
               const errMsg = (data as { error?: string; error_description?: string }).error
                 ?? (data as { error_description?: string }).error_description
                 ?? `API request failed (${fetchResult.status})`;
               return auditAndErrorResponse(
-                userId, toolEntry.name, params, errMsg, Date.now() - start,
-                { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+                ctx.userId, toolEntry.name, params, errMsg, Date.now() - start,
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
               );
             }
 
-            const durationMs = Date.now() - start;
-            writeAuditEntry(userId, {
-              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
-              toolName: toolEntry.name,
-              input: params,
-              result: "success",
-              durationMs,
-              surface: "mcp",
-              mcpClientId: clientId,
-              mcpClientName: clientName,
-            });
-
-            // Record analytics for named clients
-            if (clientId) {
-              recordMcpCall(userId, clientId, toolEntry.name, true).catch(() => {});
-            }
+            auditSuccess(ctx.userId, toolEntry.name, params, Date.now() - start, ctx, mcpClientIdRaw);
 
             return {
               content: [{ type: "text" as const, text: JSON.stringify(stripTokenMeta(data)) }],
             };
           } catch (err) {
             return auditAndErrorResponse(
-              userId, toolEntry.name, params,
+              ctx.userId, toolEntry.name, params,
               err instanceof Error ? err.message : "Unknown error",
               Date.now() - start,
-              { mcpClientId: clientId, mcpClientName: clientName, surface: "mcp" }
+              { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
             );
           }
         }
