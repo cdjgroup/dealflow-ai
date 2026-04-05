@@ -147,7 +147,7 @@ Per-tool trust levels that give users granular control:
 Audit table entries include token exchange metadata (provider, scope, TTL) for every Token Vault tool call. Expanded rows show the full exchange details.
 
 #### MCP Server for External AI Agents
-`/api/mcp` endpoint exposing read-only tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and OpenClaw.
+`/api/mcp` endpoint exposing read and write tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Write tools (email, calendar, Slack) require CIBA device consent via Guardian push. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and OpenClaw.
 
 #### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens (stored in Redis with TTL). The user must approve the delegation, specifying which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities.
@@ -209,7 +209,7 @@ curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \
 }
 ```
 
-Only read-only tools are exposed via MCP (approval-required tools like email drafting and Slack messaging are excluded since MCP has no interactive approval UI).
+Read tools execute immediately. Write tools (draftEmail, createCalendarEvent, sendSlackMessage) require CIBA approval — a Guardian push notification to the user's phone. The MCP handler blocks up to 50 seconds for approval. All MCP operations respect the user's capability settings at `/dashboard/permissions`.
 
 ## Setup
 
@@ -325,7 +325,8 @@ src/
       approval-logic.ts     # T1/S3/S1/U2 approval layers
       scope-map.ts          # TOOL_SCOPE_CONFIG (single source of truth)
     mcp/
-      tool-adapter.ts  # AI SDK → MCP tool conversion
+      tool-adapter.ts  # MCP tool registration + CIBA-gated execution
+      ciba-gate.ts     # Synchronous CIBA gate for MCP write tools
     delegation.ts      # Redis-backed delegation token store
     token-exchange.ts  # Auth0 RFC 8693 exchange (+ scope metadata)
     types/

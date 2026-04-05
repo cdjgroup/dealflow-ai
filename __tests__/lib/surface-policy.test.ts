@@ -4,7 +4,7 @@ import {
   getToolNamesForSurface,
 } from "@/lib/surface-policy";
 
-// MCP read-only tools expected from AC-2
+// MCP tools expected from AC-2 — includes read tools plus CIBA-gated write tools
 const MCP_EXPECTED_TOOLS = [
   "listDeals",
   "getDealDetails",
@@ -12,17 +12,17 @@ const MCP_EXPECTED_TOOLS = [
   "checkCalendar",
   "searchEmails",
   "listSlackChannels",
+  "createCalendarEvent",
+  "draftEmail",
+  "sendSlackMessage",
 ];
 
-// Write tools that must NOT appear for mcp surface
-const WRITE_TOOLS = [
+// CRM write tools that must NOT appear for mcp surface (crmWrite category excluded)
+const CRM_WRITE_TOOLS = [
   "createDeal",
   "updateDeal",
   "createContact",
   "logActivity",
-  "createCalendarEvent",
-  "draftEmail",
-  "sendSlackMessage",
 ];
 
 describe("surface-policy", () => {
@@ -55,8 +55,8 @@ describe("surface-policy", () => {
       expect(policy.rationale.length).toBeGreaterThan(0);
     });
 
-    it("AC-1: mcp policy accessLevel should be 'read'", () => {
-      expect(SURFACE_POLICIES["mcp"].accessLevel).toBe("read");
+    it("AC-1: mcp policy accessLevel should be 'write' (CIBA-gated writes enabled)", () => {
+      expect(SURFACE_POLICIES["mcp"].accessLevel).toBe("write");
     });
   });
 
@@ -74,14 +74,21 @@ describe("surface-policy", () => {
       }
     });
 
-    it("AC-2: should NOT include any write tools for mcp surface", () => {
+    it("AC-2: should NOT include any CRM write tools for mcp surface", () => {
       const tools = getToolNamesForSurface("mcp");
-      for (const name of WRITE_TOOLS) {
-        expect(tools, `mcp must not include write tool: ${name}`).not.toContain(name);
+      for (const name of CRM_WRITE_TOOLS) {
+        expect(tools, `mcp must not include CRM write tool: ${name}`).not.toContain(name);
       }
     });
 
-    it("AC-2: mcp tool list should match exactly the six expected read tools", () => {
+    it("AC-2: should include CIBA-gated write tools for mcp surface", () => {
+      const tools = getToolNamesForSurface("mcp");
+      expect(tools).toContain("draftEmail");
+      expect(tools).toContain("createCalendarEvent");
+      expect(tools).toContain("sendSlackMessage");
+    });
+
+    it("AC-2: mcp tool list should match exactly the nine expected tools", () => {
       const tools = getToolNamesForSurface("mcp");
       expect(tools).toHaveLength(MCP_EXPECTED_TOOLS.length);
       expect(tools.sort()).toEqual([...MCP_EXPECTED_TOOLS].sort());

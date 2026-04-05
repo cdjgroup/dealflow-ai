@@ -1,6 +1,6 @@
 # Features
 
-## v0.6.0 — Per-Client MCP Policy
+## v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 
 ### Per-Client Access Control for External AI Agents
 Create named MCP clients with unique API keys, trust tiers, and tool allowlists. Each external agent connecting to your MCP endpoint operates under its own policy — one agent gets full access, another gets read-only CRM, a third gets calendar only.
@@ -10,7 +10,7 @@ Four escalating trust levels:
 1. **Read Only** — CRM data queries only (listDeals, getDealDetails, searchContacts)
 2. **Restricted** — CRM + Calendar + Email read access
 3. **Standard** — All read-only MCP tools including Slack
-4. **Full** — All MCP-safe tools
+4. **Full** — All MCP-safe tools (including CIBA-gated writes)
 
 ### Dual MCP Authentication
 The MCP endpoint accepts two auth modes:
@@ -28,9 +28,37 @@ Two-layer protection against runaway AI tool loops:
 - **Layer A (surgical):** Per-tool rate limits (read 10/min, write 5/min, crm-read 20/min, crm-write 5/min, compound 3/min). Blocks one tool, model adapts.
 - **Layer B (nuclear):** 15 tool calls max per request. AbortController kills stream with amber error message.
 
+### External Agent Write Operations
+External AI agents (Claude Desktop, Cursor, OpenClaw) can now execute write operations via the MCP endpoint at `/api/mcp`. Three write tools are exposed, all gated by CIBA device consent:
+- **draftEmail** — create Gmail drafts (user reviews in Gmail before sending)
+- **createCalendarEvent** — schedule meetings with attendees
+- **sendSlackMessage** — post messages to Slack channels
+
+### CIBA-Gated Execution Flow
+1. External agent calls a write tool via MCP
+2. MCP handler initiates CIBA — Guardian push sent to user's phone with binding message (e.g., "MCP: draft email to alice@acme.com")
+3. Handler blocks up to 50 seconds polling for approval
+4. **Approve** → tool executes with stored refresh token → result returned to agent
+5. **Deny/timeout** → error returned to agent, no execution
+
+### Stored Refresh Tokens for MCP
+All MCP Token Vault tools (read and write) use stored refresh tokens from the schedule opt-in flow. This enables MCP to work without browser session cookies — the same trust model as scheduled actions.
+
+### Capability Enforcement
+MCP respects per-user permission toggles from `/dashboard/permissions`. If a user has disabled Gmail, `draftEmail` returns an error via MCP. Trust level "never" blocks the tool entirely.
+
+### Trust Spectrum
+The system now provides graduated autonomy across four surfaces:
+
+| Surface | Trust | Consent |
+|---------|-------|---------|
+| Action Center | Low | In-app review + edit |
+| Chat UI | Medium | Real-time + step-up |
+| MCP + CIBA | High | Push notification |
+| MCP (read) | Autonomous | None needed |
+
 ### Known Limitations
 - `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
-- Write tools remain excluded from MCP (no approval UI in the protocol)
 
 ---
 
@@ -153,7 +181,7 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
 ### MCP Server for External AI Agents
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.

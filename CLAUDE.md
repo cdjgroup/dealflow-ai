@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.0 — Per-Client MCP Policy (Trust Tiers, API Keys, Cross-Surface Audit)
+## Current Version: 0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -47,23 +47,35 @@
 
 ## AI Tools
 
-| Tool | Source | Token Vault? |
-|------|--------|-------------|
-| checkCalendar | Google Calendar API | Yes — direct exchange |
-| createCalendarEvent | Google Calendar API | Yes — direct exchange |
-| draftEmail | Gmail API | Yes — direct exchange |
-| searchEmails | Gmail API | Yes — direct exchange |
-| listSlackChannels | Slack API | Yes — direct exchange |
-| sendSlackMessage | Slack API | Yes — direct exchange |
-| listDeals | Upstash Redis | No |
-| getDealDetails | Upstash Redis | No |
-| searchContacts | Upstash Redis | No |
-| createDeal | Upstash Redis | No (needsApproval >$50K + CIBA) |
-| updateDeal | Upstash Redis | No (needsApproval closed-won + CIBA) |
-| createContact | Upstash Redis | No |
-| logActivity | Upstash Redis | No |
+| Tool | Source | Token Vault? | MCP? |
+|------|--------|-------------|------|
+| checkCalendar | Google Calendar API | Yes — direct exchange | Yes — read |
+| createCalendarEvent | Google Calendar API | Yes — direct exchange | Yes — write (CIBA) |
+| draftEmail | Gmail API | Yes — direct exchange | Yes — write (CIBA) |
+| searchEmails | Gmail API | Yes — direct exchange | Yes — read |
+| listSlackChannels | Slack API | Yes — direct exchange | Yes — read |
+| sendSlackMessage | Slack API | Yes — direct exchange | Yes — write (CIBA) |
+| listDeals | Upstash Redis | No | Yes — read |
+| getDealDetails | Upstash Redis | No | Yes — read |
+| searchContacts | Upstash Redis | No | Yes — read |
+| createDeal | Upstash Redis | No (needsApproval >$50K + CIBA) | No |
+| updateDeal | Upstash Redis | No (needsApproval closed-won + CIBA) | No |
+| createContact | Upstash Redis | No | No |
+| logActivity | Upstash Redis | No | No |
 
 ---
+
+## MCP Write Tools with CIBA Consent (v0.6.0)
+
+External AI agents can now execute write operations through MCP with device-level consent via CIBA.
+
+- **Write Tools**: `draftEmail`, `createCalendarEvent`, `sendSlackMessage` now exposed via `/api/mcp`
+- **CIBA Gating**: All MCP write tools require Guardian push approval before execution
+- **Synchronous Blocking**: MCP handler blocks up to 50s while polling for phone approval
+- **Binding Messages**: Tool-specific messages on Guardian push (e.g., "MCP: draft email to alice@acme.com")
+- **Stored Refresh Tokens**: All MCP Token Vault tools (read + write) use stored refresh tokens from schedule opt-in
+- **Capability Enforcement**: MCP respects per-user permission toggles from `/dashboard/permissions`
+- **Trust Spectrum**: Read (autonomous) → Write+CIBA (high trust) → Chat (medium trust) → Action Center (low trust)
 
 ## Scheduled Action Review (v0.5.1)
 

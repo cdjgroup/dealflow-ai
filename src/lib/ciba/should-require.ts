@@ -1,9 +1,9 @@
 const HIGH_VALUE_THRESHOLD = 50_000;
 
 /**
- * Pure function: determines if a tool call requires CIBA step-up authentication.
+ * Determines if a tool call requires CIBA step-up in the chat context.
  * Only high-value CRM mutations trigger CIBA — external actions (email, Slack)
- * and read-only tools use inline approval only.
+ * use inline approval cards only. MCP has different rules (see shouldRequireCibaMcp).
  */
 export function shouldRequireCiba(
   toolName: string,
@@ -19,4 +19,15 @@ export function shouldRequireCiba(
   }
 
   return false;
+}
+
+const MCP_CIBA_TOOLS = new Set(["draftEmail", "createCalendarEvent", "sendSlackMessage"]);
+
+/**
+ * All Token Vault write tools require CIBA when called via MCP.
+ * Unlike shouldRequireCiba (which is value/stage-based for chat),
+ * MCP has no interactive UI so every write operation needs device consent.
+ */
+export function shouldRequireCibaMcp(toolName: string): boolean {
+  return MCP_CIBA_TOOLS.has(toolName);
 }
