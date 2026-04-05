@@ -10,6 +10,9 @@ const {
   mockStreamText,
   mockStepCountIs,
   mockConvertToModelMessages,
+  mockCreateUIMessageStream,
+  mockCreateUIMessageStreamResponse,
+  mockAttachCircuitBreaker,
 } = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockGetUser: vi.fn(),
@@ -19,6 +22,9 @@ const {
   mockStreamText: vi.fn(),
   mockStepCountIs: vi.fn(),
   mockConvertToModelMessages: vi.fn(),
+  mockCreateUIMessageStream: vi.fn(),
+  mockCreateUIMessageStreamResponse: vi.fn(),
+  mockAttachCircuitBreaker: vi.fn(),
 }));
 
 vi.mock("@/lib/auth0", () => ({
@@ -40,7 +46,17 @@ vi.mock("ai", () => ({
   stepCountIs: (...args: unknown[]) => mockStepCountIs(...args),
   convertToModelMessages: (...args: unknown[]) =>
     mockConvertToModelMessages(...args),
+  createUIMessageStream: (...args: unknown[]) => mockCreateUIMessageStream(...args),
+  createUIMessageStreamResponse: (...args: unknown[]) => mockCreateUIMessageStreamResponse(...args),
   tool: (config: unknown) => ({ type: "tool", ...config as Record<string, unknown> }),
+}));
+
+vi.mock("@/lib/circuit-breaker", () => ({
+  attachCircuitBreaker: (...args: unknown[]) => mockAttachCircuitBreaker(...args),
+  RequestToolCounter: class MockRequestToolCounter {
+    increment() { return { breached: false, count: 1, limit: 15 }; }
+    getCount() { return 0; }
+  },
 }));
 
 vi.mock("@ai-sdk/anthropic", () => ({
@@ -72,6 +88,10 @@ vi.mock("@/lib/tools/delegate", () => ({
   createDelegateResearchTool: vi.fn(() => ({ type: "tool", name: "delegateResearch" })),
 }));
 
+vi.mock("@/lib/tools/analyze-pipeline", () => ({
+  createAnalyzePipelineTool: vi.fn(() => ({ type: "tool", name: "analyzePipeline" })),
+}));
+
 vi.mock("@/lib/data/settings", () => ({
   getUserSettings: vi.fn().mockResolvedValue({
     capabilities: { crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: false },
@@ -89,6 +109,37 @@ vi.mock("@/lib/tools/capability-filter", () => ({
 
 vi.mock("@/lib/audit-log", () => ({
   logToolExecution: vi.fn(),
+}));
+
+vi.mock("@/lib/data/conversations", () => ({
+  saveConversation: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/tools/approval-logic", () => ({
+  createApprovalCheck: vi.fn(() => undefined),
+}));
+
+vi.mock("@/lib/tools/scope-map", () => ({
+  TOOL_SCOPE_CONFIG: {},
+}));
+
+vi.mock("@/lib/ciba/should-require", () => ({
+  shouldRequireCiba: vi.fn(() => false),
+}));
+
+vi.mock("@/lib/ciba/authorize", () => ({
+  initiateCiba: vi.fn(),
+}));
+
+vi.mock("@/lib/ciba/poll", () => ({
+  pollCiba: vi.fn(),
+}));
+
+vi.mock("@/lib/ciba/session", () => ({
+  getCibaSession: vi.fn(),
+  storeCibaSession: vi.fn(),
+  deleteCibaSession: vi.fn(),
+  updateCibaSessionStatus: vi.fn(),
 }));
 
 import { POST } from "@/app/api/chat/route";
@@ -115,6 +166,26 @@ describe("POST /api/chat", () => {
     mockLimit.mockResolvedValue({ success: true });
     mockConvertToModelMessages.mockResolvedValue([]);
     mockStepCountIs.mockReturnValue(() => false);
+    // Circuit breaker passes tools through unchanged by default
+    mockAttachCircuitBreaker.mockImplementation((tools: unknown) => tools);
+    // createUIMessageStream: capture the execute callback and run it
+    mockCreateUIMessageStream.mockImplementation(({ execute }: { execute: (opts: { writer: unknown }) => Promise<void> | void }) => {
+      const mockWriter = {
+        write: vi.fn(),
+        merge: vi.fn(),
+      };
+      // Store for inspection; await to let streamText get called
+      const executePromise = Promise.resolve(execute({ writer: mockWriter })).catch(() => {});
+      (mockCreateUIMessageStream as ReturnType<typeof vi.fn>)._executePromise = executePromise;
+      (mockCreateUIMessageStream as ReturnType<typeof vi.fn>)._writer = mockWriter;
+      return new ReadableStream();
+    });
+    // createUIMessageStreamResponse: return a 200 Response
+    mockCreateUIMessageStreamResponse.mockReturnValue(new Response("stream", { status: 200 }));
+    // streamText returns object with toUIMessageStream
+    mockStreamText.mockReturnValue({
+      toUIMessageStream: vi.fn(() => new ReadableStream()),
+    });
   });
 
   it("should return 403 when CSRF check fails", async () => {
@@ -200,24 +271,51 @@ describe("POST /api/chat", () => {
   });
 
   it("should return stream response on success", async () => {
-    const mockResponse = new Response("stream data", { status: 200 });
-    mockStreamText.mockReturnValue({
-      toUIMessageStreamResponse: () => mockResponse,
-    });
-
     const res = await POST(
       makeRequest({
         messages: [{ role: "user", content: "hello" }],
         id: "chat-1",
       })
     );
+    // Wait for the async execute callback to complete
+    await (mockCreateUIMessageStream as any)._executePromise;
 
     expect(res.status).toBe(200);
+    expect(mockCreateUIMessageStream).toHaveBeenCalledOnce();
+    expect(mockCreateUIMessageStreamResponse).toHaveBeenCalledOnce();
     expect(mockStreamText).toHaveBeenCalledOnce();
   });
 
+  it("should pass abortSignal to streamText", async () => {
+    await POST(
+      makeRequest({
+        messages: [{ role: "user", content: "hello" }],
+        id: "chat-1",
+      })
+    );
+    await (mockCreateUIMessageStream as any)._executePromise;
+
+    const streamTextCall = mockStreamText.mock.calls[0][0];
+    expect(streamTextCall).toHaveProperty("abortSignal");
+    expect(streamTextCall.abortSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("AC-7: should wire circuit breaker into tool pipeline", async () => {
+    await POST(
+      makeRequest({
+        messages: [{ role: "user", content: "hello" }],
+        id: "chat-1",
+      })
+    );
+
+    // attachCircuitBreaker is called synchronously before the stream starts
+    expect(mockAttachCircuitBreaker).toHaveBeenCalledOnce();
+    expect(mockAttachCircuitBreaker.mock.calls[0][1]).toBe("auth0|user1");
+    expect(typeof mockAttachCircuitBreaker.mock.calls[0][2]).toBe("function");
+  });
+
   it("should return 500 when streamText throws", async () => {
-    mockStreamText.mockImplementation(() => {
+    mockCreateUIMessageStream.mockImplementation(() => {
       throw new Error("AI provider error");
     });
 
