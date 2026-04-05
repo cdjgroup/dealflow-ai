@@ -38,6 +38,11 @@ All notable changes to this project will be documented in this file.
 - Tool adapter expanded from 6 read-only tools to 9 tools (6 read + 3 CIBA-gated write)
 
 ### Security
+- MCP `tools/list` filtered per-client by scope and allowedTools (closes info disclosure)
+- Circuit breaker fails closed on Redis error (was fail-open — blocks tool execution instead of bypassing rate limits)
+- CIBA binding messages include client name prefix for attribution + sanitize all params
+- SHA-256 API key hash rationale documented in code comment
+- Token binding (DPoP/mTLS) absence documented as future hardening (insight #022)
 - API keys hashed with SHA-256 before storage; raw key shown only once on creation
 - CSRF enforcement on all MCP client management mutations
 - Per-client tool discovery filtering: `tools/list` returns only client's allowed tools (defense-in-depth)

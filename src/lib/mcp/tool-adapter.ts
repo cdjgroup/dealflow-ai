@@ -371,7 +371,7 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
 
             // Step 2: CIBA gate for write tools (Layer 4)
             if (shouldRequireCibaMcp(toolEntry.name)) {
-              const bindingMessage = buildMcpBindingMessage(toolEntry.name, params);
+              const bindingMessage = buildMcpBindingMessage(toolEntry.name, params, ctx.clientName);
               const cibaResult = await cibaGate(ctx.userId, toolEntry.name, bindingMessage);
               if (!cibaResult.approved) {
                 const errorMsg = (cibaResult as { error?: string }).error ?? "CIBA approval failed";

@@ -28,7 +28,9 @@ External AI agents now get individually scoped access through named MCP clients 
 
 - API keys: SHA-256 hashed before storage, raw key shown once on creation, `dfk_` prefix for identification
 - CSRF enforcement on all client management mutations
-- Per-client tool filtering at `tools/call` time — disallowed tools return clear error
+- Per-client tool filtering at both `tools/list` and `tools/call` — restricted clients see only authorized tools
+- Circuit breaker fails closed on Redis error — rate limits enforced even during outages
+- CIBA binding messages include client name prefix + sanitize all attacker-controllable params
 - User-scoped Redis keys prevent cross-user client access
 - Rate limit per client prevents abuse from any single external agent
 - Device-level consent required for all MCP write operations (Guardian push)
