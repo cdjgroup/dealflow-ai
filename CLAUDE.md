@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.5.1 — Scheduled Action Review (Autonomous Agent Execution with CIBA Consent)
+## Current Version: 0.6.0 — Per-Client MCP Policy (Trust Tiers, API Keys, Cross-Surface Audit)
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

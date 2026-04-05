@@ -31,3 +31,8 @@ export function getPollingLimiter(): Ratelimit {
 export function getSensitiveLimiter(): Ratelimit {
   return create("sensitive", 5, "1 m");
 }
+
+// Per-client MCP rate limiting — dynamic rate per client
+export function getMcpClientLimiter(clientId: string, requestsPerMinute: number): Ratelimit {
+  return create(`mcp:${clientId}`, requestsPerMinute, "1 m");
+}

@@ -1,5 +1,34 @@
 # Features
 
+## v0.6.0 — Per-Client MCP Policy
+
+### Per-Client Access Control for External AI Agents
+Create named MCP clients with unique API keys, trust tiers, and tool allowlists. Each external agent connecting to your MCP endpoint operates under its own policy — one agent gets full access, another gets read-only CRM, a third gets calendar only.
+
+### Trust Tier Spectrum
+Four escalating trust levels:
+1. **Read Only** — CRM data queries only (listDeals, getDealDetails, searchContacts)
+2. **Restricted** — CRM + Calendar + Email read access
+3. **Standard** — All read-only MCP tools including Slack
+4. **Full** — All MCP-safe tools
+
+### Dual MCP Authentication
+The MCP endpoint accepts two auth modes:
+- **API Key** (`dfk_` prefix): Per-client policy — tool allowlist, rate limit, trust tier enforced
+- **Auth0 Bearer Token**: Backward compatible default access — all MCP-safe tools available
+
+### Per-Client Rate Limiting
+Each client has a configurable rate limit (requests/minute). Independent Upstash Ratelimit buckets ensure one agent's traffic doesn't affect another.
+
+### Cross-Surface Audit Telemetry
+The audit log now tracks which surface (Chat, MCP, Actions) each tool call came from. Filter by source to see cross-surface activity. MCP entries include the client name for per-agent attribution.
+
+### Known Limitations
+- `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
+- Write tools remain excluded from MCP (no approval UI in the protocol)
+
+---
+
 ## v0.5.1 — Scheduled Action Review
 
 ### Autonomous Agent Execution on a Schedule

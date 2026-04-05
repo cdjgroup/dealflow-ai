@@ -5,6 +5,8 @@ import { searchEmails } from "@/lib/tools/gmail";
 import { listSlackChannels } from "@/lib/tools/slack";
 import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { getMcpClientLimiter } from "@/lib/rate-limit";
+import { recordMcpCall } from "@/lib/data/mcp-analytics";
 
 // CRM read-only tool names exposed via MCP
 const CRM_READ_TOOLS = new Set(["listDeals", "getDealDetails", "searchContacts"]);
@@ -88,6 +90,41 @@ export function adaptToolsForMcp() {
               isError: true,
             };
           }
+
+          // Per-client tool filtering (AC-10, AC-11, AC-12)
+          const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+          const allowedTools = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
+
+          if (mcpClientId && mcpClientId !== "default" && allowedTools) {
+            if (!allowedTools.includes(toolEntry.name)) {
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not available for this client" }) }],
+                isError: true,
+              };
+            }
+          }
+
+          // Per-client rate limiting (AC-13, AC-14)
+          const clientRateLimit = extra?.authInfo?.extra?.rateLimit as number | undefined;
+          if (mcpClientId && mcpClientId !== "default" && clientRateLimit) {
+            try {
+              const limiter = getMcpClientLimiter(mcpClientId, clientRateLimit);
+              const { success } = await limiter.limit(mcpClientId);
+              if (!success) {
+                return {
+                  content: [{ type: "text" as const, text: JSON.stringify({ error: "Rate limit exceeded" }) }],
+                  isError: true,
+                };
+              }
+            } catch (err) {
+              console.error("MCP rate limit check failed (fail-closed):", err);
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Service temporarily unavailable" }) }],
+                isError: true,
+              };
+            }
+          }
+
           const start = Date.now();
           try {
             let result: unknown;
@@ -109,13 +146,24 @@ export function adaptToolsForMcp() {
             }
             const durationMs = Date.now() - start;
 
+            const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+            const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+
             writeAuditEntry(userId, {
-              threadId: "mcp",
+              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
               toolName: toolEntry.name,
               input: params,
               result: "success",
               durationMs,
+              surface: "mcp",
+              mcpClientId: clientId,
+              mcpClientName: clientName,
             });
+
+            // Record analytics for named clients
+            if (clientId) {
+              recordMcpCall(userId, clientId, toolEntry.name, true).catch(() => {});
+            }
 
             // Strip _tokenMeta from MCP response
             const clean = typeof result === "object" && result !== null
@@ -129,14 +177,24 @@ export function adaptToolsForMcp() {
             };
           } catch (err) {
             const durationMs = Date.now() - start;
+            const errClientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+            const errClientName = extra?.authInfo?.extra?.clientName as string | undefined;
+
             writeAuditEntry(userId, {
-              threadId: "mcp",
+              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
               toolName: toolEntry.name,
               input: params,
               result: "error",
               errorMessage: err instanceof Error ? err.message : "Unknown error",
               durationMs,
+              surface: "mcp",
+              mcpClientId: errClientId,
+              mcpClientName: errClientName,
             });
+
+            if (errClientId) {
+              recordMcpCall(userId, errClientId, toolEntry.name, false).catch(() => {});
+            }
             return {
               content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool execution failed" }) }],
               isError: true,

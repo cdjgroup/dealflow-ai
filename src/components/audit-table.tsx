@@ -182,6 +182,7 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
         <thead className="border-b border-border bg-muted/50">
           <tr>
             <th scope="col" className="px-4 py-3 text-left font-medium">Time</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Source</th>
             <th scope="col" className="px-4 py-3 text-left font-medium">Tool</th>
             <th scope="col" className="px-4 py-3 text-left font-medium">Risk</th>
             <th scope="col" className="px-4 py-3 text-left font-medium">Parameters</th>
@@ -213,6 +214,20 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
                     <time dateTime={entry.timestamp}>
                       {new Date(entry.timestamp).toLocaleString()}
                     </time>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {entry.surface ? (
+                      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                        entry.surface === "chat" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" :
+                        entry.surface === "mcp" ? "text-purple-400 bg-purple-500/10 border-purple-500/20" :
+                        "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                      }`}>
+                        {entry.surface === "chat" ? "Chat" : entry.surface === "mcp" ? "MCP" : "Actions"}
+                        {entry.mcpClientName && ` (${entry.mcpClientName})`}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="mr-1" aria-hidden="true">
@@ -255,7 +270,7 @@ export function AuditTable({ log }: { log: AuditEntry[] }) {
                 <AnimatePresence>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={6} className="p-0">
+                      <td colSpan={7} className="p-0">
                         <DetailPanel entry={entry} />
                       </td>
                     </tr>

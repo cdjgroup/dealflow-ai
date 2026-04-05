@@ -52,6 +52,60 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   sendSlackMessage: "Send Message",
 };
 
+/** Tools that are safe for MCP surface (read-only, no high-risk writes) */
+export const MCP_SAFE_TOOLS = new Set([
+  "listDeals",
+  "getDealDetails",
+  "searchContacts",
+  "checkCalendar",
+  "searchEmails",
+  "listSlackChannels",
+]);
+
+/** Tool access by trust tier */
+export const TRUST_TIER_TOOLS: Record<string, string[]> = {
+  full: [
+    "listDeals",
+    "getDealDetails",
+    "searchContacts",
+    "createDeal",
+    "updateDeal",
+    "createContact",
+    "logActivity",
+    "checkCalendar",
+    "createCalendarEvent",
+    "draftEmail",
+    "searchEmails",
+    "listSlackChannels",
+    "sendSlackMessage",
+  ],
+  standard: [
+    "listDeals",
+    "getDealDetails",
+    "searchContacts",
+    "createDeal",
+    "updateDeal",
+    "createContact",
+    "logActivity",
+    "checkCalendar",
+    "createCalendarEvent",
+    "draftEmail",
+    "searchEmails",
+    "listSlackChannels",
+  ],
+  restricted: [
+    "listDeals",
+    "getDealDetails",
+    "searchContacts",
+    "checkCalendar",
+    "searchEmails",
+  ],
+  readonly: [
+    "listDeals",
+    "getDealDetails",
+  ],
+};
+
 /** Human-readable OAuth scope labels (per Google/Slack consent screen patterns) */
 export const SCOPE_LABELS: Record<string, string> = {
   "calendar.readonly": "View your calendar",

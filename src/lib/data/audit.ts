@@ -64,7 +64,7 @@ export async function getAuditLog(
   options?: { limit?: number } & AuditFilters
 ): Promise<AuditEntry[]> {
   const limit = options?.limit ?? 50;
-  const hasFilters = !!(options?.toolName || options?.result || options?.startDate || options?.endDate);
+  const hasFilters = !!(options?.toolName || options?.result || options?.startDate || options?.endDate || options?.surface);
   // When filters are active, fetch more entries so in-memory filtering has enough candidates
   const fetchLimit = hasFilters ? Math.max(limit * 4, 500) : limit;
   const redis = getRedis();
@@ -89,6 +89,7 @@ export async function getAuditLog(
     .filter((entry) => {
       if (options!.toolName && entry.toolName !== options!.toolName) return false;
       if (options!.result && entry.result !== options!.result) return false;
+      if (options!.surface && entry.surface !== options!.surface) return false;
       if (options!.startDate && entry.timestamp < options!.startDate) return false;
       if (options!.endDate && entry.timestamp > options!.endDate + "T23:59:59.999Z") return false;
       return true;

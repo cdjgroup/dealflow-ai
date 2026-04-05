@@ -1,37 +1,6 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
-
-/**
- * Validate bearer token against Auth0 /userinfo.
- * Returns AuthInfo with userId as clientId, or undefined for invalid tokens.
- */
-async function verifyToken(
-  _req: Request,
-  bearerToken?: string
-): Promise<AuthInfo | undefined> {
-  if (!bearerToken) return undefined;
-
-  try {
-    const response = await fetch(
-      `https://${process.env.AUTH0_DOMAIN}/userinfo`,
-      { headers: { Authorization: `Bearer ${bearerToken}` } }
-    );
-
-    if (!response.ok) return undefined;
-
-    const userinfo = await response.json();
-    if (!userinfo.sub) return undefined;
-
-    return {
-      token: bearerToken,
-      clientId: userinfo.sub,
-      scopes: ["tools"],
-    };
-  } catch {
-    return undefined;
-  }
-}
+import { verifyMcpToken } from "@/lib/mcp/auth";
 
 /**
  * MCP server endpoint for external AI agents.
@@ -64,8 +33,10 @@ const handler = createMcpHandler(
   }
 );
 
-const authHandler = withMcpAuth(handler, verifyToken, {
-  required: true,
-});
+const authHandler = withMcpAuth(
+  handler,
+  (_req: Request, bearerToken?: string) => verifyMcpToken(bearerToken),
+  { required: true }
+);
 
 export { authHandler as GET, authHandler as POST, authHandler as DELETE };

@@ -174,6 +174,7 @@ export async function POST(
       input: action.draft as unknown as Record<string, unknown>,
       result: "success",
       durationMs: Date.now() - startTime,
+      surface: "actions",
     }).catch(() => {});
 
     return NextResponse.json({ action: updated, result });
@@ -193,6 +194,7 @@ export async function POST(
       result: "error",
       errorMessage,
       durationMs: Date.now() - startTime,
+      surface: "actions",
     }).catch(() => {});
 
     return NextResponse.json(

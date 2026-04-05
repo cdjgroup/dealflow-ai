@@ -1,4 +1,38 @@
-# Release Notes — v0.5.1
+# Release Notes — v0.6.0
+
+## DealFlow AI: Per-Client MCP Policy System
+
+External AI agents now get individually scoped access through named MCP clients with API keys, trust tiers, and per-client tool allowlists.
+
+### What's new
+
+- **Per-Client MCP Policies**: Create named MCP clients (e.g., "Claude Desktop", "Research Bot") each with a unique API key (`dfk_...`), a trust tier, and a tool allowlist. Different agents get different access levels to the same MCP endpoint.
+- **Trust Tier Spectrum**: Four tiers — Read Only (CRM data only), Restricted (CRM + calendar + email), Standard (all read-only tools), Full (all MCP tools). Each tier has default tool sets that can be customized per client.
+- **Dual Authentication**: MCP endpoint accepts both `dfk_`-prefixed API keys (per-client policy) and Auth0 bearer tokens (backward compatible, all MCP-safe tools). API keys are SHA-256 hashed before storage.
+- **Per-Client Rate Limiting**: Each MCP client has a configurable rate limit (requests/minute) enforced via Upstash Ratelimit with independent buckets.
+- **Usage Analytics**: Per-client call counts, success rates, and top tools tracked with daily granularity. View via client analytics API endpoint.
+- **Audit Source Filter**: Audit log now shows a Source column (Chat / MCP / Actions) with colored badges. Filter by surface to see "what happened via MCP today" across all clients.
+- **MCP Client Management UI**: Create, manage, and revoke clients from the MCP Explorer page. Trust tier visualization, tool checkboxes, key rotation, and delete confirmation built in.
+- **Surface Policy Registry**: Formal code-level declarations of what each surface (chat, actions, MCP) allows — makes the three-surface trust model explicit and auditable.
+
+### Security
+
+- API keys: SHA-256 hashed before storage, raw key shown once on creation, `dfk_` prefix for identification
+- CSRF enforcement on all client management mutations
+- Per-client tool filtering at `tools/call` time — disallowed tools return clear error
+- User-scoped Redis keys prevent cross-user client access
+- Rate limit per client prevents abuse from any single external agent
+
+### Architecture
+
+- `verifyMcpToken()` dual-path: API key hash lookup vs Auth0 /userinfo, both fail closed
+- `AuthInfo.extra` carries client metadata (allowedTools, rateLimit, trustTier) from auth to tool handlers
+- Tool registration is static in `mcp-handler`; per-client filtering happens inside each tool handler
+- Known limitation: `tools/list` returns all MCP tools regardless of client (filtering at call time only)
+
+---
+
+# Release Notes — v0.5.1 (Previous)
 
 ## DealFlow AI: Scheduled Action Review with CIBA Approval
 

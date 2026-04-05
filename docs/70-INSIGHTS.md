@@ -73,3 +73,8 @@ Auth0's CIBA binding message only allows alphanumerics, whitespace, and `+-_.,:#
 ## 017 — useState(initialProps) doesn't re-sync on server refresh (2026-04-05)
 
 React's `useState(initialValue)` only uses the initial value on first mount. When a Next.js server component re-renders via `router.refresh()` and passes new props, client components that stored those props in `useState` won't see the update. This caused the Action Center to show stale statuses after CIBA batch execution — the server had the updated data, but the client's local state was frozen. Fix: add `useEffect(() => setActions(initialActions), [initialActions])` to sync state when server props change.
+
+
+## 018 — Per-client MCP tool filtering is entirely custom — no spec support (2026-04-05)
+
+The MCP specification (2025-03-26) defines OAuth 2.1 auth with scopes, and `mcp-handler` v1.1.0 supports `requiredScopes` for handler-level gating. However, **per-client `tools/list` filtering is not in the spec, the library, or Auth0's MCP docs**. The `createMcpHandler` callback runs once at server initialization — tool registration is static, not per-session. Our solution: populate `AuthInfo.extra` with client metadata (allowedTools, rateLimit, trustTier) in `verifyMcpToken()`, then check it inside each tool handler before execution. This means `tools/list` returns all tools to all clients (they can "see" tools they can't call), but `tools/call` enforces the policy. This is a known limitation we document in the UI. A future spec revision or library update could support dynamic tool registration, which would enable true per-client tool discovery.
