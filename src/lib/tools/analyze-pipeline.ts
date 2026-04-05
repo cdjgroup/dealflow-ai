@@ -40,6 +40,17 @@ interface SuggestionInput {
   confidence?: number;
 }
 
+function matchesFocusFilter(
+  deal: { value: number; stage: string },
+  daysSinceUpdate: number,
+  focus: string
+): boolean {
+  if (focus === "stale" && daysSinceUpdate < 5) return false;
+  if (focus === "high-value" && deal.value < 50000) return false;
+  if (focus === "new-leads" && deal.stage !== "lead") return false;
+  return true;
+}
+
 interface DealContext {
   dealId: string;
   dealName: string;
@@ -173,9 +184,7 @@ function generateHeuristicSuggestions(
       ? activities.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
       : null;
 
-    if (focus === "stale" && daysSinceUpdate < 5) continue;
-    if (focus === "high-value" && deal.value < 50000) continue;
-    if (focus === "new-leads" && deal.stage !== "lead") continue;
+    if (!matchesFocusFilter(deal, daysSinceUpdate, focus)) continue;
 
     if (daysSinceUpdate >= 3 && !existingKeys.has(`${deal.id}:email`)) {
       const priority: ActionPriority =
@@ -299,10 +308,7 @@ export function createAnalyzePipelineTool(userId: string) {
           ? activities.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
           : null;
 
-        // Apply focus filter
-        if (focus === "stale" && daysSinceUpdate < 5) continue;
-        if (focus === "high-value" && deal.value < 50000) continue;
-        if (focus === "new-leads" && deal.stage !== "lead") continue;
+        if (!matchesFocusFilter(deal, daysSinceUpdate, focus)) continue;
 
         dealContexts.push({
           dealId: deal.id,

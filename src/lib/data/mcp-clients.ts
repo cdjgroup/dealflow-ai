@@ -111,6 +111,11 @@ export async function updateMcpClient(
   const existing = await getMcpClient(userId, clientId);
   if (!existing) return null;
 
+  // Clamp allowedTools to MCP-safe set (mirrors createMcpClient defense-in-depth)
+  if (data.allowedTools) {
+    data.allowedTools = data.allowedTools.filter((t) => MCP_SAFE_TOOLS.has(t));
+  }
+
   const updated: McpClient = {
     ...existing,
     ...data,

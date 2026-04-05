@@ -29,21 +29,35 @@ All notable changes to this project will be documented in this file.
 - Per-tool MCP executors using stored refresh tokens (same trust model as scheduled actions)
 
 ### Changed
+- MCP `tools/list` now filtered by per-client `allowedTools` via AsyncLocalStorage bridge (closes information disclosure gap)
+- `adaptToolsForMcp()` signature changed from `(_userId?: string)` to `(allowedToolFilter?: string[])`
+- MCP route uses ALS to thread auth context from `withMcpAuth` into `initializeServer` callback
 - Chat route refactored from `toUIMessageStreamResponse` to `createUIMessageStream` wrapper for clean error injection before stream abort
 - MCP server version bumped to 0.6.0
 - All MCP Token Vault tools now use stored refresh tokens instead of session-based `exchangeToken()`
 - Tool adapter expanded from 6 read-only tools to 9 tools (6 read + 3 CIBA-gated write)
 
 ### Security
+- MCP `tools/list` filtered per-client by scope and allowedTools (closes info disclosure)
+- Circuit breaker fails closed on Redis error (was fail-open — blocks tool execution instead of bypassing rate limits)
+- CIBA binding messages include client name prefix for attribution + sanitize all params
+- SHA-256 API key hash rationale documented in code comment
+- Token binding (DPoP/mTLS) absence documented as future hardening (insight #022)
 - API keys hashed with SHA-256 before storage; raw key shown only once on creation
 - CSRF enforcement on all MCP client management mutations
-- Per-client tool filtering: disallowed tools return error at `tools/call` time
+- Per-client tool discovery filtering: `tools/list` returns only client's allowed tools (defense-in-depth)
+- Per-client tool execution filtering: disallowed tools return error at `tools/call` time
 - User-scoped Redis keys prevent cross-user client access
 - AbortController kills runaway streams mid-flight when tool call limit exceeded
 - Write tools require device-level CIBA consent before MCP execution
 - Capability toggles enforced on MCP path (prevents bypassing permission settings)
 - Connection-disabled check runs before CIBA (no unnecessary push notifications)
 - HTTP response status validated for API calls (prevents silent error masking)
+
+### Documentation
+- Added "Graduated Trust Architecture" section to Devpost with IETF draft-klrc-aiagent-auth-01 and EU AI Act Article 14 references
+- Added "Standards Alignment" sections to ADRs 001, 003, 004, 006, 007
+- Added OpenFGA/WIMSE acknowledgment to Devpost "What's next"
 
 ## [0.5.2] - 2026-04-05
 

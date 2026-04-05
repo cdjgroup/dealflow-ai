@@ -168,21 +168,22 @@ describe("checkToolRateLimit", () => {
     expect(mockLimitFn).not.toHaveBeenCalled();
   });
 
-  // AC-6: Redis unreachable → fail-open
-  it("AC-6: returns allowed:true and logs error when Ratelimit.limit() throws (fail-open)", async () => {
+  // AC-11: Redis unreachable → fail-closed
+  it("AC-11: returns allowed:false and logs error when Ratelimit.limit() throws (fail-closed)", async () => {
     mockLimitFn.mockRejectedValue(new Error("Upstash connection refused"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const result = await checkToolRateLimit("user-1", "checkCalendar");
 
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
   });
 
-  // AC-6: getToolRateLimiter itself throws → fail-open
-  it("AC-6: returns allowed:true when getToolRateLimiter throws (fail-open)", async () => {
+  // AC-11: getToolRateLimiter itself throws → fail-closed
+  it("AC-11: returns allowed:false when getToolRateLimiter throws (fail-closed)", async () => {
     mockGetToolRateLimiter.mockImplementation(() => {
       throw new Error("Redis init failed");
     });
@@ -190,7 +191,8 @@ describe("checkToolRateLimit", () => {
 
     const result = await checkToolRateLimit("user-1", "listDeals");
 
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -297,8 +299,8 @@ describe("attachCircuitBreaker", () => {
     expect(result).toEqual({ success: true, toolName: "unknownTool" });
   });
 
-  // AC-6: Redis error during wrapped execute → fail-open (execute still runs)
-  it("AC-6: executes tool normally when rate-limit check throws (fail-open)", async () => {
+  // AC-12: Redis error during wrapped execute → fail-closed (execute does NOT run)
+  it("AC-12: blocks tool and fires onBlocked when rate-limit check throws (fail-closed)", async () => {
     mockLimitFn.mockRejectedValue(new Error("Upstash timeout"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const tools = { listDeals: makeTool("listDeals") };
@@ -306,16 +308,17 @@ describe("attachCircuitBreaker", () => {
 
     const result = await wrapped.listDeals.execute!({}, {});
 
-    expect(tools.listDeals.execute).toHaveBeenCalledTimes(1);
-    expect(onBlocked).not.toHaveBeenCalled();
+    expect(tools.listDeals.execute).not.toHaveBeenCalled();
+    expect(onBlocked).toHaveBeenCalledTimes(1);
     expect(consoleSpy).toHaveBeenCalled();
-    expect(result).toEqual({ success: true, toolName: "listDeals" });
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("toolName", "listDeals");
 
     consoleSpy.mockRestore();
   });
 
-  // AC-6: getToolRateLimiter throws inside wrapped execute → fail-open
-  it("AC-6: executes tool normally when getToolRateLimiter throws inside wrapped execute (fail-open)", async () => {
+  // AC-12: getToolRateLimiter throws inside wrapped execute → fail-closed
+  it("AC-12: blocks tool and fires onBlocked when getToolRateLimiter throws inside wrapped execute (fail-closed)", async () => {
     mockGetToolRateLimiter.mockImplementation(() => {
       throw new Error("Redis init failed during execute");
     });
@@ -325,9 +328,11 @@ describe("attachCircuitBreaker", () => {
 
     const result = await wrapped.draftEmail.execute!({}, {});
 
-    expect(tools.draftEmail.execute).toHaveBeenCalledTimes(1);
-    expect(onBlocked).not.toHaveBeenCalled();
+    expect(tools.draftEmail.execute).not.toHaveBeenCalled();
+    expect(onBlocked).toHaveBeenCalledTimes(1);
     expect(consoleSpy).toHaveBeenCalled();
+    expect(result).toHaveProperty("error");
+    expect(result).toHaveProperty("toolName", "draftEmail");
 
     consoleSpy.mockRestore();
   });
