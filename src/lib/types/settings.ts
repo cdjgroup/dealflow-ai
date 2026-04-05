@@ -1,4 +1,11 @@
+import type { CapabilityCategory } from "@/lib/surface-policy";
+
 export type TrustLevel = "always" | "ask" | "never";
+
+export interface McpClientPolicy {
+  allowedCategories: CapabilityCategory[];
+  label?: string;
+}
 
 export interface UserSettings {
   capabilities: {
@@ -17,6 +24,7 @@ export interface UserSettings {
     hours: number[];
     timezone: string;
   };
+  mcpClients?: Record<string, McpClientPolicy>;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {

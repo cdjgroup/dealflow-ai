@@ -1,10 +1,15 @@
 import { auth0 } from "@/lib/auth0";
 import { redirect } from "next/navigation";
+import { getUser } from "@/lib/auth0";
+import { getUserSettings } from "@/lib/data/settings";
 import { McpExplorer } from "@/components/mcp-explorer";
 
 export default async function McpPage() {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login?returnTo=/dashboard/mcp");
+
+  const user = await getUser();
+  const settings = user ? await getUserSettings(user.sub) : null;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -16,7 +21,7 @@ export default async function McpPage() {
         </p>
       </div>
 
-      <McpExplorer />
+      <McpExplorer initialMcpClients={settings?.mcpClients} />
     </div>
   );
 }

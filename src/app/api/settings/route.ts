@@ -65,6 +65,20 @@ const settingsSchema = z.object({
       ),
     })
     .optional(),
+  mcpClients: z
+    .record(
+      z.string().max(128),
+      z.object({
+        allowedCategories: z.array(
+          z.enum(["crmRead", "crmWrite", "calendar", "gmail", "slack"])
+        ).min(1).max(5),
+        label: z.string().max(64).optional(),
+      })
+    )
+    .refine((obj) => Object.keys(obj).length <= 10, {
+      message: "mcpClients cannot contain more than 10 entries",
+    })
+    .optional(),
 });
 
 export async function PUT(req: Request) {
