@@ -9,14 +9,45 @@ vi.mock("@/lib/auth0", () => ({
 
 vi.mock("@/lib/token-exchange", () => ({
   exchangeToken: vi.fn().mockResolvedValue({ error: "mocked" }),
+  exchangeTokenWithRefresh: vi.fn().mockResolvedValue({ token: "mocked-token" }),
   sanitizeApiError: vi.fn(() => "mocked error"),
   buildTokenMeta: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/tools/scope-map", () => ({
-  TOOL_SCOPE_CONFIG: {},
+  TOOL_SCOPE_CONFIG: {
+    checkCalendar: { connection: "google-oauth2" },
+    searchEmails: { connection: "google-oauth2" },
+    listSlackChannels: { connection: "sign-in-with-slack" },
+    draftEmail: { connection: "google-oauth2" },
+    createCalendarEvent: { connection: "google-oauth2" },
+    sendSlackMessage: { connection: "sign-in-with-slack" },
+  },
   TOOL_SCOPES: { checkCalendar: [], searchEmails: [], listSlackChannels: [] },
   scopeProvider: () => null,
+}));
+
+vi.mock("@/lib/data/schedule-tokens", () => ({
+  getScheduleRefreshToken: vi.fn().mockResolvedValue("mocked-refresh-token"),
+}));
+
+vi.mock("@/lib/data/connections", () => ({
+  isConnectionDisabled: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock("@/lib/mcp/ciba-gate", () => ({
+  cibaGate: vi.fn().mockResolvedValue({ approved: true }),
+  buildMcpBindingMessage: vi.fn().mockReturnValue("MCP: test"),
+}));
+
+vi.mock("@/lib/ciba/should-require", () => ({
+  shouldRequireCiba: vi.fn(() => false),
+  shouldRequireCibaMcp: vi.fn(() => false),
+}));
+
+vi.mock("@/lib/api-utils", () => ({
+  buildRawEmail: vi.fn(() => "base64-encoded-email"),
+  resolveSlackChannelId: vi.fn().mockResolvedValue({ id: "C123" }),
 }));
 
 vi.mock("@/lib/redis", () => ({
@@ -33,6 +64,25 @@ vi.mock("@/lib/data/audit", () => ({
   writeAuditEntry: vi.fn(),
 }));
 
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn().mockResolvedValue({
+    capabilities: { crmRead: true, crmWrite: true, calendar: true, gmail: true, slack: true },
+    approvalRequired: { crmWrite: false },
+    toolTrust: {},
+    schedule: { enabled: false, hours: [], timezone: "UTC" },
+  }),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  getMcpClientLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ success: true }),
+  }),
+}));
+
+vi.mock("@/lib/data/mcp-analytics", () => ({
+  recordMcpCall: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
     it("AC-10: returns a registration function", () => {
@@ -40,7 +90,7 @@ describe("MCP tool adapter", () => {
       expect(typeof registerFn).toBe("function");
     });
 
-    it("AC-10: registers only read-only tools (excludes approval-required)", async () => {
+    it("AC-1: registers read, write (CIBA-gated), and CRM tools", async () => {
       const registered: string[] = [];
       const mockServer = {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
@@ -51,19 +101,27 @@ describe("MCP tool adapter", () => {
       const registerFn = adaptToolsForMcp();
       await registerFn(mockServer as never);
 
-      // Read-only Token Vault tools should be registered
+      // Read-only Token Vault tools
       expect(registered).toContain("checkCalendar");
       expect(registered).toContain("searchEmails");
       expect(registered).toContain("listSlackChannels");
 
-      // Approval-required tools should NOT be registered
-      expect(registered).not.toContain("draftEmail");
-      expect(registered).not.toContain("sendSlackMessage");
-      expect(registered).not.toContain("delegateResearch");
+      // Write tools (CIBA-gated)
+      expect(registered).toContain("draftEmail");
+      expect(registered).toContain("createCalendarEvent");
+      expect(registered).toContain("sendSlackMessage");
+
+      // CRM read tools
+      expect(registered).toContain("listDeals");
+      expect(registered).toContain("getDealDetails");
+      expect(registered).toContain("searchContacts");
 
       // CRM write tools should NOT be registered
       expect(registered).not.toContain("createDeal");
       expect(registered).not.toContain("updateDeal");
+
+      // Delegation tool should NOT be registered
+      expect(registered).not.toContain("delegateResearch");
     });
 
     it("AC-5: registered tools match surface policy for 'mcp'", async () => {

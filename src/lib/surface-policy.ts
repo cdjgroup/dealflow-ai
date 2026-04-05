@@ -45,11 +45,12 @@ export const SURFACE_POLICIES: Record<SurfaceName, SurfacePolicy> = {
   mcp: {
     name: "mcp",
     allowedCategories: ["crmRead", "calendar", "gmail", "slack"],
-    accessLevel: "read",
+    accessLevel: "write",
     rationale:
-      "No interactive approval UI in the MCP protocol. Bearer token auth only. " +
-      "Restricted to read-only operations — if the surface can't support " +
-      "human consent, write access is revoked.",
+      "Read tools execute autonomously. Write tools (draftEmail, createCalendarEvent, " +
+      "sendSlackMessage) require CIBA device consent via Guardian push — providing " +
+      "human approval without an interactive UI. CRM write tools remain excluded " +
+      "(different consent model). All tools use stored refresh tokens.",
     requiresApproval: false,
     requiresSession: false,
   },
@@ -112,8 +113,8 @@ export function getToolNamesForSurface(surface: SurfaceName): string[] {
 
 /**
  * Resolve scope strings to concrete READ-ONLY tool names. Write tools
- * are always excluded because scopes are only used for MCP (read-only
- * surface). If a future surface needs write scopes, add a separate function.
+ * are always excluded. Used for backward-compatible scope checks where
+ * write access is not desired.
  */
 export function getReadToolNamesForScopes(scopes: string[]): string[] {
   const categories = scopes
@@ -125,6 +126,26 @@ export function getReadToolNamesForScopes(scopes: string[]): string[] {
   for (const [toolName, category] of Object.entries(TOOL_CATEGORIES)) {
     if (!allowed.has(category)) continue;
     if (WRITE_TOOLS.has(toolName)) continue;
+    tools.push(toolName);
+  }
+  return tools;
+}
+
+/**
+ * Resolve scope strings to ALL tool names (read + write) for a given
+ * category set. Used for MCP scope checks where write tools are allowed
+ * (gated by CIBA consent at execution time). CRM write tools are still
+ * excluded because crmWrite is not in the MCP surface policy.
+ */
+export function getToolNamesForScopes(scopes: string[]): string[] {
+  const categories = scopes
+    .map(scopeToCategory)
+    .filter((c): c is CapabilityCategory => c !== undefined);
+  const allowed = new Set<string>(categories);
+
+  const tools: string[] = [];
+  for (const [toolName, category] of Object.entries(TOOL_CATEGORIES)) {
+    if (!allowed.has(category)) continue;
     tools.push(toolName);
   }
   return tools;

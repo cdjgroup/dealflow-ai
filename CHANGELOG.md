@@ -20,9 +20,19 @@ All notable changes to this project will be documented in this file.
 - Per-request tool call counter: max 15 tool calls per chat request, aborts on breach
 - Circuit breaker audit trail: rate limit denials logged with tier, remaining budget, reset time
 - Amber-styled circuit breaker alerts in chat UI (distinct from red error banners)
+- MCP write tools: draftEmail, createCalendarEvent, sendSlackMessage now exposed via `/api/mcp`
+- CIBA gating for all MCP write operations (Guardian push approval required)
+- `cibaGate()` function for synchronous CIBA polling in MCP context (50s timeout)
+- `buildMcpBindingMessage()` for tool-specific CIBA binding messages
+- `shouldRequireCibaMcp()` for MCP write tool detection
+- MCP capability enforcement: respects per-user permission toggles
+- Per-tool MCP executors using stored refresh tokens (same trust model as scheduled actions)
 
 ### Changed
 - Chat route refactored from `toUIMessageStreamResponse` to `createUIMessageStream` wrapper for clean error injection before stream abort
+- MCP server version bumped to 0.6.0
+- All MCP Token Vault tools now use stored refresh tokens instead of session-based `exchangeToken()`
+- Tool adapter expanded from 6 read-only tools to 9 tools (6 read + 3 CIBA-gated write)
 
 ### Security
 - API keys hashed with SHA-256 before storage; raw key shown only once on creation
@@ -30,6 +40,10 @@ All notable changes to this project will be documented in this file.
 - Per-client tool filtering: disallowed tools return error at `tools/call` time
 - User-scoped Redis keys prevent cross-user client access
 - AbortController kills runaway streams mid-flight when tool call limit exceeded
+- Write tools require device-level CIBA consent before MCP execution
+- Capability toggles enforced on MCP path (prevents bypassing permission settings)
+- Connection-disabled check runs before CIBA (no unnecessary push notifications)
+- HTTP response status validated for API calls (prevents silent error masking)
 
 ## [0.5.2] - 2026-04-05
 

@@ -33,7 +33,7 @@ describe("initiateCiba", () => {
       authReqId: "ciba-req-123",
       expiresIn: 300,
       interval: 5,
-      bindingMessage: "Approve creating $75,000 deal: Acme Enterprise",
+      bindingMessage: "Approve creating 75,000 deal: Acme Enterprise",
     });
 
     // Verify the fetch call
@@ -46,7 +46,7 @@ describe("initiateCiba", () => {
     const body = new URLSearchParams(options.body);
     expect(body.get("client_id")).toBe("test-client-id");
     expect(body.get("client_secret")).toBe("test-client-secret");
-    expect(body.get("binding_message")).toBe("Approve creating $75,000 deal: Acme Enterprise");
+    expect(body.get("binding_message")).toBe("Approve creating 75,000 deal: Acme Enterprise");
     expect(body.get("login_hint")).toContain("auth0|user123");
     expect(body.get("scope")).toBe("openid");
   });
