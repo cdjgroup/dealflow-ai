@@ -53,6 +53,7 @@ export async function createMcpClient(
     allowedTools,
     trustTier,
     rateLimit: input.rateLimit ?? 60,
+    parameterConstraints: input.parameterConstraints,
     apiKeyHash: hash,
     apiKeyPrefix: prefix,
     createdAt: now(),
@@ -104,11 +105,16 @@ export async function listMcpClients(userId: string): Promise<McpClient[]> {
 export async function updateMcpClient(
   userId: string,
   clientId: string,
-  data: Partial<Pick<McpClient, "name" | "description" | "allowedTools" | "trustTier" | "rateLimit">>
+  data: Partial<Pick<McpClient, "name" | "description" | "allowedTools" | "trustTier" | "rateLimit" | "parameterConstraints">>
 ): Promise<McpClient | null> {
   const redis = getRedis();
   const existing = await getMcpClient(userId, clientId);
   if (!existing) return null;
+
+  // Clamp allowedTools to MCP-safe set (mirrors createMcpClient defense-in-depth)
+  if (data.allowedTools) {
+    data.allowedTools = data.allowedTools.filter((t) => MCP_SAFE_TOOLS.has(t));
+  }
 
   const updated: McpClient = {
     ...existing,

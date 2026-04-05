@@ -31,8 +31,8 @@ export async function recordMcpCall(
     }
     await redis.hincrby(key, `tool:${toolName}`, 1);
     await redis.expire(key, 30 * 24 * 60 * 60); // 30 days
-  } catch {
-    // fire-and-forget: silently absorb errors
+  } catch (err) {
+    console.debug("MCP analytics recording failed (fire-and-forget):", err);
   }
 }
 

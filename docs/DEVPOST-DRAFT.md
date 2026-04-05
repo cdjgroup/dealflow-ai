@@ -36,7 +36,7 @@ The same capability toggles, trust levels, and connection controls govern all th
 - **RFC 8693** federated connection access token exchange (direct — see Challenges)
 - **Model Context Protocol** for external agent interop
 
-**Built in 4 days** (March 31 – April 4, 2026), 146 commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
+**Built in 5 days** (March 31 – April 5, 2026), 219 commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
 
 ### Architecture
 
@@ -112,6 +112,8 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Priority-filtered execution** | High/medium priority actions execute automatically; low priority stays for manual review |
 | **MCP Server** | External AI agents get Auth0-grade security without framework changes |
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
+| **IETF draft alignment** | Three surfaces map to the three delegation patterns in `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI's Nick Steele): user-delegated (Chat), pre-authorized (Action Center), agent-to-agent (MCP) |
+| **Surface Policy Registry** | Declarative per-surface tool whitelists with layered enforcement — independently implements the same tool authorization pattern permit.io recommends, without the dependency |
 | **Calendar event creation** | AI schedules meetings via Token Vault — always requires approval, short-lived token |
 | **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
 | **Direct RFC 8693 exchange** | SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — direct calls give full error observability + richer token metadata |
@@ -140,13 +142,15 @@ This pattern is reusable: any application with Auth0 Token Vault can expose its 
 
 ### Insight Value (Judging: Insight Value)
 
-We documented 12 non-obvious discoveries during development:
+We documented 23 non-obvious discoveries during development, including:
 
 1. **@auth0/ai-vercel SDK swallows token exchange errors** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — failed exchanges return "Authorization required" instead of the real error. Fix: call Auth0's token exchange endpoint directly for full error observability.
 2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
 3. **Token Vault tokenset deletion doesn't revoke access** — tokensets are a cache layer. Application-level enforcement is required.
 4. **Auth0 Token Vault does NOT support scope narrowing** — the `scope` parameter is ignored on federated exchanges. Scope narrowing must be application-layer.
 5. **MCP endpoints need the same security layers as chat** — every new entry point must replicate capability filtering, approval checks, and audit attribution.
+6. **CIBA + Token Vault composition is novel** — Auth0 documents them as separate pillars; no official guide, SDK example, or project combines CIBA approval as a gate before Token Vault exchange in a batch model.
+7. **Three-surface model maps to IETF `draft-klrc-aiagent-auth-01`** — our Chat/Action Center/MCP surfaces implement the three delegation patterns (user-delegated, pre-authorized, agent-to-agent) that the IETF is still drafting.
 
 Full insights with technical details: `docs/70-INSIGHTS.md`
 
@@ -168,8 +172,9 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 - **CIBA batch consent with scheduled execution**: One Guardian push approves all high/medium priority actions — time-boxed execution within the CIBA token's lifetime
 - **Trust calibration**: System observes per-tool approval patterns and recommends autonomy upgrades — genuine feedback loop, not just telemetry
 - **310+ tests passing**: Comprehensive coverage across data layer, API routes, approval logic, CIBA module, trust calibration, and capability filtering
-- **22 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, and trust calibration that benefit the Auth0 community
-- **Architecture Decision Records**: Eight ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, and trust calibration
+- **IETF draft alignment**: Three surfaces implement the three delegation patterns from `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI's Nick Steele) — real code for what the IETF is still drafting
+- **27 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, trust calibration, and IETF alignment that benefit the Auth0 community
+- **Architecture Decision Records**: Nine ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, MCP policy, and trust calibration
 
 ## What we learned
 

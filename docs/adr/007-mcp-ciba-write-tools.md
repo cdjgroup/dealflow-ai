@@ -29,7 +29,7 @@ Additionally, the existing MCP read tools called `exchangeToken()` internally, w
 ### Positive
 - MCP becomes a first-class execution surface with the same security guarantees as chat
 - Complete trust spectrum: Action Center (low) → Chat (medium) → MCP+CIBA (high) → MCP read (autonomous)
-- MCP + Token Vault + CIBA composition appears to be novel — no other project combines all three for agent consent
+- CIBA as a gate before Token Vault token exchange is novel in the public record — Auth0 documents them as separate pillars, no official guide or SDK example combines them
 - MCP Token Vault tools now work for true external clients (stored refresh tokens, no session cookies needed)
 
 ### Negative
@@ -40,3 +40,7 @@ Additionally, the existing MCP read tools called `exchangeToken()` internally, w
 ### Neutral
 - CRM write tools remain excluded from MCP (no Token Vault involvement, different consent model)
 - CIBA access token (scoped to `openid`) is correctly discarded — used only as proof of consent, not for API calls
+
+## Standards Alignment
+
+The MCP trust spectrum (Action Center → Chat → MCP+CIBA → MCP read) maps to the three delegation patterns in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/): pre-authorized execution (Action Center review, MCP read-only), interactive delegation (Chat step-up, MCP+CIBA push consent), and autonomous operation within pre-configured trust boundaries.

@@ -46,9 +46,11 @@ async function verifyApiKey(rawKey: string): Promise<AuthInfo | undefined> {
         rateLimit: client.rateLimit,
         trustTier: client.trustTier,
         clientName: client.name,
+        parameterConstraints: client.parameterConstraints,
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("MCP API key verification failed:", err);
     return undefined;
   }
 }
@@ -79,7 +81,8 @@ async function verifyAuth0Token(
         mcpClientId: "default",
       },
     };
-  } catch {
+  } catch (err) {
+    console.error("MCP Auth0 token verification failed:", err);
     return undefined;
   }
 }

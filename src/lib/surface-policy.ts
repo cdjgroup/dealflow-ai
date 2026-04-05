@@ -1,4 +1,5 @@
 import { TOOL_CATEGORIES } from "@/lib/tools/capability-filter";
+import { WRITE_TOOLS } from "@/lib/constants/tools";
 import type { UserSettings } from "@/lib/types/settings";
 
 export type SurfaceName = "chat" | "actionCenter" | "mcp";
@@ -55,23 +56,6 @@ export const SURFACE_POLICIES: Record<SurfaceName, SurfacePolicy> = {
     requiresSession: false,
   },
 };
-
-/**
- * Tools that perform write/mutation operations. Used to enforce read-only
- * access on surfaces with accessLevel "read" — category-level filtering
- * alone is too coarse because categories like "calendar" include both
- * checkCalendar (read) and createCalendarEvent (write).
- */
-const WRITE_TOOLS = new Set([
-  "createDeal",
-  "updateDeal",
-  "createContact",
-  "logActivity",
-  "createCalendarEvent",
-  "draftEmail",
-  "sendSlackMessage",
-  "delegateResearch",
-]);
 
 const SCOPE_MAP: Record<CapabilityCategory, string> = {
   crmRead: "crm:read",

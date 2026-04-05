@@ -68,6 +68,17 @@ The permissions page in DealFlow AI isn't informational — it's functional:
 
 This addresses the judging criterion directly: *"Can users understand what permissions the agent has? Are scopes and access boundaries clearly defined and visible?"* The answer isn't just yes — the answer is the user controls all of it.
 
+## Why This Aligns with EU AI Act Article 14
+
+The EU AI Act's Article 14 (effective August 2026) requires that AI systems be designed for "effective oversight by natural persons during the period of use." DealFlow AI's trust spectrum maps directly to this principle:
+
+- **Understanding capabilities**: The permissions dashboard shows exactly which tools the agent has access to, with human-readable scope labels and live scope indicators during execution
+- **Monitoring operation**: The audit trail logs every tool invocation with parameters, duration, and outcome — viewable in real-time at `/dashboard/audit`
+- **Intervening and overriding**: Capability toggles disable tools instantly. CIBA device consent lets users approve or deny specific actions on their phone. The Action Center queues suggestions for review rather than executing immediately
+- **Deciding when and how to use**: Three-level autonomy (Suggest Only, Auto-Approve, Full Autonomous) lets users calibrate the delegation boundary. Confidence-based routing adds an AI-driven dimension — uncertain suggestions automatically surface for human review, regardless of the autonomy setting
+
+This isn't compliance theater. These are the same design decisions we'd make without the regulation, because users building trust with AI agents need exactly these controls. Article 14 validates the approach; it didn't drive it.
+
 ## Trust Calibration: Closing the Feedback Loop
 
 Most permission systems are static — you set a level and forget it. But user trust in an AI agent evolves with experience. After approving 20 email drafts in a row, the manual approval step starts feeling like friction rather than safety.
