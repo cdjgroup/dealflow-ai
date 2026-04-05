@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
+## Current Version: 0.6.1 — Trust Calibration Nudge
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

@@ -40,7 +40,11 @@ export async function getTrustStats(userId: string): Promise<TrustStats> {
   const redis = getRedis();
   const raw = await redis.get<TrustStats>(trustStatsKey(userId));
   if (!raw) return { ...DEFAULT_TRUST_STATS, email: { ...DEFAULT_TRUST_STATS.email }, calendar: { ...DEFAULT_TRUST_STATS.calendar }, slack: { ...DEFAULT_TRUST_STATS.slack } };
-  return raw;
+  return {
+    email: { ...DEFAULT_TRUST_STATS.email, ...(raw.email ?? {}) },
+    calendar: { ...DEFAULT_TRUST_STATS.calendar, ...(raw.calendar ?? {}) },
+    slack: { ...DEFAULT_TRUST_STATS.slack, ...(raw.slack ?? {}) },
+  };
 }
 
 // Note: read-modify-write without atomicity — concurrent batch approvals may

@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-04-05
+
+### Added
+- Trust calibration nudge: after 5+ approvals at >80% rate, banner suggests upgrading tool to auto-approve
+- Nudge in single-action and batch approve API responses (optional `nudge` field, backward-compatible)
+- TrustNudgeBanner component in Action Center with Accept/Dismiss controls
+- Accept updates `toolTrust` via settings API; dismiss hides banner (re-appears on next threshold hit)
+- Hardened `getTrustStats` to merge against defaults for legacy Redis records
+
 ## [0.6.0] - 2026-04-05
 
 ### Added

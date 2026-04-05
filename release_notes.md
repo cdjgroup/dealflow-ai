@@ -1,6 +1,18 @@
-# Release Notes — v0.6.0
+# Release Notes — v0.6.1
 
-## DealFlow AI: Per-Client MCP Policy + CIBA-Gated Write Tools
+## DealFlow AI: Trust Calibration Nudge
+
+The trust stats feedback loop is now closed. After approving 5+ actions of the same type with >80% approval rate, a nudge banner appears in the Action Center suggesting the user upgrade that tool to auto-approve. This is genuine trust calibration — the system observes user behavior and recommends autonomy changes, but never auto-escalates.
+
+### Trust Calibration
+- **Threshold-based nudge**: After 5+ decisions with >80% approval rate for a tool, the API includes a `nudge` payload in the approve response
+- **Upgrade-only**: System only suggests promoting `ask` → `always` (never suggests blocking)
+- **Accept/Dismiss**: One-click Accept updates `toolTrust` via settings API; Dismiss hides the banner
+- **Best-effort**: Nudge evaluation errors never break the approve/dismiss flow
+- **Batch support**: Batch "Approve All" also evaluates and surfaces nudges
+- **Backward-compatible**: Optional `nudge?` field added to existing API responses
+
+### Previous: v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 
 External AI agents now get individually scoped access through named MCP clients with API keys, trust tiers, and per-client tool allowlists. Additionally, write operations (email, calendar, Slack) are now available via MCP with device-level CIBA consent.
 
