@@ -20,11 +20,15 @@ export interface AuditEntry {
   tokenMeta?: TokenMeta;
   consentAction?: "auto" | "approved" | "denied" | "always-allowed";
   cibaAuthReqId?: string;
+  surface?: "chat" | "mcp" | "actions";
+  mcpClientId?: string;
+  mcpClientName?: string;
 }
 
 export interface AuditFilters {
   toolName?: string;
   result?: "success" | "error";
+  surface?: "chat" | "mcp" | "actions";
   startDate?: string; // ISO 8601
   endDate?: string; // ISO 8601
 }

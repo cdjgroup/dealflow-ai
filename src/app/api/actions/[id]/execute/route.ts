@@ -114,7 +114,8 @@ export async function POST(
 
       try {
         const dealName = deal?.name || action.dealName || "deal";
-        const bindingMessage = `Approve ${action.type} for $${dealValue.toLocaleString()} deal: ${dealName}`.slice(0, 64);
+        const rawMessage = `Approve ${action.type} for ${dealValue.toLocaleString()} deal: ${dealName}`;
+        const bindingMessage = rawMessage.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
         const cibaResult = await initiateCiba(auth.userId, bindingMessage);
 
         await storeCibaSession({
@@ -174,6 +175,7 @@ export async function POST(
       input: action.draft as unknown as Record<string, unknown>,
       result: "success",
       durationMs: Date.now() - startTime,
+      surface: "actions",
     }).catch(() => {});
 
     return NextResponse.json({ action: updated, result });
@@ -193,6 +195,7 @@ export async function POST(
       result: "error",
       errorMessage,
       durationMs: Date.now() - startTime,
+      surface: "actions",
     }).catch(() => {});
 
     return NextResponse.json(

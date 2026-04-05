@@ -13,9 +13,11 @@ export async function GET(req: Request) {
   const toolName = url.searchParams.get("toolName") || undefined;
   const resultParam = url.searchParams.get("result");
   const result = resultParam === "success" || resultParam === "error" ? resultParam : undefined;
+  const surfaceParam = url.searchParams.get("surface");
+  const surface = surfaceParam === "chat" || surfaceParam === "mcp" || surfaceParam === "actions" ? surfaceParam : undefined;
   const startDate = url.searchParams.get("startDate") || undefined;
   const endDate = url.searchParams.get("endDate") || undefined;
 
-  const log = await getAuditLog(auth.userId, { limit, toolName, result, startDate, endDate });
+  const log = await getAuditLog(auth.userId, { limit, toolName, result, surface, startDate, endDate });
   return NextResponse.json(log);
 }

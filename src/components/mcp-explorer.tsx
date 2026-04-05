@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import type { McpClient } from "@/lib/types/policy";
+import { McpClientCard } from "@/components/mcp-client-card";
+import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
 
 const MCP_TOOLS = [
   { name: "checkCalendar", description: "Check Google Calendar for events or availability", scope: "read", provider: "Google" },
@@ -40,7 +43,7 @@ const CLIENT_CONFIGS = {
     "type": "url",
     "url": "https://dealflow-ai-seven.vercel.app/api/mcp",
     "name": "dealflow-ai",
-    "authorization_token": "<auth0-access-token>"
+    "authorization_token": "<your-api-key>"
   }],
   "tools": [{
     "type": "mcp_toolset",
@@ -52,13 +55,13 @@ const CLIENT_CONFIGS = {
     label: "curl",
     config: `# Discover tools
 curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \\
-  -H "Authorization: Bearer <token>" \\
+  -H "Authorization: Bearer <your-api-key>" \\
   -H "Content-Type: application/json" \\
   -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 
 # Call a tool
 curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \\
-  -H "Authorization: Bearer <token>" \\
+  -H "Authorization: Bearer <your-api-key>" \\
   -H "Content-Type: application/json" \\
   -d '{"jsonrpc":"2.0","method":"tools/call",
        "params":{"name":"checkCalendar",
@@ -66,10 +69,36 @@ curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \\
   },
 };
 
+const TRUST_TIERS = [
+  { tier: "readonly", label: "Read Only", desc: "CRM data only", color: "border-muted-foreground/30 text-muted-foreground" },
+  { tier: "restricted", label: "Restricted", desc: "CRM + Calendar + Email", color: "border-amber-500/30 text-amber-400" },
+  { tier: "standard", label: "Standard", desc: "All read-only tools", color: "border-blue-500/30 text-blue-400" },
+  { tier: "full", label: "Full", desc: "All MCP tools", color: "border-emerald-500/30 text-emerald-400" },
+];
+
+interface CreateForm {
+  name: string;
+  description: string;
+  trustTier: string;
+  rateLimit: string;
+  selectedTools: string[];
+}
+
 export function McpExplorer() {
   const [activeTab, setActiveTab] = useState<keyof typeof CLIENT_CONFIGS>("claude_desktop");
   const [copied, setCopied] = useState(false);
   const [endpointStatus, setEndpointStatus] = useState<"checking" | "live" | "down">("checking");
+  const [clients, setClients] = useState<McpClient[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newApiKey, setNewApiKey] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState<CreateForm>({
+    name: "",
+    description: "",
+    trustTier: "standard",
+    rateLimit: "60",
+    selectedTools: Array.from(MCP_SAFE_TOOLS),
+  });
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetch("/api/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", method: "initialize", id: 0 }) })
@@ -77,22 +106,271 @@ export function McpExplorer() {
       .catch(() => setEndpointStatus("down"));
   }, []);
 
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch("/api/mcp/clients");
+      if (res.ok) setClients(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchClients(); }, [fetchClients]);
+
   async function copyConfig() {
     try {
       await navigator.clipboard.writeText(CLIENT_CONFIGS[activeTab].config);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback: select text for manual copy
+    } catch { /* ignore */ }
+  }
+
+  async function handleCreate() {
+    setCreating(true);
+    try {
+      const res = await fetch("/api/mcp/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        body: JSON.stringify({
+          name: createForm.name,
+          description: createForm.description || undefined,
+          trustTier: createForm.trustTier,
+          rateLimit: parseInt(createForm.rateLimit, 10) || 60,
+          allowedTools: createForm.selectedTools,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNewApiKey(data.rawApiKey);
+        setShowCreateForm(false);
+        setCreateForm({ name: "", description: "", trustTier: "standard", rateLimit: "60", selectedTools: Array.from(MCP_SAFE_TOOLS) });
+        await fetchClients();
+      }
+    } catch { /* ignore */ }
+    setCreating(false);
+  }
+
+  async function handleDelete(clientId: string) {
+    await fetch(`/api/mcp/clients/${clientId}`, {
+      method: "DELETE",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+    await fetchClients();
+  }
+
+  async function handleRotateKey(clientId: string) {
+    const res = await fetch(`/api/mcp/clients/${clientId}/rotate-key`, {
+      method: "POST",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setNewApiKey(data.rawApiKey);
+      await fetchClients();
     }
   }
 
+  const allMcpTools = Array.from(MCP_SAFE_TOOLS);
+
   return (
     <div className="space-y-6">
+      {/* Trust Tier Spectrum */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card border border-border rounded-lg p-6"
+      >
+        <h2 className="text-lg font-semibold text-foreground mb-3">Trust Spectrum</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Each MCP client operates within a trust tier that controls which tools it can access.
+          Higher tiers grant access to more tool categories.
+        </p>
+        <div className="flex gap-2">
+          {TRUST_TIERS.map((t, i) => (
+            <div key={t.tier} className="flex-1 flex items-center gap-2">
+              <div className={`flex-1 rounded-md border px-3 py-2 text-center ${t.color}`}>
+                <div className="text-xs font-medium">{t.label}</div>
+                <div className="text-[10px] mt-0.5 opacity-70">{t.desc}</div>
+              </div>
+              {i < TRUST_TIERS.length - 1 && (
+                <span className="text-muted-foreground/30 text-xs shrink-0">&rarr;</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* MCP Clients */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-card border border-border rounded-lg p-6"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            Your MCP Clients ({clients.length})
+          </h2>
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="text-xs bg-primary text-primary-foreground rounded-md px-3 py-1.5 hover:bg-primary/90 transition-colors"
+          >
+            {showCreateForm ? "Cancel" : "Create Client"}
+          </button>
+        </div>
+
+        {/* New API Key Alert */}
+        <AnimatePresence>
+          {newApiKey && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
+            >
+              <p className="text-xs font-medium text-amber-400 mb-2">
+                Save this API key — it will not be shown again:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs font-mono bg-muted/50 rounded px-3 py-2 text-foreground break-all">
+                  {newApiKey}
+                </code>
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(newApiKey);
+                    setNewApiKey(null);
+                  }}
+                  className="text-xs bg-amber-500/20 border border-amber-500/30 rounded px-3 py-2 text-amber-400 hover:bg-amber-500/30 transition-colors shrink-0"
+                >
+                  Copy & Dismiss
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Create Form */}
+        <AnimatePresence>
+          {showCreateForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 overflow-hidden"
+            >
+              <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                      placeholder="e.g., Claude Desktop"
+                      className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={createForm.description}
+                      onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                      placeholder="Optional"
+                      className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Trust Tier</label>
+                    <select
+                      value={createForm.trustTier}
+                      onChange={(e) => setCreateForm({ ...createForm, trustTier: e.target.value })}
+                      className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="full">Full Access</option>
+                      <option value="standard">Standard</option>
+                      <option value="restricted">Restricted</option>
+                      <option value="readonly">Read Only</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Rate Limit (req/min)</label>
+                    <input
+                      type="number"
+                      value={createForm.rateLimit}
+                      onChange={(e) => setCreateForm({ ...createForm, rateLimit: e.target.value })}
+                      min={1}
+                      max={1000}
+                      className="w-full h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-medium text-muted-foreground block mb-1.5">Allowed Tools</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allMcpTools.map((tool) => {
+                      const selected = createForm.selectedTools.includes(tool);
+                      return (
+                        <button
+                          key={tool}
+                          type="button"
+                          onClick={() => {
+                            setCreateForm({
+                              ...createForm,
+                              selectedTools: selected
+                                ? createForm.selectedTools.filter((t) => t !== tool)
+                                : [...createForm.selectedTools, tool],
+                            });
+                          }}
+                          className={`text-[10px] rounded px-2 py-1 border transition-colors ${
+                            selected
+                              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                              : "text-muted-foreground bg-muted/30 border-border hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          {tool}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCreate}
+                  disabled={!createForm.name || creating}
+                  className="text-xs bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {creating ? "Creating..." : "Create Client"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Client Cards */}
+        {clients.length === 0 && !showCreateForm && (
+          <p className="text-xs text-muted-foreground text-center py-6">
+            No MCP clients configured. Create one to generate an API key for external agents.
+          </p>
+        )}
+        <div className="space-y-3">
+          <AnimatePresence>
+            {clients.map((client) => (
+              <McpClientCard
+                key={client.id}
+                client={client}
+                onDelete={handleDelete}
+                onRotateKey={handleRotateKey}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
       {/* Endpoint status */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
         className="bg-card border border-border rounded-lg p-6"
       >
         <div className="flex items-center justify-between mb-4">
@@ -129,9 +407,13 @@ export function McpExplorer() {
             <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-400">
               Auth Required
             </span>
+            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-purple-400">
+              Per-Client Policy
+            </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Bearer token authentication via Auth0. Tokens validated against <code className="text-foreground/70">/userinfo</code> endpoint.
+            Supports both Auth0 bearer tokens (default access) and DealFlow API keys (per-client policy).
+            API keys are generated when you create an MCP client above.
           </p>
         </div>
       </motion.div>
@@ -140,15 +422,15 @@ export function McpExplorer() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+        transition={{ delay: 0.15 }}
         className="bg-card border border-border rounded-lg p-6"
       >
         <h2 className="text-lg font-semibold text-foreground mb-2">
           Available Tools ({MCP_TOOLS.length})
         </h2>
         <p className="text-xs text-muted-foreground mb-4">
-          Only read-only tools are exposed via MCP. Write operations and tools requiring
-          approval are excluded because MCP has no interactive approval UI.
+          Tools available via MCP. Per-client policies can restrict which tools each client can access.
+          Write operations require the chat UI for approval.
         </p>
         <div className="space-y-2">
           {MCP_TOOLS.map((tool, i) => (
@@ -156,7 +438,7 @@ export function McpExplorer() {
               key={tool.name}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 + i * 0.03 }}
+              transition={{ delay: 0.2 + i * 0.03 }}
               className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2"
             >
               <div className="flex items-center gap-2">
@@ -232,7 +514,7 @@ export function McpExplorer() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.25 }}
         className="bg-card border border-border rounded-lg p-6"
       >
         <h2 className="text-lg font-semibold text-foreground mb-4">How It Works</h2>
@@ -240,30 +522,28 @@ export function McpExplorer() {
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">1.</span>
             <p>
-              External agent connects to <code className="text-foreground/70">/api/mcp</code> with
-              a bearer token (Auth0 access token).
+              Create an MCP client above and choose a trust tier. You&apos;ll get a unique API key
+              (<code className="text-foreground/70">dfk_...</code>).
             </p>
           </div>
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">2.</span>
             <p>
-              DealFlow AI validates the token against Auth0 <code className="text-foreground/70">/userinfo</code> and
-              identifies the user.
+              Configure your AI agent (Claude Desktop, Cursor, or API) with the key as the bearer token.
             </p>
           </div>
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">3.</span>
             <p>
-              Agent discovers available tools via <code className="text-foreground/70">tools/list</code>.
-              Only read-only tools are exposed — write operations require the chat UI for approval.
+              DealFlow AI validates the key, applies your per-client policy (tool allowlist + rate limit),
+              and enforces the trust tier.
             </p>
           </div>
           <div className="flex gap-3">
             <span className="text-primary font-bold shrink-0">4.</span>
             <p>
-              Agent calls tools via <code className="text-foreground/70">tools/call</code>.
-              Each call goes through the same Token Vault pipeline — Auth0 exchanges a short-lived
-              token, the API call executes, and the action is logged to the audit trail.
+              All tool calls are logged to the audit trail with the client name, enabling cross-surface
+              telemetry (Chat vs MCP vs Actions).
             </p>
           </div>
         </div>

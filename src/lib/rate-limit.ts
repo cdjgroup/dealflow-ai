@@ -31,3 +31,13 @@ export function getPollingLimiter(): Ratelimit {
 export function getSensitiveLimiter(): Ratelimit {
   return create("sensitive", 5, "1 m");
 }
+
+// Per-tool rate limiters — requests/window configurable per tool
+export function getToolRateLimiter(toolName: string, requests: number, window: string): Ratelimit {
+  return create(`tool:${toolName}`, requests, window);
+}
+
+// Per-client MCP rate limiting — dynamic rate per client
+export function getMcpClientLimiter(clientId: string, requestsPerMinute: number): Ratelimit {
+  return create(`mcp:${clientId}`, requestsPerMinute, "1 m");
+}

@@ -37,6 +37,7 @@ export function AuditFilterBar({
   const activeCount = [
     filters.toolName,
     filters.result,
+    filters.surface,
     filters.startDate || filters.endDate,
   ].filter(Boolean).length;
 
@@ -92,6 +93,32 @@ export function AuditFilterBar({
           <option value="">All results</option>
           <option value="success">Success</option>
           <option value="error">Error</option>
+        </select>
+      </div>
+
+      {/* Source filter */}
+      <div className="flex items-center gap-1.5">
+        <label
+          htmlFor="filter-source"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Source
+        </label>
+        <select
+          id="filter-source"
+          value={filters.surface || ""}
+          onChange={(e) =>
+            onFilterChange({
+              ...filters,
+              surface: (e.target.value as "chat" | "mcp" | "actions") || undefined,
+            })
+          }
+          className="h-8 rounded-md border border-border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="">All sources</option>
+          <option value="chat">Chat</option>
+          <option value="mcp">MCP</option>
+          <option value="actions">Actions</option>
         </select>
       </div>
 

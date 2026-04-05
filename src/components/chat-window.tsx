@@ -275,8 +275,15 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
         )}
 
         {error && !interrupt && (
-          <div className="text-destructive text-sm bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 mb-4">
-            Error: {error.message}
+          <div className={`text-sm border rounded-lg px-4 py-3 mb-4 ${
+            error.message?.startsWith("Circuit breaker")
+              ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/40 dark:border-amber-800"
+              : "text-destructive bg-destructive/10 border-destructive/20"
+          }`}>
+            {error.message?.startsWith("Circuit breaker")
+              ? <><strong>Request limit reached.</strong> {error.message}</>
+              : <>Error: {error.message}</>
+            }
           </div>
         )}
       </div>

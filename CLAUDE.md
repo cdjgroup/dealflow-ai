@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.0 — MCP Write Tools with CIBA Consent
+## Current Version: 0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 

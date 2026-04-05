@@ -1,6 +1,32 @@
 # Features
 
-## v0.6.0 — MCP Write Tools with CIBA Consent
+## v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
+
+### Per-Client Access Control for External AI Agents
+Create named MCP clients with unique API keys, trust tiers, and tool allowlists. Each external agent connecting to your MCP endpoint operates under its own policy — one agent gets full access, another gets read-only CRM, a third gets calendar only.
+
+### Trust Tier Spectrum
+Four escalating trust levels:
+1. **Read Only** — CRM data queries only (listDeals, getDealDetails, searchContacts)
+2. **Restricted** — CRM + Calendar + Email read access
+3. **Standard** — All read-only MCP tools including Slack
+4. **Full** — All MCP-safe tools (including CIBA-gated writes)
+
+### Dual MCP Authentication
+The MCP endpoint accepts two auth modes:
+- **API Key** (`dfk_` prefix): Per-client policy — tool allowlist, rate limit, trust tier enforced
+- **Auth0 Bearer Token**: Backward compatible default access — all MCP-safe tools available
+
+### Per-Client Rate Limiting
+Each client has a configurable rate limit (requests/minute). Independent Upstash Ratelimit buckets ensure one agent's traffic doesn't affect another.
+
+### Cross-Surface Audit Telemetry
+The audit log now tracks which surface (Chat, MCP, Actions) each tool call came from. Filter by source to see cross-surface activity. MCP entries include the client name for per-agent attribution.
+
+### Real-Time Circuit Breaking
+Two-layer protection against runaway AI tool loops:
+- **Layer A (surgical):** Per-tool rate limits (read 10/min, write 5/min, crm-read 20/min, crm-write 5/min, compound 3/min). Blocks one tool, model adapts.
+- **Layer B (nuclear):** 15 tool calls max per request. AbortController kills stream with amber error message.
 
 ### External Agent Write Operations
 External AI agents (Claude Desktop, Cursor, OpenClaw) can now execute write operations via the MCP endpoint at `/api/mcp`. Three write tools are exposed, all gated by CIBA device consent:
@@ -30,6 +56,11 @@ The system now provides graduated autonomy across four surfaces:
 | Chat UI | Medium | Real-time + step-up |
 | MCP + CIBA | High | Push notification |
 | MCP (read) | Autonomous | None needed |
+
+### Known Limitations
+- `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
+
+---
 
 ## v0.5.1 — Scheduled Action Review
 

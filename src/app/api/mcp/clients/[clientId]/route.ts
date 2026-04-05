@@ -1,0 +1,85 @@
+import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth-guard";
+import { checkCsrf } from "@/lib/api-guard";
+import {
+  getMcpClient,
+  updateMcpClient,
+  deleteMcpClient,
+  toClientResponse,
+} from "@/lib/data/mcp-clients";
+import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
+import { z } from "zod";
+
+const UpdateClientSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+  allowedTools: z
+    .array(z.string())
+    .optional()
+    .refine(
+      (tools) => !tools || tools.every((t) => MCP_SAFE_TOOLS.has(t)),
+      { message: "allowedTools must only include MCP-safe tools" }
+    ),
+  trustTier: z.enum(["full", "standard", "restricted", "readonly"]).optional(),
+  rateLimit: z.number().int().min(1).max(1000).optional(),
+});
+
+type RouteContext = { params: Promise<{ clientId: string }> };
+
+export async function GET(_req: Request, ctx: RouteContext) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
+  const { clientId } = await ctx.params;
+  const client = await getMcpClient(auth.userId, clientId);
+  if (!client) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(toClientResponse(client));
+}
+
+export async function PUT(req: Request, ctx: RouteContext) {
+  const csrf = checkCsrf(req);
+  if (csrf) return csrf;
+
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
+  const { clientId } = await ctx.params;
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = UpdateClientSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid input", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const updated = await updateMcpClient(auth.userId, clientId, parsed.data);
+  if (!updated) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(toClientResponse(updated));
+}
+
+export async function DELETE(req: Request, ctx: RouteContext) {
+  const csrf = checkCsrf(req);
+  if (csrf) return csrf;
+
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
+  const { clientId } = await ctx.params;
+  const deleted = await deleteMcpClient(auth.userId, clientId);
+  if (!deleted) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json({ success: true });
+}

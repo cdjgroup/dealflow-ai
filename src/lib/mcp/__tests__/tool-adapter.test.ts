@@ -63,6 +63,16 @@ vi.mock("@/lib/data/settings", () => ({
   getUserSettings: mockGetUserSettings,
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  getMcpClientLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ success: true }),
+  }),
+}));
+
+vi.mock("@/lib/data/mcp-analytics", () => ({
+  recordMcpCall: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Tool definition mocks — no actual API calls
 vi.mock("@/lib/tools/calendar", () => ({
   checkCalendar: {
@@ -156,9 +166,16 @@ async function setupRegisteredTools(userId = "user-123") {
   return { mockServer, toolMap };
 }
 
-/** Standard MCP auth context carrying the userId as clientId */
+/** Standard MCP auth context carrying the userId as clientId.
+ * Includes all MCP scopes by default (scope check passes).
+ */
 function makeAuthContext(userId = "user-123") {
-  return { authInfo: { clientId: userId } };
+  return {
+    authInfo: {
+      clientId: userId,
+      scopes: ["crm:read", "calendar:read", "gmail:read", "slack:read"],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -17,7 +17,7 @@ export function AuditPageClient({
   const [error, setError] = useState<string | null>(null);
 
   const hasActiveFilters = Boolean(
-    filters.toolName || filters.result || filters.startDate
+    filters.toolName || filters.result || filters.surface || filters.startDate
   );
 
   const availableTools = useMemo(() => {
@@ -33,6 +33,7 @@ export function AuditPageClient({
       params.set("limit", "100");
       if (f.toolName) params.set("toolName", f.toolName);
       if (f.result) params.set("result", f.result);
+      if (f.surface) params.set("surface", f.surface);
       if (f.startDate) params.set("startDate", f.startDate);
       if (f.endDate) params.set("endDate", f.endDate);
 

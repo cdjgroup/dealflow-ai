@@ -6,4 +6,6 @@
 | 002 | [Action Center — Pragmatic Execution via Direct Tool Calls](002-action-center-execution.md) | PROPOSED | 2026-04-03 |
 | 003 | [Application-Layer Scope Narrowing](003-application-layer-scope-narrowing.md) | PROPOSED | 2026-04-03 |
 | 004 | [CIBA via Direct HTTP vs SDK Wrapper](004-ciba-direct-http.md) | ACCEPTED | 2026-04-04 |
-| 005 | [CIBA-Gated Write Tools for MCP](005-mcp-ciba-write-tools.md) | PROPOSED | 2026-04-05 |
+| 005 | [LLM Subagent via Plain Text JSON vs Structured Output](005-llm-subagent-text-json.md) | ACCEPTED | 2026-04-05 |
+| 006 | [Two-Layer Circuit Breaking for AI Tool Execution](006-circuit-breaker-two-layer.md) | PROPOSED | 2026-04-05 |
+| 007 | [CIBA-Gated Write Tools for MCP](007-mcp-ciba-write-tools.md) | PROPOSED | 2026-04-05 |
