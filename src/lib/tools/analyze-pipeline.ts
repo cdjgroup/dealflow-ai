@@ -1,5 +1,5 @@
 import { tool } from "ai";
-import { generateText, Output } from "ai";
+import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { getDeals, getContacts, getActivities } from "@/lib/data/crm";
@@ -78,7 +78,14 @@ Rules:
 - For calendar drafts: include "title", "date" (YYYY-MM-DD, schedule 3 days from now), "time" (HH:MM, default 14:00), "duration" (minutes), "attendees" (array of emails), and optional "notes"
 - For slack drafts: include "channel" (#sales-team) and "message"
 - Priority: "high" for deals >$50K or stale >7 days, "medium" for moderately stale (3-7 days), "low" for routine updates
-- Be specific in justifications — reference deal value, stage, days inactive, and what happened last`;
+- Be specific in justifications — reference deal value, stage, days inactive, and what happened last
+
+Return ONLY a JSON object (no markdown, no wrapping, no explanation) with this exact structure:
+{"suggestions": [{"type": "email"|"calendar"|"slack", "priority": "high"|"medium"|"low", "dealId": "...", "dealName": "...", "contactName": "...", "confidence": 0.0-1.0, "justification": "...", "draft": {...}}]}
+
+Email draft: {"to": "email", "subject": "...", "body": "..."}
+Calendar draft: {"title": "...", "date": "YYYY-MM-DD", "time": "HH:MM", "duration": minutes, "attendees": ["email"], "notes": "..."}
+Slack draft: {"channel": "#sales-team", "message": "..."}`;
 
 async function generateLLMSuggestions(
   dealContexts: DealContext[],
@@ -86,9 +93,8 @@ async function generateLLMSuggestions(
   focus: string,
   abortSignal?: AbortSignal
 ): Promise<SuggestionInput[]> {
-  const { output } = await generateText({
+  const { text } = await generateText({
     model: anthropic("claude-haiku-4-5-20251001"),
-    output: Output.object({ schema: suggestionsOutputSchema }),
     system: SYSTEM_PROMPT,
     prompt: JSON.stringify({
       deals: dealContexts,
@@ -100,10 +106,16 @@ async function generateLLMSuggestions(
     abortSignal,
   });
 
-  if (!output) return [];
+  // Strip markdown fences if present
+  const cleaned = text.replace(/^```(?:json)?\s*/m, "").replace(/\s*```\s*$/m, "").trim();
+  const parsed = suggestionsOutputSchema.safeParse(JSON.parse(cleaned));
+  if (!parsed.success) {
+    console.warn("LLM output failed schema validation:", parsed.error.issues);
+    return [];
+  }
 
   // Filter out suggestions for deals that already have actions
-  return output.suggestions
+  return parsed.data.suggestions
     .filter((s) => !existingKeys.has(`${s.dealId}:${s.type}`))
     .map((s) => ({
       type: s.type as ActionType,
