@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface ScheduleSettings {
   enabled: boolean;
@@ -22,8 +23,64 @@ export function SchedulePanel({ initialSchedule }: Props) {
   const [schedule, setSchedule] = useState<ScheduleSettings>(initialSchedule);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+  const [polling, setPolling] = useState(false);
   const [triggerResult, setTriggerResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const router = useRouter();
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setPolling(false);
+  }, []);
+
+  const startPolling = useCallback((interval: number) => {
+    setPolling(true);
+    setTriggerResult("Waiting for Guardian approval...");
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        stopPolling();
+        setTriggerResult(null);
+        setError("Approval timed out");
+        return;
+      }
+      try {
+        const res = await fetch("/api/cron/schedule-poll-trigger");
+        const data = await res.json();
+        if (data.status === "executed") {
+          stopPolling();
+          setTriggerResult(
+            `Executed ${data.executed} action${data.executed === 1 ? "" : "s"}${data.failed ? ` (${data.failed} failed)` : ""}`
+          );
+          router.refresh();
+        } else if (data.status === "denied") {
+          stopPolling();
+          setTriggerResult(null);
+          setError("Approval denied");
+        } else if (data.status === "expired" || data.status === "no-session") {
+          stopPolling();
+          setTriggerResult(null);
+          setError("Session expired");
+        } else if (data.status === "error") {
+          stopPolling();
+          setTriggerResult(null);
+          setError(data.error || "Execution failed");
+        }
+        // "pending" — keep polling
+      } catch {
+        stopPolling();
+        setTriggerResult(null);
+        setError("Poll failed");
+      }
+    }, Math.max(interval * 1000, 3000));
+  }, [stopPolling, router]);
 
   async function toggleHour(hour: number) {
     const newHours = schedule.hours.includes(hour)
@@ -125,19 +182,17 @@ export function SchedulePanel({ initialSchedule }: Props) {
                 if (!res.ok) {
                   throw new Error(data.error || "Trigger failed");
                 }
-                setTriggerResult(
-                  `Guardian push sent for ${data.actionCount} action${data.actionCount === 1 ? "" : "s"}`
-                );
+                startPolling(data.interval || 5);
               } catch (err) {
                 setError(err instanceof Error ? err.message : "Trigger failed");
               } finally {
                 setTriggering(false);
               }
             }}
-            disabled={triggering}
+            disabled={triggering || polling}
             className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
           >
-            {triggering ? "Sending..." : "Run Now"}
+            {triggering ? "Sending..." : polling ? "Awaiting approval..." : "Run Now"}
           </button>
         </div>
       )}

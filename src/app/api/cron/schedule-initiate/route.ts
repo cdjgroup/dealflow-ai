@@ -10,6 +10,7 @@ import {
   getScheduledCibaSession,
 } from "@/lib/data/scheduled-ciba";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import type { SuggestedAction } from "@/lib/types/actions";
 
 const MAX_USERS_PER_HOUR = 50;
 
@@ -28,6 +29,17 @@ function getHourInTimezone(date: Date, timezone: string): number {
 
 function sanitizeBindingMessage(msg: string): string {
   return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
+}
+
+function buildBindingMessage(actions: SuggestedAction[]): string {
+  const counts: Record<string, number> = {};
+  for (const a of actions) {
+    counts[a.type] = (counts[a.type] || 0) + 1;
+  }
+  const parts = Object.entries(counts)
+    .map(([type, count]) => `${count} ${type}`)
+    .join(", ");
+  return sanitizeBindingMessage(`DealFlow: run ${actions.length} actions - ${parts}`);
 }
 
 export async function GET(req: Request) {
@@ -71,9 +83,7 @@ export async function GET(req: Request) {
       }
 
       const actionIds = pendingActions.map((a) => a.id);
-      const msg = sanitizeBindingMessage(
-        `Execute ${pendingActions.length} pending actions?`
-      );
+      const msg = buildBindingMessage(pendingActions);
 
       try {
         const cibaResult = await initiateCiba(userId, msg);
