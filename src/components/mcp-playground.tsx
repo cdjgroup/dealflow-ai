@@ -224,9 +224,9 @@ export function McpPlayground() {
         )}
 
         {!hasKey && clients.length === 0 && (
-          <p className="text-xs text-amber-400 mt-3">
+          <p className="text-xs text-amber-700 mt-3">
             No MCP clients found.{" "}
-            <a href="/dashboard/mcp" className="underline hover:text-amber-300">
+            <a href="/dashboard/mcp" className="underline hover:text-amber-500">
               Create one in MCP Explorer
             </a>{" "}
             first, then paste the API key here.
@@ -276,11 +276,11 @@ export function McpPlayground() {
                   {TOOL_DISPLAY_NAMES[selectedTool.name] ?? selectedTool.name}
                 </span>
                 {cibaRequired ? (
-                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/10 text-amber-400">
+                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/15 text-amber-700">
                     CIBA Required
                   </span>
                 ) : (
-                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
                     Read Only
                   </span>
                 )}

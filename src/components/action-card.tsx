@@ -71,8 +71,8 @@ const typeLabels: Record<string, string> = {
 };
 
 const priorityStyles: Record<string, string> = {
-  high: "bg-red-500/10 text-red-400 border-red-500/30",
-  medium: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  high: "bg-red-500/15 text-red-600 border-red-500/30",
+  medium: "bg-amber-500/15 text-amber-700 border-amber-500/30",
   low: "bg-muted-foreground/10 text-muted-foreground border-border",
 };
 
@@ -373,7 +373,7 @@ export function ActionCard({
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded-full border ${priorityStyles[action.priority]}`}>
-            {action.priority}
+            {action.priority} priority
           </span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${style.badge}`}>
             {action.status === "executing" ? (

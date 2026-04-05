@@ -66,10 +66,12 @@ const settingsSchema = z.object({
         },
         { message: "Invalid IANA timezone identifier" }
       ),
+      notifyPriorities: z.array(z.enum(["high", "medium", "low"])).optional(),
     })
     .optional(),
   confidenceThresholds: z
     .object({
+      enabled: z.boolean().optional(),
       autoApprove: z.number().min(0).max(1),
       requireReview: z.number().min(0).max(1),
     })

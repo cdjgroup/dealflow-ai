@@ -71,9 +71,9 @@ curl -X POST https://dealflow-ai-seven.vercel.app/api/mcp \\
 
 const TRUST_TIERS = [
   { tier: "readonly", label: "Read Only", desc: "CRM data only", color: "border-muted-foreground/30 text-muted-foreground" },
-  { tier: "restricted", label: "Restricted", desc: "CRM + Calendar + Email", color: "border-amber-500/30 text-amber-400" },
-  { tier: "standard", label: "Standard", desc: "All read-only tools", color: "border-blue-500/30 text-blue-400" },
-  { tier: "full", label: "Full", desc: "All MCP tools", color: "border-emerald-500/30 text-emerald-400" },
+  { tier: "restricted", label: "Restricted", desc: "CRM + Calendar + Email", color: "border-amber-500/30 text-amber-700" },
+  { tier: "standard", label: "Standard", desc: "All read-only tools", color: "border-blue-500/30 text-blue-600" },
+  { tier: "full", label: "Full", desc: "All MCP tools", color: "border-emerald-500/30 text-emerald-600" },
 ];
 
 interface ConstraintRow {
@@ -241,9 +241,9 @@ export function McpExplorer() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
+              className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/15 p-4"
             >
-              <p className="text-xs font-medium text-amber-400 mb-2">
+              <p className="text-xs font-medium text-amber-700 mb-2">
                 Save this API key — it will not be shown again:
               </p>
               <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ export function McpExplorer() {
                     await navigator.clipboard.writeText(newApiKey);
                     setNewApiKey(null);
                   }}
-                  className="text-xs bg-amber-500/20 border border-amber-500/30 rounded px-3 py-2 text-amber-400 hover:bg-amber-500/30 transition-colors shrink-0"
+                  className="text-xs bg-amber-500/20 border border-amber-500/30 rounded px-3 py-2 text-amber-700 hover:bg-amber-500/30 transition-colors shrink-0"
                 >
                   Copy & Dismiss
                 </button>
@@ -341,7 +341,7 @@ export function McpExplorer() {
                           }}
                           className={`text-[10px] rounded px-2 py-1 border transition-colors ${
                             selected
-                              ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                              ? "text-emerald-600 bg-emerald-500/15 border-emerald-500/20"
                               : "text-muted-foreground bg-muted/30 border-border hover:border-muted-foreground/30"
                           }`}
                         >
@@ -475,7 +475,7 @@ export function McpExplorer() {
           {endpointStatus === "checking" ? (
             <span className="text-[10px] text-muted-foreground">Checking...</span>
           ) : endpointStatus === "live" ? (
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-500/15 border border-emerald-500/20 rounded-full px-2.5 py-1">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -483,7 +483,7 @@ export function McpExplorer() {
               LIVE
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-red-600 bg-red-500/15 border border-red-500/20 rounded-full px-2.5 py-1">
               DOWN
             </span>
           )}
@@ -501,10 +501,10 @@ export function McpExplorer() {
             <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
               JSON-RPC 2.0
             </span>
-            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-400">
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-amber-700">
               Auth Required
             </span>
-            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-purple-400">
+            <span className="rounded-full border border-purple-500/30 bg-purple-500/15 px-2 py-0.5 text-purple-600">
               Per-Client Policy
             </span>
           </div>
@@ -541,8 +541,8 @@ export function McpExplorer() {
               <div className="flex items-center gap-2">
                 <code className="text-xs font-mono text-foreground">{tool.name}</code>
                 <span className={`text-[10px] rounded px-1.5 py-0.5 ${
-                  tool.provider === "Google" ? "text-blue-400 bg-blue-500/10" :
-                  tool.provider === "Slack" ? "text-purple-400 bg-purple-500/10" :
+                  tool.provider === "Google" ? "text-blue-600 bg-blue-500/15" :
+                  tool.provider === "Slack" ? "text-purple-600 bg-purple-500/15" :
                   "text-muted-foreground bg-muted"
                 }`}>
                   {tool.provider}
