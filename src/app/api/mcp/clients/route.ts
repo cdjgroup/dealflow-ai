@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
+import { getSensitiveLimiter } from "@/lib/rate-limit";
 import { listMcpClients, createMcpClient, toClientResponse } from "@/lib/data/mcp-clients";
 import { MCP_SAFE_TOOLS } from "@/lib/constants/tools";
 import { z } from "zod";
+
+const ParameterConstraintSchema = z.object({
+  param: z.string().min(1).max(64),
+  pattern: z.string().min(1).max(200).refine(
+    (p) => { try { new RegExp(p); return true; } catch { return false; } },
+    { message: "Invalid regex pattern" }
+  ),
+  description: z.string().max(200).optional(),
+});
 
 const CreateClientSchema = z.object({
   name: z.string().min(1).max(100),
@@ -17,6 +27,11 @@ const CreateClientSchema = z.object({
     ),
   trustTier: z.enum(["full", "standard", "restricted", "readonly"]).optional(),
   rateLimit: z.number().int().min(1).max(1000).optional(),
+  parameterConstraints: z.record(
+    z.array(ParameterConstraintSchema).max(5)
+  ).refine((r) => Object.keys(r).length <= 10, {
+    message: "Cannot constrain more than 10 tools",
+  }).optional(),
 });
 
 export async function GET() {
@@ -34,6 +49,11 @@ export async function POST(req: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
+  const { success } = await getSensitiveLimiter().limit(auth.userId);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -50,5 +70,8 @@ export async function POST(req: Request) {
   }
 
   const { client, rawApiKey } = await createMcpClient(auth.userId, parsed.data);
-  return NextResponse.json({ client: toClientResponse(client), rawApiKey }, { status: 201 });
+  return NextResponse.json(
+    { client: toClientResponse(client), rawApiKey },
+    { status: 201, headers: { "Cache-Control": "no-store", "Pragma": "no-cache" } }
+  );
 }

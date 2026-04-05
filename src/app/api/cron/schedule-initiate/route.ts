@@ -161,8 +161,12 @@ export async function GET(req: Request) {
       // Level 2+ actions are auto-approved at creation; level 1 are pending
       const targetStatus = settings.autonomyLevel >= 2 ? "approved" : "pending";
       const allActions = await getActions(userId, { status: targetStatus });
+      // Filter by priority AND confidence — low-confidence actions stay for manual review
+      const requireReview = settings.confidenceThresholds?.requireReview ?? 0.5;
       const eligible = allActions.filter(
-        (a) => a.priority === "high" || a.priority === "medium"
+        (a) =>
+          (a.priority === "high" || a.priority === "medium") &&
+          (a.confidence === undefined || a.confidence > requireReview)
       );
 
       if (eligible.length === 0) {

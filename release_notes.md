@@ -1,6 +1,45 @@
-# Release Notes — v0.6.0
+# Release Notes — v0.6.2
 
-## DealFlow AI: Per-Client MCP Policy + CIBA-Gated Write Tools
+## DealFlow AI: Confidence Routing + Intent Constraints
+
+AI confidence scores now drive the action approval flow. The `resolveInitialStatus` function routes actions through a three-band system: high confidence (>=85%) auto-approves regardless of autonomy level, low confidence (<=50%) forces manual review regardless of autonomy level, and the middle band defers to the existing autonomy toggle. Low-confidence actions are also excluded from scheduled batch CIBA execution.
+
+Per-client MCP parameter constraints add semantic intent verification. Each MCP client can now include regex-based constraints on tool parameters — e.g., restrict `searchEmails` to only `from:.*@acme\.com` queries. Constraints are validated at creation time and enforced fail-closed at runtime (Layer 3.5, between client allowlist and CIBA gate).
+
+EU AI Act Article 14 references connect DealFlow's trust spectrum to upcoming regulation, positioning the architecture as forward-looking compliance.
+
+### Confidence-Based Routing
+- **Auto-approve threshold**: confidence >= 0.85 → approved (overrides autonomy level)
+- **Require-review threshold**: confidence <= 0.5 → pending (overrides autonomy level)
+- **Middle band**: defers to existing autonomy level logic
+- **Batch filtering**: low-confidence actions excluded from scheduled execution
+- **UI**: two range sliders in schedule panel, defaults enabled (0.85/0.5)
+
+### MCP Parameter Constraints
+- **Per-client regex constraints**: stored in McpClient, enforced in tool-adapter.ts
+- **Fail-closed**: invalid regex patterns block the call, never pass
+- **Audit trail**: constraint violations recorded with tool name, param, and description
+- **Bounded**: max 5 constraints per tool, 10 tools per client
+- **UI**: collapsible constraint editor in MCP client create form
+
+### EU AI Act Article 14
+- Blog post: new section mapping trust spectrum to Article 14 human oversight requirements
+- Devpost: confidence routing mention in graduated trust architecture section
+- Insights 025 (Article 14 alignment) and 026 (parameter constraints as intent verification)
+
+### Previous: v0.6.1 — Trust Calibration Nudge
+
+The trust stats feedback loop is now closed. After approving 5+ actions of the same type with >80% approval rate, a nudge banner appears in the Action Center suggesting the user upgrade that tool to auto-approve. This is genuine trust calibration — the system observes user behavior and recommends autonomy changes, but never auto-escalates.
+
+### Trust Calibration
+- **Threshold-based nudge**: After 5+ decisions with >80% approval rate for a tool, the API includes a `nudge` payload in the approve response
+- **Upgrade-only**: System only suggests promoting `ask` → `always` (never suggests blocking)
+- **Accept/Dismiss**: One-click Accept updates `toolTrust` via settings API; Dismiss hides the banner
+- **Best-effort**: Nudge evaluation errors never break the approve/dismiss flow
+- **Batch support**: Batch "Approve All" also evaluates and surfaces nudges
+- **Backward-compatible**: Optional `nudge?` field added to existing API responses
+
+### Previous: v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 
 External AI agents now get individually scoped access through named MCP clients with API keys, trust tiers, and per-client tool allowlists. Additionally, write operations (email, calendar, Slack) are now available via MCP with device-level CIBA consent.
 
@@ -28,7 +67,9 @@ External AI agents now get individually scoped access through named MCP clients 
 
 - API keys: SHA-256 hashed before storage, raw key shown once on creation, `dfk_` prefix for identification
 - CSRF enforcement on all client management mutations
-- Per-client tool filtering at `tools/call` time — disallowed tools return clear error
+- Per-client tool filtering at both `tools/list` and `tools/call` — restricted clients see only authorized tools
+- Circuit breaker fails closed on Redis error — rate limits enforced even during outages
+- CIBA binding messages include client name prefix + sanitize all attacker-controllable params
 - User-scoped Redis keys prevent cross-user client access
 - Rate limit per client prevents abuse from any single external agent
 - Device-level consent required for all MCP write operations (Guardian push)
@@ -40,8 +81,8 @@ External AI agents now get individually scoped access through named MCP clients 
 
 - `verifyMcpToken()` dual-path: API key hash lookup vs Auth0 /userinfo, both fail closed
 - `AuthInfo.extra` carries client metadata (allowedTools, rateLimit, trustTier) from auth to tool handlers
-- Tool registration is static in `mcp-handler`; per-client filtering at both discovery and execution
-- `tools/list` now filtered per-client: API key clients see only allowlisted tools, Auth0 clients see scope-matched tools
+- Tool registration filtered at both registration time (allowedToolFilter) and discovery time (ListToolsRequestSchema override)
+- `tools/list` now returns only tools the client is allowed to call (defense-in-depth; execution-layer enforcement remains as fallback)
 - MCP write operations use the same CIBA flow as scheduled actions (v0.5.1) — `initiateCiba()` + `pollCiba()`
 - Synchronous polling within request (unlike chat which streams CibaWaitingCard to client)
 - Per-tool MCP executors bypass tool `execute` functions (which need browser sessions) and call APIs directly with pre-obtained tokens

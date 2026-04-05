@@ -77,7 +77,7 @@ export async function checkToolRateLimit(
     }
   } catch (err) {
     console.error(`[rate-limiter] rate limit check failed for ${toolName}:`, err);
-    return { allowed: true, toolName, tier: config.tier, remaining: -1 };
+    return { allowed: false, toolName, tier: config.tier, remaining: 0 };
   }
 }
 
@@ -113,7 +113,17 @@ export function attachRateLimiter<T extends AnyTool>(
           rlResult = await checkToolRateLimit(userId, toolName);
         } catch (err) {
           console.error(`[rate-limiter] unexpected error for ${toolName}:`, err);
-          return originalExecute(...args);
+          const failResult: RateLimitResult = {
+            allowed: false,
+            toolName,
+            tier: config.tier,
+            remaining: 0,
+          };
+          onBlocked(failResult);
+          return {
+            error: `Rate limit check failed for tool ${toolName}`,
+            toolName,
+          };
         }
 
         if (!rlResult.allowed) {

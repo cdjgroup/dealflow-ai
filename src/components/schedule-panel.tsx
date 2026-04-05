@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import type { AutonomyLevel } from "@/lib/types/settings";
+import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
 
 interface ScheduleSettings {
   enabled: boolean;
@@ -13,6 +13,7 @@ interface ScheduleSettings {
 interface Props {
   initialSchedule: ScheduleSettings;
   initialAutonomyLevel: AutonomyLevel;
+  initialConfidenceThresholds?: ConfidenceThresholds;
 }
 
 const SCHEDULE_OPTIONS = [
@@ -51,9 +52,12 @@ const AUTONOMY_LEVELS: {
   },
 ];
 
-export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) {
+export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialConfidenceThresholds }: Props) {
   const [schedule, setSchedule] = useState<ScheduleSettings>(initialSchedule);
   const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>(initialAutonomyLevel);
+  const [confidenceThresholds, setConfidenceThresholds] = useState<ConfidenceThresholds>(
+    initialConfidenceThresholds ?? { autoApprove: 0.85, requireReview: 0.5 }
+  );
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [polling, setPolling] = useState(false);
@@ -307,6 +311,69 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) 
           </div>
         </div>
       )}
+
+      {/* Confidence-Based Routing */}
+      <div>
+        <h3 className="text-sm font-semibold mb-1">Confidence Routing</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          AI confidence scores determine how actions are routed. High-confidence actions auto-approve; low-confidence actions always require manual review.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+              Auto-approve above: {Math.round(confidenceThresholds.autoApprove * 100)}%
+            </label>
+            <input
+              type="range"
+              min={0.1}
+              max={1.0}
+              step={0.05}
+              value={confidenceThresholds.autoApprove}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (val <= confidenceThresholds.requireReview) return;
+                const updated = { ...confidenceThresholds, autoApprove: val };
+                setConfidenceThresholds(updated);
+                saveSettings({ confidenceThresholds: updated }).catch(() => {
+                  setConfidenceThresholds(confidenceThresholds);
+                  setError("Failed to save. Please try again.");
+                });
+              }}
+              disabled={saving}
+              className="w-full accent-emerald-500"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-medium text-muted-foreground block mb-1">
+              Require review below: {Math.round(confidenceThresholds.requireReview * 100)}%
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={0.9}
+              step={0.05}
+              value={confidenceThresholds.requireReview}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                if (val >= confidenceThresholds.autoApprove) return;
+                const updated = { ...confidenceThresholds, requireReview: val };
+                setConfidenceThresholds(updated);
+                saveSettings({ confidenceThresholds: updated }).catch(() => {
+                  setConfidenceThresholds(confidenceThresholds);
+                  setError("Failed to save. Please try again.");
+                });
+              }}
+              disabled={saving}
+              className="w-full accent-amber-500"
+            />
+          </div>
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+          <span>Below {Math.round(confidenceThresholds.requireReview * 100)}%: always manual review</span>
+          <span>{Math.round(confidenceThresholds.requireReview * 100)}%–{Math.round(confidenceThresholds.autoApprove * 100)}%: follows autonomy level</span>
+          <span>Above {Math.round(confidenceThresholds.autoApprove * 100)}%: auto-approved</span>
+        </div>
+      </div>
 
       {/* Scheduled Review Section */}
       <div>

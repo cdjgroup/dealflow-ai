@@ -3,6 +3,12 @@ import type { CapabilityCategory } from "@/lib/surface-policy";
 export type TrustLevel = "always" | "ask" | "never";
 export type AutonomyLevel = 1 | 2 | 3;
 
+export interface ConfidenceThresholds {
+  autoApprove: number;   // 0.0-1.0, actions above this auto-approve
+  requireReview: number; // 0.0-1.0, actions below this always pending
+}
+// Invariant: autoApprove > requireReview
+
 export interface ActionTypeStats {
   approved: number;
   dismissed: number;
@@ -40,6 +46,7 @@ export interface UserSettings {
   };
   mcpClients?: Record<string, McpClientPolicy>;
   autonomyLevel: AutonomyLevel;
+  confidenceThresholds?: ConfidenceThresholds;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -60,4 +67,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
     timezone: "UTC",
   },
   autonomyLevel: 1,
+  confidenceThresholds: {
+    autoApprove: 0.85,
+    requireReview: 0.5,
+  },
 };

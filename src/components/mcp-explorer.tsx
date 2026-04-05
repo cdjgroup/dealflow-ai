@@ -76,12 +76,20 @@ const TRUST_TIERS = [
   { tier: "full", label: "Full", desc: "All MCP tools", color: "border-emerald-500/30 text-emerald-400" },
 ];
 
+interface ConstraintRow {
+  tool: string;
+  param: string;
+  pattern: string;
+  description: string;
+}
+
 interface CreateForm {
   name: string;
   description: string;
   trustTier: string;
   rateLimit: string;
   selectedTools: string[];
+  constraints: ConstraintRow[];
 }
 
 export function McpExplorer() {
@@ -97,6 +105,7 @@ export function McpExplorer() {
     trustTier: "standard",
     rateLimit: "60",
     selectedTools: Array.from(MCP_SAFE_TOOLS),
+    constraints: [],
   });
   const [creating, setCreating] = useState(false);
 
@@ -135,13 +144,21 @@ export function McpExplorer() {
           trustTier: createForm.trustTier,
           rateLimit: parseInt(createForm.rateLimit, 10) || 60,
           allowedTools: createForm.selectedTools,
+          ...(createForm.constraints.length > 0 && {
+            parameterConstraints: createForm.constraints.reduce((acc, c) => {
+              if (!c.tool || !c.param || !c.pattern) return acc;
+              if (!acc[c.tool]) acc[c.tool] = [];
+              acc[c.tool].push({ param: c.param, pattern: c.pattern, ...(c.description && { description: c.description }) });
+              return acc;
+            }, {} as Record<string, { param: string; pattern: string; description?: string }[]>),
+          }),
         }),
       });
       if (res.ok) {
         const data = await res.json();
         setNewApiKey(data.rawApiKey);
         setShowCreateForm(false);
-        setCreateForm({ name: "", description: "", trustTier: "standard", rateLimit: "60", selectedTools: Array.from(MCP_SAFE_TOOLS) });
+        setCreateForm({ name: "", description: "", trustTier: "standard", rateLimit: "60", selectedTools: Array.from(MCP_SAFE_TOOLS), constraints: [] });
         await fetchClients();
       }
     } catch { /* ignore */ }
@@ -334,6 +351,86 @@ export function McpExplorer() {
                     })}
                   </div>
                 </div>
+                <details className="group">
+                  <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+                    Parameter Constraints ({createForm.constraints.length}) &darr;
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Restrict what parameters MCP clients can pass to tools (e.g., only search emails from specific domains).
+                    </p>
+                    {createForm.constraints.map((c, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_1fr_2fr_2fr_auto] gap-1.5 items-center">
+                        <select
+                          value={c.tool}
+                          onChange={(e) => {
+                            const updated = [...createForm.constraints];
+                            updated[i] = { ...c, tool: e.target.value };
+                            setCreateForm({ ...createForm, constraints: updated });
+                          }}
+                          className="h-7 rounded border border-border bg-background px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">Tool</option>
+                          {allMcpTools.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <input
+                          value={c.param}
+                          onChange={(e) => {
+                            const updated = [...createForm.constraints];
+                            updated[i] = { ...c, param: e.target.value };
+                            setCreateForm({ ...createForm, constraints: updated });
+                          }}
+                          placeholder="param"
+                          className="h-7 rounded border border-border bg-background px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <input
+                          value={c.pattern}
+                          onChange={(e) => {
+                            const updated = [...createForm.constraints];
+                            updated[i] = { ...c, pattern: e.target.value };
+                            setCreateForm({ ...createForm, constraints: updated });
+                          }}
+                          placeholder="regex pattern"
+                          className="h-7 rounded border border-border bg-background px-1 text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <input
+                          value={c.description}
+                          onChange={(e) => {
+                            const updated = [...createForm.constraints];
+                            updated[i] = { ...c, description: e.target.value };
+                            setCreateForm({ ...createForm, constraints: updated });
+                          }}
+                          placeholder="description (optional)"
+                          className="h-7 rounded border border-border bg-background px-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreateForm({
+                              ...createForm,
+                              constraints: createForm.constraints.filter((_, j) => j !== i),
+                            });
+                          }}
+                          className="h-7 w-7 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/30 transition-colors text-[10px]"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateForm({
+                          ...createForm,
+                          constraints: [...createForm.constraints, { tool: "", param: "", pattern: "", description: "" }],
+                        });
+                      }}
+                      className="text-[10px] text-primary hover:text-primary/80 transition-colors"
+                    >
+                      + Add constraint
+                    </button>
+                  </div>
+                </details>
                 <button
                   onClick={handleCreate}
                   disabled={!createForm.name || creating}

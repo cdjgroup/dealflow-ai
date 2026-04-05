@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { checkCsrf } from "@/lib/api-guard";
+import { getSensitiveLimiter } from "@/lib/rate-limit";
 import {
   getMcpClient,
   updateMcpClient,
@@ -45,6 +46,11 @@ export async function PUT(req: Request, ctx: RouteContext) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
+  const { success } = await getSensitiveLimiter().limit(auth.userId);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   const { clientId } = await ctx.params;
 
   let body: unknown;
@@ -75,6 +81,11 @@ export async function DELETE(req: Request, ctx: RouteContext) {
 
   const auth = await requireAuth();
   if (auth.error) return auth.error;
+
+  const { success } = await getSensitiveLimiter().limit(auth.userId);
+  if (!success) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
 
   const { clientId } = await ctx.params;
   const deleted = await deleteMcpClient(auth.userId, clientId);

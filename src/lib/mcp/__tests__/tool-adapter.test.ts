@@ -67,6 +67,9 @@ vi.mock("@/lib/rate-limit", () => ({
   getMcpClientLimiter: vi.fn().mockReturnValue({
     limit: vi.fn().mockResolvedValue({ success: true }),
   }),
+  getToolRateLimiter: vi.fn().mockReturnValue({
+    limit: vi.fn().mockResolvedValue({ success: true, remaining: 9, reset: Date.now() + 60000, limit: 10 }),
+  }),
 }));
 
 vi.mock("@/lib/data/mcp-analytics", () => ({
@@ -162,10 +165,10 @@ function makeMockServer() {
  * Calls adaptToolsForMcp(), registers all tools on a fresh mock server,
  * and returns a map of toolName -> { config, handler }.
  */
-async function setupRegisteredTools(userId = "user-123") {
+async function setupRegisteredTools(_userId = "user-123") {
   const mockServer = makeMockServer();
-  const registrar = adaptToolsForMcp(userId);
-  await registrar(mockServer as Parameters<typeof registrar>[0]);
+  const registrar = adaptToolsForMcp();
+  await registrar(mockServer as never);
 
   const toolMap: Record<string, { config: unknown; handler: (args: unknown, context: unknown) => Promise<unknown> }> = {};
   for (const call of mockServer.registerTool.mock.calls) {
@@ -800,4 +803,5 @@ describe("tool-adapter (MCP)", () => {
       expect(result.isError).toBeFalsy();
     });
   });
+
 });

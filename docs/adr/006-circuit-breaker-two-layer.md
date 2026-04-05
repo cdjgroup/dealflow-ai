@@ -43,3 +43,7 @@ Route refactored from `streamText.toUIMessageStreamResponse()` to `createUIMessa
 - `ephemeralCache` on Upstash Ratelimit means repeated blocked calls within the same serverless invocation cost zero Redis commands
 - `RequestToolCounter` is per-request (in-memory), not per-session — by design, since each streaming request is independent
 - Fail-open on Redis errors is a conscious trade-off: availability over strictness for a hackathon demo
+
+## Standards Alignment
+
+Two-layer rate limiting addresses the controllability requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), providing real-time mechanisms to interrupt and halt AI agent execution when behavior exceeds expected operational boundaries.

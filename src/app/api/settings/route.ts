@@ -68,6 +68,15 @@ const settingsSchema = z.object({
       ),
     })
     .optional(),
+  confidenceThresholds: z
+    .object({
+      autoApprove: z.number().min(0).max(1),
+      requireReview: z.number().min(0).max(1),
+    })
+    .refine((t) => t.autoApprove > t.requireReview, {
+      message: "autoApprove must be greater than requireReview",
+    })
+    .optional(),
   mcpClients: z
     .record(
       z.string().max(128),

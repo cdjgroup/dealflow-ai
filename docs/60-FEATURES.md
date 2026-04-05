@@ -1,5 +1,16 @@
 # Features
 
+## v0.6.2 — Confidence Routing + Intent Constraints
+
+### Confidence-Based Action Routing
+AI confidence scores (0.0–1.0) now drive the action approval flow. High-confidence actions (>=85%) auto-approve regardless of autonomy level. Low-confidence actions (<=50%) are forced to manual review regardless of autonomy level. The middle band defers to the existing three-level autonomy toggle. Configurable via two range sliders in the schedule panel. Low-confidence actions are also excluded from scheduled batch CIBA execution, keeping them in the Action Center for human review.
+
+### Per-Client MCP Parameter Constraints
+Per-client regex-based parameter constraints add semantic intent verification to MCP tool calls. Each MCP client can restrict what parameter values are allowed — e.g., restrict `searchEmails` to only `from:.*@acme\.com` queries. Constraints are validated at creation time (invalid regex rejected), enforced fail-closed at runtime (Layer 3.5 between client allowlist and CIBA gate), and bounded (max 5 per tool, 10 tools per client). A collapsible constraint editor in the MCP client create form lets users configure constraints visually.
+
+### EU AI Act Article 14 Alignment
+DealFlow's trust spectrum — from Suggest Only to Full Autonomous, with confidence-based routing and CIBA device consent — aligns with EU AI Act Article 14 (Human Oversight, effective August 2026). The blog post, Devpost submission, and insights docs now explicitly connect the architecture to upcoming regulation.
+
 ## v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 
 ### Per-Client Access Control for External AI Agents
@@ -59,6 +70,7 @@ The system now provides graduated autonomy across four surfaces:
 
 ### Discovery Filtering
 - `tools/list` filtered per-client: API key clients see only their allowlisted tools, Auth0 token clients see scope-matched tools
+- SSE transport: tool filtering applies at connection setup; long-lived SSE connections reflect the initial client policy
 
 ---
 
