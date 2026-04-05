@@ -13,6 +13,7 @@ import { ONBOARDING_STEPS } from "@/lib/help-content";
 interface OnboardingState {
   completedSteps: string[];
   dismissedAt?: string;
+  resetAt?: string;
 }
 
 interface OnboardingContextValue {
@@ -21,6 +22,7 @@ interface OnboardingContextValue {
   completeStep: (stepId: string) => void;
   dismiss: () => void;
   resetDismiss: () => void;
+  resetAll: () => void;
   isDismissed: boolean;
   isComplete: boolean;
   percentComplete: number;
@@ -46,10 +48,15 @@ export function OnboardingProvider({
     INITIAL_STATE
   );
 
-  // Auto-detect completed steps from external signals (e.g., token status, deal count)
+  // Auto-detect completed steps from external signals (e.g., token status, deal count).
+  // Skip auto-completions for 5s after a full reset so reseeding doesn't
+  // immediately re-mark steps.
   useEffect(() => {
     if (!autoCompletions) return;
     setState((prev) => {
+      if (prev.resetAt && Date.now() - new Date(prev.resetAt).getTime() < 5000) {
+        return prev;
+      }
       const newSteps = Object.entries(autoCompletions)
         .filter(([id, done]) => done && !prev.completedSteps.includes(id))
         .map(([id]) => id);
@@ -82,6 +89,10 @@ export function OnboardingProvider({
     setState((prev) => ({ ...prev, dismissedAt: undefined }));
   }, [setState]);
 
+  const resetAll = useCallback(() => {
+    setState({ completedSteps: [], resetAt: new Date().toISOString() });
+  }, [setState]);
+
   const value = useMemo<OnboardingContextValue>(() => {
     const total = ONBOARDING_STEPS.length;
     const completed = state.completedSteps.length;
@@ -91,11 +102,12 @@ export function OnboardingProvider({
       completeStep,
       dismiss,
       resetDismiss,
+      resetAll,
       isDismissed: !!state.dismissedAt,
       isComplete: completed >= total,
       percentComplete: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [state, completeStep, dismiss, resetDismiss]);
+  }, [state, completeStep, dismiss, resetDismiss, resetAll]);
 
   return (
     <OnboardingContext.Provider value={value}>

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useOnboarding } from "@/components/helpkit/OnboardingProvider";
 
 export function SeedButton({ hasData = false }: { hasData?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { resetAll } = useOnboarding();
 
   const handleSeed = async () => {
     setLoading(true);
@@ -20,6 +22,7 @@ export function SeedButton({ hasData = false }: { hasData?: boolean }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Failed (${res.status})`);
       }
+      resetAll();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to seed data");
