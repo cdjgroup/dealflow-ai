@@ -61,17 +61,18 @@ export function SchedulePanel({ initialSchedule }: Props) {
             ? `${data.executed} executed, ${data.failed} failed`
             : `${data.executed} action${data.executed === 1 ? "" : "s"} executed`;
           setTriggerResult(msg);
-          router.refresh();
+          // Delay refresh to let server-side writes propagate
+          setTimeout(() => router.refresh(), 500);
         } else if (data.status === "denied") {
           stopPolling();
           setTriggerResult(null);
           setError("Approval denied — actions returned to pending");
-          router.refresh();
+          setTimeout(() => router.refresh(), 500);
         } else if (data.status === "expired") {
           stopPolling();
           setTriggerResult(null);
           setError("Session expired");
-          router.refresh();
+          setTimeout(() => router.refresh(), 500);
         } else if (data.status === "no-sessions") {
           if (attempts > 10) {
             stopPolling();

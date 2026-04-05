@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import type { SuggestedAction, ActionStatus, ActionDraft } from "@/lib/types/actions";
 import { ActionCard } from "@/components/action-card";
@@ -18,11 +19,18 @@ interface Props {
 export function ActionList({ initialActions }: Props) {
   const [actions, setActions] = useState<SuggestedAction[]>(initialActions);
   const [filter, setFilter] = useState<ActionStatus | "all">("all");
+  const router = useRouter();
 
   // Sync with server data when initialActions changes (e.g., after router.refresh())
   useEffect(() => {
     setActions(initialActions);
   }, [initialActions]);
+
+  // Refetch server data after state-changing operations
+  const refreshFromServer = useCallback(() => {
+    // Small delay to let server-side writes propagate
+    setTimeout(() => router.refresh(), 500);
+  }, [router]);
 
   const updateLocal = useCallback(
     (id: string, update: Partial<SuggestedAction>) => {
@@ -98,12 +106,14 @@ export function ActionList({ initialActions }: Props) {
                 errorMessage: execData.action.errorMessage,
               });
             }
+            refreshFromServer();
             return;
           } else if (data.status === "denied" || data.status === "expired" || data.status === "error") {
             updateLocal(id, {
               status: "failed",
               errorMessage: data.error || `Device authorization ${data.status}`,
             });
+            refreshFromServer();
             return;
           }
           // Still pending — continue polling
@@ -112,8 +122,9 @@ export function ActionList({ initialActions }: Props) {
         }
       }
       updateLocal(id, { status: "failed", errorMessage: "CIBA polling timed out" });
+      refreshFromServer();
     },
-    [updateLocal]
+    [updateLocal, refreshFromServer]
   );
 
   const handleExecute = useCallback(
@@ -140,6 +151,7 @@ export function ActionList({ initialActions }: Props) {
             status: data.action.status,
             errorMessage: data.action.errorMessage,
           });
+          refreshFromServer();
         } else {
           updateLocal(id, {
             status: "failed",
@@ -150,7 +162,7 @@ export function ActionList({ initialActions }: Props) {
         updateLocal(id, { status: "failed", errorMessage: "Network error" });
       }
     },
-    [updateLocal, pollCibaStatus]
+    [updateLocal, pollCibaStatus, refreshFromServer]
   );
 
   const handleUpdateDraft = useCallback(
@@ -246,6 +258,16 @@ export function ActionList({ initialActions }: Props) {
         {filtered.length === 0 && actions.length > 0 && (
           <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
             No actions matching this filter.
+          </div>
+        )}
+
+        {actions.length === 0 && (
+          <div className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+            <p className="mb-2">No suggested actions yet.</p>
+            <p className="text-xs">
+              Ask the AI to analyze your pipeline or suggest next steps to
+              generate actions here.
+            </p>
           </div>
         )}
       </div>
