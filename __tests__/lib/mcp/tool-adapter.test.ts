@@ -83,6 +83,17 @@ vi.mock("@/lib/data/mcp-analytics", () => ({
   recordMcpCall: vi.fn().mockResolvedValue(undefined),
 }));
 
+/** Build a mock inner Server object for tools/list override. */
+function makeMockInnerServer() {
+  const requestHandlers = new Map();
+  return {
+    _requestHandlers: requestHandlers,
+    setRequestHandler: (_schema: unknown, handler: unknown) => {
+      requestHandlers.set("tools/list", handler);
+    },
+  };
+}
+
 describe("MCP tool adapter", () => {
   describe("adaptToolsForMcp", () => {
     it("AC-10: returns a registration function", () => {
@@ -96,6 +107,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -130,6 +142,7 @@ describe("MCP tool adapter", () => {
         registerTool: (name: string, _config: unknown, _handler: unknown) => {
           registered.push(name);
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -147,6 +160,7 @@ describe("MCP tool adapter", () => {
             capturedHandler = handler;
           }
         },
+        server: makeMockInnerServer(),
       };
 
       const registerFn = adaptToolsForMcp();
@@ -172,9 +186,16 @@ describe("MCP tool adapter", () => {
 
     it("AC-10: each registered tool has a description and inputSchema", async () => {
       const tools: Array<{ name: string; config: Record<string, unknown> }> = [];
+      const requestHandlers = new Map();
       const mockServer = {
         registerTool: (name: string, config: Record<string, unknown>, _handler: unknown) => {
           tools.push({ name, config });
+        },
+        server: {
+          _requestHandlers: requestHandlers,
+          setRequestHandler: (_schema: unknown, handler: unknown) => {
+            requestHandlers.set("tools/list", handler);
+          },
         },
       };
 

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type {
-  CircuitBreakerResult,
+  RateLimitResult,
   ToolRateLimitConfig,
   ToolTier,
-} from "@/lib/circuit-breaker";
+} from "@/lib/rate-limiter";
 
 // ---------------------------------------------------------------------------
 // Mock @/lib/rate-limit — must be hoisted so vi.mock factory runs before
@@ -19,11 +19,11 @@ vi.mock("@/lib/rate-limit", () => ({
 // Dynamic import so mocks are already registered when the module loads.
 const {
   checkToolRateLimit,
-  attachCircuitBreaker,
+  attachRateLimiter,
   RequestToolCounter,
   TOOL_RATE_LIMITS,
   REQUEST_TOOL_CALL_LIMIT,
-} = await import("@/lib/circuit-breaker");
+} = await import("@/lib/rate-limiter");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -198,10 +198,10 @@ describe("checkToolRateLimit", () => {
 });
 
 // ---------------------------------------------------------------------------
-// attachCircuitBreaker
+// attachRateLimiter
 // ---------------------------------------------------------------------------
 
-describe("attachCircuitBreaker", () => {
+describe("attachRateLimiter", () => {
   let onBlocked: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -215,7 +215,7 @@ describe("attachCircuitBreaker", () => {
   // AC-2: within limits → execute runs normally
   it("AC-2: calls the original execute when rate limit is not exceeded", async () => {
     const tools = { checkCalendar: makeTool("checkCalendar") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.checkCalendar.execute!({}, {});
 
@@ -228,7 +228,7 @@ describe("attachCircuitBreaker", () => {
   it("AC-1: does not call execute and fires onBlocked when rate limit is exceeded", async () => {
     mockLimitFn.mockResolvedValue(blockedLimitResponse());
     const tools = { draftEmail: makeTool("draftEmail") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.draftEmail.execute!({}, {});
 
@@ -240,21 +240,21 @@ describe("attachCircuitBreaker", () => {
     expect(result).toHaveProperty("toolName", "draftEmail");
   });
 
-  // AC-9: onBlocked receives a CircuitBreakerResult with required fields
-  it("AC-9: onBlocked callback receives CircuitBreakerResult with toolName, tier, remaining, resetMs", async () => {
+  // AC-9: onBlocked receives a RateLimitResult with required fields
+  it("AC-9: onBlocked callback receives RateLimitResult with toolName, tier, remaining, resetMs", async () => {
     mockLimitFn.mockResolvedValue(blockedLimitResponse());
     const tools = { createDeal: makeTool("createDeal") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     await wrapped.createDeal.execute!({}, {});
 
     expect(onBlocked).toHaveBeenCalledTimes(1);
-    const cbResult: CircuitBreakerResult = onBlocked.mock.calls[0][0];
-    expect(cbResult.toolName).toBe("createDeal");
-    expect(cbResult.tier).toBe("crm-write");
-    expect(cbResult.allowed).toBe(false);
-    expect(typeof cbResult.remaining).toBe("number");
-    expect(typeof cbResult.resetMs).toBe("number");
+    const rlResult: RateLimitResult = onBlocked.mock.calls[0][0];
+    expect(rlResult.toolName).toBe("createDeal");
+    expect(rlResult.tier).toBe("crm-write");
+    expect(rlResult.allowed).toBe(false);
+    expect(typeof rlResult.remaining).toBe("number");
+    expect(typeof rlResult.resetMs).toBe("number");
   });
 
   // AC-1: blocked result contains toolName and resetMs (user-facing error info)
@@ -262,7 +262,7 @@ describe("attachCircuitBreaker", () => {
     const resetMs = Date.now() + 30_000;
     mockLimitFn.mockResolvedValue(blockedLimitResponse(resetMs));
     const tools = { sendSlackMessage: makeTool("sendSlackMessage") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.sendSlackMessage.execute!({}, {});
 
@@ -275,7 +275,7 @@ describe("attachCircuitBreaker", () => {
   it("AC-5: preserves tool object when it has no execute function", () => {
     const noExecTool = { description: "no exec" };
     const tools = { delegateResearch: noExecTool as any };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     // Tool is still present in the wrapped map
     expect(wrapped).toHaveProperty("delegateResearch");
@@ -287,7 +287,7 @@ describe("attachCircuitBreaker", () => {
   it("AC-5: calls execute without rate-limit check for tools not in TOOL_RATE_LIMITS", async () => {
     const unknownTool = makeTool("unknownTool");
     const tools = { unknownTool };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.unknownTool.execute!({}, {});
 
@@ -302,7 +302,7 @@ describe("attachCircuitBreaker", () => {
     mockLimitFn.mockRejectedValue(new Error("Upstash timeout"));
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const tools = { listDeals: makeTool("listDeals") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.listDeals.execute!({}, {});
 
@@ -321,7 +321,7 @@ describe("attachCircuitBreaker", () => {
     });
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const tools = { draftEmail: makeTool("draftEmail") };
-    const wrapped = attachCircuitBreaker(tools, "user-1", onBlocked);
+    const wrapped = attachRateLimiter(tools, "user-1", onBlocked);
 
     const result = await wrapped.draftEmail.execute!({}, {});
 
@@ -339,7 +339,7 @@ describe("attachCircuitBreaker", () => {
       parameters: { type: "object" },
       execute: vi.fn().mockResolvedValue({}),
     };
-    const wrapped = attachCircuitBreaker({ checkCalendar: tool as any }, "user-1", onBlocked);
+    const wrapped = attachRateLimiter({ checkCalendar: tool as any }, "user-1", onBlocked);
 
     expect(wrapped.checkCalendar.description).toBe("Check the calendar");
     expect((wrapped.checkCalendar as any).parameters).toEqual({ type: "object" });

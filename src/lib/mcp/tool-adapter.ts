@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 import { searchEmails, draftEmail } from "@/lib/tools/gmail";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
@@ -14,7 +15,7 @@ import { TOOL_SCOPE_CONFIG, type TokenVaultToolName } from "@/lib/tools/scope-ma
 import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
 import { getUserSettings } from "@/lib/data/settings";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
-import { checkToolRateLimit } from "@/lib/circuit-breaker";
+import { checkToolRateLimit } from "@/lib/rate-limiter";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface, getToolNamesForScopes } from "@/lib/surface-policy";
 
@@ -258,12 +259,10 @@ function getMcpSafeTools(): ToolEntry[] {
  * Returns a function that registers MCP-safe tools on an MCP server.
  *
  * Security model (four-layer enforcement):
- * - Layer 1 (registration): Tool SET is determined by the surface policy registry.
- *   Read-only tools and CIBA-gated write tools are registered. This is a
- *   server-init-time decision.
- *   Note: tools/list returns the full registered set regardless of client scopes.
- *   This is intentional — discovery is not access. Clients see available tools
- *   but scope enforcement at execution prevents unauthorized calls.
+ * - Layer 1 (discovery): tools/list is filtered per-client. Clients with
+ *   per-client API keys see only their allowlisted tools. Auth0 token clients
+ *   see tools matching their scopes. This prevents privilege information
+ *   disclosure — restricted clients cannot enumerate tools they can't call.
  * - Layer 2 (scope check): Per-REQUEST scope check validates authInfo.scopes against
  *   the tool's category. Different clients can have different scopes derived from
  *   user settings (per-client MCP policies).
@@ -530,5 +529,48 @@ export function adaptToolsForMcp(_userId?: string) {
         }
       );
     }
+
+    // Layer 1 (discovery): Override tools/list to filter per-client.
+    // The MCP SDK's default handler returns all registered tools regardless of
+    // client identity. We capture the full list (with SDK-converted JSON schemas),
+    // then replace the handler to filter based on per-client allowlists and
+    // scope-based policies. This prevents privilege information disclosure —
+    // restricted clients cannot enumerate tools they aren't allowed to call.
+    //
+    // We read from the SDK's internal _requestHandlers map to invoke the original
+    // handler, which handles Zod → JSON Schema conversion. This avoids reimporting
+    // internal SDK functions (toJsonSchemaCompat, normalizeObjectSchema).
+    const allToolNames = new Set(tools.map((t) => t.name));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const originalListHandler = (server.server as any)._requestHandlers?.get("tools/list") as
+      | ((...args: unknown[]) => Promise<{ tools: Array<{ name: string; [k: string]: unknown }> }>)
+      | undefined;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    server.server.setRequestHandler(ListToolsRequestSchema, async (_request: any, extra: any) => {
+      // Get the full tool list from the SDK's original handler (includes JSON Schema conversion)
+      const fullList = originalListHandler
+        ? await originalListHandler({ method: "tools/list" })
+        : { tools: [] };
+
+      const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
+      const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+      const allowedToolsList = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
+
+      // Determine which tools this client can see
+      let visibleTools: Set<string>;
+
+      if (mcpClientId && mcpClientId !== "default" && allowedToolsList) {
+        // Per-client API key: show only allowlisted tools
+        visibleTools = new Set(allowedToolsList.filter((t) => allToolNames.has(t)));
+      } else {
+        // Auth0 token client: show tools matching scopes
+        visibleTools = new Set(getToolNamesForScopes(clientScopes).filter((t) => allToolNames.has(t)));
+      }
+
+      return {
+        tools: fullList.tools.filter((t) => visibleTools.has(t.name)),
+      };
+    });
   };
 }
