@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import type { AutonomyLevel } from "@/lib/types/settings";
 
 interface ScheduleSettings {
   enabled: boolean;
@@ -11,6 +12,7 @@ interface ScheduleSettings {
 
 interface Props {
   initialSchedule: ScheduleSettings;
+  initialAutonomyLevel: AutonomyLevel;
 }
 
 const SCHEDULE_OPTIONS = [
@@ -19,13 +21,45 @@ const SCHEDULE_OPTIONS = [
   { hour: 17, label: "5:00 PM", description: "End-of-day review" },
 ];
 
-export function SchedulePanel({ initialSchedule }: Props) {
+const AUTONOMY_LEVELS: {
+  level: AutonomyLevel;
+  label: string;
+  description: string;
+  color: string;
+  activeColor: string;
+}[] = [
+  {
+    level: 1,
+    label: "Suggest Only",
+    description: "AI queues actions for your review",
+    color: "text-muted-foreground",
+    activeColor: "bg-blue-500 text-white border-blue-500",
+  },
+  {
+    level: 2,
+    label: "Auto-Approve",
+    description: "AI approves, you confirm via Guardian",
+    color: "text-muted-foreground",
+    activeColor: "bg-amber-500 text-white border-amber-500",
+  },
+  {
+    level: 3,
+    label: "Full Autonomous",
+    description: "AI executes routine actions on schedule",
+    color: "text-muted-foreground",
+    activeColor: "bg-emerald-500 text-white border-emerald-500",
+  },
+];
+
+export function SchedulePanel({ initialSchedule, initialAutonomyLevel }: Props) {
   const [schedule, setSchedule] = useState<ScheduleSettings>(initialSchedule);
+  const [autonomyLevel, setAutonomyLevel] = useState<AutonomyLevel>(initialAutonomyLevel);
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
   const [polling, setPolling] = useState(false);
   const [triggerResult, setTriggerResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const router = useRouter();
 
@@ -61,7 +95,6 @@ export function SchedulePanel({ initialSchedule }: Props) {
             ? `${data.executed} executed, ${data.failed} failed`
             : `${data.executed} action${data.executed === 1 ? "" : "s"} executed`;
           setTriggerResult(msg);
-          // Delay refresh to let server-side writes propagate
           setTimeout(() => router.refresh(), 500);
         } else if (data.status === "denied") {
           stopPolling();
@@ -90,6 +123,28 @@ export function SchedulePanel({ initialSchedule }: Props) {
     }, Math.max(interval * 1000, 3000));
   }, [stopPolling, router]);
 
+  async function saveSettings(patch: { schedule?: ScheduleSettings; autonomyLevel?: AutonomyLevel }) {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to save settings");
+      }
+    } catch {
+      throw new Error("Failed to save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function toggleHour(hour: number) {
     const newHours = schedule.hours.includes(hour)
       ? schedule.hours.filter((h) => h !== hour)
@@ -102,115 +157,218 @@ export function SchedulePanel({ initialSchedule }: Props) {
 
     const previousSchedule = { ...schedule };
     setSchedule(newSchedule);
-    setSaving(true);
-    setError(null);
 
     try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        body: JSON.stringify({ schedule: newSchedule }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to save schedule");
-      }
+      await saveSettings({ schedule: newSchedule });
     } catch {
       setSchedule(previousSchedule);
       setError("Failed to save. Please try again.");
+    }
+  }
+
+  async function handleAutonomyChange(level: AutonomyLevel) {
+    if (level === autonomyLevel) return;
+
+    // Level 3 requires confirmation
+    if (level === 3) {
+      setShowConfirmDialog(true);
+      return;
+    }
+
+    const previousLevel = autonomyLevel;
+    setAutonomyLevel(level);
+
+    try {
+      await saveSettings({ autonomyLevel: level });
+    } catch {
+      setAutonomyLevel(previousLevel);
+      setError("Failed to save. Please try again.");
+    }
+  }
+
+  async function confirmLevel3() {
+    setShowConfirmDialog(false);
+    const previousLevel = autonomyLevel;
+    setAutonomyLevel(3);
+
+    try {
+      await saveSettings({ autonomyLevel: 3 });
+    } catch {
+      setAutonomyLevel(previousLevel);
+      setError("Failed to save. Please try again.");
+    }
+  }
+
+  async function handleRunNow() {
+    setTriggering(true);
+    setTriggerResult(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/cron/schedule-trigger", {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Trigger failed (${res.status})`);
+      }
+
+      // Level 3 auto-executed: no polling needed
+      if (data.status === "auto-executed") {
+        const msg = data.failed
+          ? `${data.executed} executed, ${data.failed} failed`
+          : `${data.executed} action${data.executed === 1 ? "" : "s"} auto-executed`;
+        setTriggerResult(msg);
+        setTimeout(() => router.refresh(), 500);
+        return;
+      }
+
+      // Level 3 partial (routine executed, high-value needs CIBA)
+      if (data.status === "partial") {
+        const execMsg = data.executed > 0 ? `${data.executed} auto-executed. ` : "";
+        setTriggerResult(`${execMsg}Approve ${data.cibaRequired} high-value action${data.cibaRequired === 1 ? "" : "s"} on Guardian...`);
+        startPolling(data.cibaRequired, data.interval || 5);
+        return;
+      }
+
+      // Level 1 & 2: standard CIBA flow
+      startPolling(data.actionCount, data.interval || 5);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Trigger failed");
     } finally {
-      setSaving(false);
+      setTriggering(false);
     }
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            Scheduled Action Review
-            {schedule.enabled && (
-              <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500">
-                Active
-              </span>
-            )}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Approve all high/medium priority actions with one Guardian push
-            at scheduled times. Actions execute within a time-boxed window.
-          </p>
+    <div className="rounded-lg border border-border bg-card p-4 space-y-4">
+      {/* Autonomy Level Selector */}
+      <div>
+        <h3 className="text-sm font-semibold mb-1">AI Autonomy Level</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Control how much the AI can do without your intervention
+        </p>
+        <div className="flex gap-1">
+          {AUTONOMY_LEVELS.map((opt) => {
+            const isActive = autonomyLevel === opt.level;
+            return (
+              <button
+                key={opt.level}
+                onClick={() => handleAutonomyChange(opt.level)}
+                disabled={saving}
+                className={`flex-1 rounded-md border px-3 py-2 text-xs font-medium transition-colors ${
+                  isActive
+                    ? opt.activeColor
+                    : "border-border bg-muted/50 hover:border-muted-foreground/30 " + opt.color
+                } ${saving ? "opacity-50 pointer-events-none" : ""}`}
+              >
+                <div className="font-semibold">{opt.label}</div>
+                <div className={`mt-0.5 ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+                  {opt.description}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex gap-4 mt-3">
-        {SCHEDULE_OPTIONS.map((opt) => (
-          <label
-            key={opt.hour}
-            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
-              schedule.hours.includes(opt.hour)
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-border hover:border-muted-foreground/30"
-            } ${saving ? "opacity-50 pointer-events-none" : ""}`}
-          >
-            <input
-              type="checkbox"
-              checked={schedule.hours.includes(opt.hour)}
-              onChange={() => toggleHour(opt.hour)}
-              disabled={saving}
-              className="rounded border-border accent-primary"
-            />
-            <div>
-              <div className="font-medium">{opt.label}</div>
-              <div className="text-xs text-muted-foreground">
-                {opt.description}
-              </div>
-            </div>
-          </label>
-        ))}
-      </div>
-
-      {schedule.enabled && (
-        <div className="flex items-center gap-3 mt-3">
-          <p className="text-xs text-muted-foreground">
-            Timezone: {schedule.timezone}
+      {/* Level 3 Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-sm font-medium text-amber-500">Enable Full Autonomous Mode?</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            The AI will automatically execute routine actions (under $50K deal value) on your schedule
+            without asking for approval. High-value actions still require Guardian consent.
           </p>
-          <button
-            onClick={async () => {
-              setTriggering(true);
-              setTriggerResult(null);
-              setError(null);
-              try {
-                const res = await fetch("/api/cron/schedule-trigger", {
-                  method: "POST",
-                  headers: { "X-Requested-With": "XMLHttpRequest" },
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                  throw new Error(data.error || `Trigger failed (${res.status})`);
-                }
-                startPolling(data.actionCount, data.interval || 5);
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Trigger failed");
-              } finally {
-                setTriggering(false);
-              }
-            }}
-            disabled={triggering || polling}
-            className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-          >
-            {triggering ? "Sending..." : polling ? "Awaiting approval..." : "Run Now"}
-          </button>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={confirmLevel3}
+              disabled={saving}
+              className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Yes, enable"}
+            </button>
+            <button
+              onClick={() => setShowConfirmDialog(false)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md border border-border hover:bg-muted/50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Scheduled Review Section */}
+      <div>
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              Scheduled Action Review
+              {schedule.enabled && (
+                <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500">
+                  Active
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              {autonomyLevel === 3
+                ? "Routine actions auto-execute at scheduled times. High-value actions require Guardian approval."
+                : autonomyLevel === 2
+                  ? "Auto-approved actions execute after one Guardian push at scheduled times."
+                  : "Approve all high/medium priority actions with one Guardian push at scheduled times."}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-4 mt-3">
+          {SCHEDULE_OPTIONS.map((opt) => (
+            <label
+              key={opt.hour}
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                schedule.hours.includes(opt.hour)
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border hover:border-muted-foreground/30"
+              } ${saving ? "opacity-50 pointer-events-none" : ""}`}
+            >
+              <input
+                type="checkbox"
+                checked={schedule.hours.includes(opt.hour)}
+                onChange={() => toggleHour(opt.hour)}
+                disabled={saving}
+                className="rounded border-border accent-primary"
+              />
+              <div>
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-xs text-muted-foreground">
+                  {opt.description}
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {schedule.enabled && (
+          <div className="flex items-center gap-3 mt-3">
+            <p className="text-xs text-muted-foreground">
+              Timezone: {schedule.timezone}
+            </p>
+            <button
+              onClick={handleRunNow}
+              disabled={triggering || polling}
+              className="text-xs font-medium px-3 py-1.5 rounded-md border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              {triggering ? "Sending..." : polling ? "Awaiting approval..." : "Run Now"}
+            </button>
+          </div>
+        )}
+      </div>
+
       {triggerResult && (
-        <p className="text-xs text-emerald-500 mt-2">{triggerResult}</p>
+        <p className="text-xs text-emerald-500">{triggerResult}</p>
       )}
 
       {error && (
-        <p className="text-xs text-destructive mt-2">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       )}
     </div>
   );
