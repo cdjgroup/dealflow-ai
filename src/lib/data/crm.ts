@@ -297,7 +297,7 @@ const SEED_DEALS: Deal[] = [
     stage: "proposal",
     contactId: "c1",
     createdAt: "2026-03-15T10:30:00Z",
-    updatedAt: "2026-03-28T16:00:00Z",
+    updatedAt: "2026-04-04T16:00:00Z",
   },
   {
     id: "d2",
@@ -324,7 +324,7 @@ const SEED_DEALS: Deal[] = [
     name: "Pinnacle Dev Tools License",
     company: "Pinnacle Dev",
     value: 15000,
-    stage: "lead",
+    stage: "qualified",
     contactId: "c4",
     createdAt: "2026-03-22T11:30:00Z",
     updatedAt: "2026-03-22T11:30:00Z",
@@ -347,7 +347,7 @@ const SEED_DEALS: Deal[] = [
     stage: "proposal",
     contactId: "c6",
     createdAt: "2026-03-05T13:30:00Z",
-    updatedAt: "2026-03-29T10:00:00Z",
+    updatedAt: "2026-04-03T10:00:00Z",
   },
   {
     id: "d7",
