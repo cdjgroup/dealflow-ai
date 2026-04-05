@@ -8,9 +8,14 @@
  * for the Gmail API drafts endpoint.
  */
 export function buildRawEmail(to: string, subject: string, body: string): string {
+  // RFC 2047: encode Subject as MIME encoded-word when it contains non-ASCII
+  const encodedSubject = /[^\x00-\x7F]/.test(subject)
+    ? `=?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`
+    : subject;
+
   const rawMessage = [
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     `Content-Type: text/plain; charset=utf-8`,
     "",
     body,
