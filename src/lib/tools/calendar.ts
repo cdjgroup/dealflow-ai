@@ -15,17 +15,40 @@ interface EventSlot {
   end: string | undefined;
 }
 
-function toHHMM(d: Date): string {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function formatTime(d: Date, tz?: string): string {
+  if (tz) {
+    try {
+      return d.toLocaleTimeString("en-US", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false });
+    } catch { /* fall through to UTC */ }
+  }
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 }
 
-function computeFreeSlots(events: EventSlot[], date: string): string {
+function computeFreeSlots(events: EventSlot[], date: string, calendarTz?: string): string {
   if (events.length === 0) return "The entire day appears free.";
 
-  const dayStart = new Date(`${date}T09:00:00`);
-  const dayEnd = new Date(`${date}T17:00:00`);
-  const slots: string[] = [];
+  // Build business-hour boundaries in the calendar's timezone.
+  // Google Calendar events have timezone-aware dateTime strings, so
+  // Date.getTime() gives correct absolute timestamps for comparison.
+  // We construct boundaries the same way: if we have a tz, use it;
+  // otherwise fall back to UTC (server timezone on Vercel).
+  let dayStart: Date;
+  let dayEnd: Date;
+  if (calendarTz) {
+    // Create dates at 09:00 and 17:00 in the calendar's timezone
+    const baseDate = new Date(`${date}T12:00:00Z`); // noon UTC as anchor
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: calendarTz, timeZoneName: "shortOffset" });
+    const parts = formatter.formatToParts(baseDate);
+    const offsetPart = parts.find(p => p.type === "timeZoneName")?.value || "+00:00";
+    const offsetStr = offsetPart.replace("GMT", "").replace("UTC", "") || "+00:00";
+    dayStart = new Date(`${date}T09:00:00${offsetStr}`);
+    dayEnd = new Date(`${date}T17:00:00${offsetStr}`);
+  } else {
+    dayStart = new Date(`${date}T09:00:00Z`);
+    dayEnd = new Date(`${date}T17:00:00Z`);
+  }
 
+  const slots: string[] = [];
   const sorted = events
     .filter((e) => e.start && e.end)
     .sort((a, b) => new Date(a.start!).getTime() - new Date(b.start!).getTime());
@@ -35,17 +58,18 @@ function computeFreeSlots(events: EventSlot[], date: string): string {
     const eventStart = new Date(event.start!);
     const eventEnd = new Date(event.end!);
     if (eventStart > cursor) {
-      slots.push(`${toHHMM(cursor)} - ${toHHMM(eventStart)}`);
+      slots.push(`${formatTime(cursor, calendarTz)} - ${formatTime(eventStart, calendarTz)}`);
     }
     if (eventEnd > cursor) cursor = eventEnd;
   }
   if (cursor < dayEnd) {
-    slots.push(`${toHHMM(cursor)} - ${toHHMM(dayEnd)}`);
+    slots.push(`${formatTime(cursor, calendarTz)} - ${formatTime(dayEnd, calendarTz)}`);
   }
 
+  const tzLabel = calendarTz ? ` (${calendarTz})` : " (UTC)";
   return slots.length > 0
-    ? `Free slots (business hours): ${slots.join(", ")}`
-    : "No free slots during business hours (09:00-17:00).";
+    ? `Free slots (business hours${tzLabel}): ${slots.join(", ")}`
+    : `No free slots during business hours 09:00-17:00${tzLabel}.`;
 }
 
 export const createCalendarEvent = tool({
@@ -165,9 +189,10 @@ export const checkCalendar = tool({
 
     return {
       date,
+      timeZone: data.timeZone || null,
       eventCount: events.length,
       events,
-      freeSlots: computeFreeSlots(events, date),
+      freeSlots: computeFreeSlots(events, date, data.timeZone),
       _tokenMeta: buildTokenMeta(result, TOOL_SCOPE_CONFIG["checkCalendar"].minScope),
     };
   },

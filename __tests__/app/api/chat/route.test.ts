@@ -49,6 +49,7 @@ vi.mock("@ai-sdk/anthropic", () => ({
 
 vi.mock("@/lib/tools/calendar", () => ({
   checkCalendar: { type: "tool", name: "checkCalendar" },
+  createCalendarEvent: { type: "tool", name: "createCalendarEvent" },
 }));
 
 vi.mock("@/lib/tools/gmail", () => ({

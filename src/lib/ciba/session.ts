@@ -7,15 +7,30 @@ function sessionKey(userId: string, toolName: string): string {
   return `ciba:${userId}:${toolName}`;
 }
 
+function authReqLookupKey(authReqId: string): string {
+  return `ciba:req:${authReqId}`;
+}
+
 export async function storeCibaSession(
   session: CibaSession
 ): Promise<void> {
   const redis = getRedis();
-  await redis.set(
+  const p = redis.pipeline();
+  p.set(
     sessionKey(session.userId, session.toolName),
     JSON.stringify(session),
     { ex: CIBA_TTL }
   );
+  // H3: O(1) lookup index — avoids KEYS scan in status endpoint
+  p.set(authReqLookupKey(session.authReqId), session.userId, { ex: CIBA_TTL });
+  await p.exec();
+}
+
+export async function getSessionOwner(
+  authReqId: string
+): Promise<string | null> {
+  const redis = getRedis();
+  return redis.get<string>(authReqLookupKey(authReqId));
 }
 
 export async function getCibaSession(
@@ -49,5 +64,12 @@ export async function deleteCibaSession(
   toolName: string
 ): Promise<void> {
   const redis = getRedis();
-  await redis.del(sessionKey(userId, toolName));
+  // Clean up both the session and the authReqId lookup index
+  const session = await getCibaSession(userId, toolName);
+  const p = redis.pipeline();
+  p.del(sessionKey(userId, toolName));
+  if (session?.authReqId) {
+    p.del(authReqLookupKey(session.authReqId));
+  }
+  await p.exec();
 }

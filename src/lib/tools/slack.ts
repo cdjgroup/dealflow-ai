@@ -77,9 +77,10 @@ export const sendSlackMessage = tool({
       };
     }
 
-    // If channel doesn't look like an ID (C...), resolve it by name
+    // Validate channel ID format strictly — don't trust LLM-supplied strings
+    const SLACK_CHANNEL_ID_RE = /^[CG][A-Z0-9]{8,11}$/;
     let channelId = channel;
-    if (!channel.startsWith("C")) {
+    if (!SLACK_CHANNEL_ID_RE.test(channel)) {
       const resolved = await resolveSlackChannelId(channel, result.token);
       if ("error" in resolved) {
         return { error: resolved.error + ". Use listSlackChannels to see available channels." };

@@ -86,7 +86,7 @@ export async function createAction(
   };
 
   const p = redis.pipeline();
-  p.set(actionKey(userId, action.id), JSON.stringify(action));
+  p.set(actionKey(userId, action.id), JSON.stringify(action), { ex: ACTION_TTL });
   p.sadd(actionIndexKey(userId), action.id);
   await p.exec();
 
@@ -108,7 +108,7 @@ export async function updateAction(
     updatedAt: now(),
   };
 
-  await redis.set(actionKey(userId, actionId), JSON.stringify(updated));
+  await redis.set(actionKey(userId, actionId), JSON.stringify(updated), { ex: ACTION_TTL });
   return updated;
 }
 

@@ -20,7 +20,7 @@ import { TOOL_SCOPE_CONFIG } from "@/lib/tools/scope-map";
 import { shouldRequireCiba } from "@/lib/ciba/should-require";
 import { initiateCiba } from "@/lib/ciba/authorize";
 import { pollCiba } from "@/lib/ciba/poll";
-import { getCibaSession, storeCibaSession, deleteCibaSession } from "@/lib/ciba/session";
+import { getCibaSession, storeCibaSession, deleteCibaSession, updateCibaSessionStatus } from "@/lib/ciba/session";
 import type { CibaInterrupt } from "@/lib/ciba/types";
 import { NextResponse } from "next/server";
 
@@ -151,13 +151,27 @@ function attachCibaChecks(
           return originalExecute(params, context);
         }
         if (existing.status === "pending") {
-          // Poll to check if it's been approved since last check
-          const pollResult = await pollCiba(existing.authReqId);
-          if (pollResult.status === "approved") {
-            await deleteCibaSession(userId, name);
-            return originalExecute(params, context);
+          // Enforce CIBA polling interval per spec — don't hammer Auth0
+          const lastPoll = existing.lastPolledAt ? new Date(existing.lastPolledAt).getTime() : 0;
+          const intervalMs = (existing.interval || 5) * 1000;
+          const canPoll = Date.now() - lastPoll >= intervalMs;
+
+          if (canPoll) {
+            // Record poll time before calling Auth0
+            await storeCibaSession({ ...existing, lastPolledAt: new Date().toISOString() });
+            const pollResult = await pollCiba(existing.authReqId);
+            if (pollResult.status === "approved") {
+              await deleteCibaSession(userId, name);
+              return originalExecute(params, context);
+            }
+            if (pollResult.status !== "pending") {
+              // Denied/expired/error — clean up
+              await deleteCibaSession(userId, name);
+              return { error: `Device verification ${pollResult.status}: ${pollResult.error || ""}` };
+            }
           }
-          // Still pending or denied/expired — return interrupt as tool result
+
+          // Still pending — return interrupt without polling
           return {
             _cibaInterrupt: {
               type: "CibaInterrupt",

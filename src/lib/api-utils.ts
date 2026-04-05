@@ -38,27 +38,34 @@ export async function resolveSlackChannelId(
 ): Promise<{ id: string } | { error: string }> {
   const name = channelName.replace(/^#/, "");
 
-  const listRes = await fetch(
-    "https://slack.com/api/conversations.list?types=public_channel&limit=200",
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  // Paginate through all public channels (Slack returns max 200 per page)
+  let cursor = "";
+  const MAX_PAGES = 5; // Safety cap: 1000 channels max
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = `https://slack.com/api/conversations.list?types=public_channel&limit=200${cursor ? `&cursor=${cursor}` : ""}`;
+    const listRes = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  if (!listRes.ok) {
-    return { error: `Slack channel lookup failed (status ${listRes.status})` };
+    if (!listRes.ok) {
+      return { error: `Slack channel lookup failed (status ${listRes.status})` };
+    }
+
+    const listData = await listRes.json();
+    if (!listData.ok) {
+      return { error: `Slack API error: ${listData.error}` };
+    }
+
+    const found = (listData.channels || []).find(
+      (ch: { name: string }) => ch.name === name
+    );
+    if (found) {
+      return { id: found.id };
+    }
+
+    cursor = listData.response_metadata?.next_cursor || "";
+    if (!cursor) break;
   }
 
-  const listData = await listRes.json();
-  if (!listData.ok) {
-    return { error: `Slack API error: ${listData.error}` };
-  }
-
-  const found = (listData.channels || []).find(
-    (ch: { name: string }) => ch.name === name
-  );
-
-  if (!found) {
-    return { error: `Slack channel "${channelName}" not found` };
-  }
-
-  return { id: found.id };
+  return { error: `Slack channel "${channelName}" not found` };
 }
