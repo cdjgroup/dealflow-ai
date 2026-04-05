@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ParameterConstraint } from "@/lib/types/policy";
 import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 import { searchEmails, draftEmail } from "@/lib/tools/gmail";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
@@ -15,6 +16,40 @@ import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface } from "@/lib/surface-policy";
 import { enforceToolAuth, type ToolAuthContext } from "@/lib/mcp/tool-auth";
+
+/**
+ * Validates that the provided params satisfy all parameter constraints for the given tool.
+ * Returns null if all constraints pass, or an error string if any constraint is violated.
+ * Fails closed: invalid regex patterns are treated as violations, not passes.
+ */
+export function validateParameterConstraints(
+  toolName: string,
+  params: Record<string, unknown>,
+  constraints: Record<string, ParameterConstraint[]>
+): string | null {
+  const toolConstraints = constraints[toolName];
+  if (!toolConstraints || toolConstraints.length === 0) return null;
+
+  for (const constraint of toolConstraints) {
+    const paramValue = params[constraint.param];
+    if (paramValue === undefined) continue;
+
+    const strValue = String(paramValue);
+    let regex: RegExp;
+    try {
+      regex = new RegExp(constraint.pattern);
+    } catch {
+      return `Parameter constraint error: ${toolName}.${constraint.param} — invalid constraint pattern`;
+    }
+
+    if (!regex.test(strValue)) {
+      const desc = constraint.description ? ` — ${constraint.description}` : "";
+      return `Parameter constraint violated: ${toolName}.${constraint.param}${desc}`;
+    }
+  }
+
+  return null;
+}
 
 type AiTool = {
   description?: string;
@@ -223,8 +258,6 @@ function auditSuccess(
 function getMcpSafeTools(): ToolEntry[] {
   const allowedNames = new Set(getToolNamesForSurface("mcp"));
 
-  // Non-CRM tools (stateless, no userId needed for schema registration)
-  // Includes both read tools and CIBA-gated write tools
   const tokenVaultTools: Array<{ name: string; tool: AiTool }> = [
     { name: "checkCalendar", tool: checkCalendar as unknown as AiTool },
     { name: "searchEmails", tool: searchEmails as unknown as AiTool },
@@ -244,7 +277,6 @@ function getMcpSafeTools(): ToolEntry[] {
       isTokenVaultTool: true,
     }));
 
-  // CRM read-only tools (created per-request with userId, schema-only here)
   const schemaCrmTools = createCrmTools("schema-only");
   for (const [name, t] of Object.entries(schemaCrmTools)) {
     if (!allowedNames.has(name)) continue;
@@ -265,7 +297,7 @@ function getMcpSafeTools(): ToolEntry[] {
 /**
  * Returns a function that registers MCP-safe tools on an MCP server.
  *
- * Security model (four-layer enforcement):
+ * Security model (five-layer enforcement):
  * - Layer 1 (registration): Tool SET is determined by the surface policy registry,
  *   then narrowed by the optional `allowedToolFilter` parameter. When a per-client
  *   API key provides an `allowedTools` list, only those tools are registered —
@@ -276,6 +308,8 @@ function getMcpSafeTools(): ToolEntry[] {
  *   user settings (per-client MCP policies).
  * - Layer 3 (client policy): Per-client API key users get additional tool allowlist
  *   filtering, rate limiting, and usage analytics.
+ * - Layer 3.5 (parameter constraints): Per-client regex-based parameter validation
+ *   for semantic intent verification. Fail-closed on invalid patterns.
  * - Layer 4 (CIBA consent): Write tools (draftEmail, createCalendarEvent,
  *   sendSlackMessage) require Guardian push approval before execution.
  * - Audit trail records both successful calls and scope/policy denials.
@@ -326,6 +360,20 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
           }
 
           const { ctx } = authResult;
+
+          // Layer 3.5: Per-client parameter constraints (intent verification)
+          const paramConstraints = extra?.authInfo?.extra?.parameterConstraints as
+            Record<string, ParameterConstraint[]> | undefined;
+          if (mcpClientIdRaw && mcpClientIdRaw !== "default" && paramConstraints) {
+            const constraintError = validateParameterConstraints(toolEntry.name, params, paramConstraints);
+            if (constraintError) {
+              return auditAndErrorResponse(
+                ctx.userId, toolEntry.name, params, constraintError, 0,
+                { mcpClientId: ctx.mcpClientId, mcpClientName: ctx.clientName, surface: "mcp" }
+              );
+            }
+          }
+
           const start = Date.now();
 
           // CRM tool path

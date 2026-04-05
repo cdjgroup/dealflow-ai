@@ -32,7 +32,7 @@ Our four execution surfaces map to the delegation patterns described in [IETF dr
 | MCP + CIBA | High | Guardian push notification | Agent-to-agent with out-of-band device consent |
 | MCP (read-only) | Autonomous | None needed | Pre-authorized within configured boundaries |
 
-Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model satisfies the human oversight requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit.
+Higher-autonomy operations require stronger consent mechanisms — and users can intervene or override at every level. This graduated model aligns with [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/) (Human Oversight, effective August 2026): meaningful review rather than rubber-stamp approval, with real-time controls rather than after-the-fact audit. Confidence-based routing adds adaptive oversight: the AI's own uncertainty drives which actions surface for human review, regardless of the user's autonomy setting.
 
 The agent supports 13 tools across 4 services:
 - **CRM** (8 tools): deals, contacts, activities, pipeline analysis — stored in Upstash Redis
