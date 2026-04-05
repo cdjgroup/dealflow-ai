@@ -1,119 +1,142 @@
 # DealFlow — Demo Script
 
-> 3-minute max. Every second counts. No filler, no fumbling.
+> 3-minute max. Every second counts. Lead with wow, not setup.
+>
+> **Thesis (say this or a variant within 30 seconds):**
+> "DealFlow implements graduated trust for AI agents — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline."
 
 ## Setup (before recording)
 
 1. Log in at https://dealflow-ai-seven.vercel.app
 2. Google and Slack connected (green badges on Permissions)
-3. Click "Reseed Demo Data" on dashboard (resets CRM data + onboarding checklist)
-4. Clear conversations (sidebar > Clear All)
-5. Clear/dismiss existing actions so Action Center starts fresh
-6. Enable at least one schedule time in Action Center (12pm or 5pm)
+3. Click "Reseed Demo Data" on dashboard (resets CRM + actions)
+4. Run "Analyze my pipeline" in chat so Action Center has AI-generated suggestions
+5. Verify Action Center has 5+ suggestions with confidence scores and justifications
+6. Enable at least one schedule time in Action Center (e.g., 12pm)
 7. Have Permissions page open in a second tab (for fast switch)
-8. Have Guardian app ready on phone for CIBA approval
+8. Have Guardian app ready on phone — test a CIBA push before recording
+9. Pre-create at least one MCP client with parameter constraints in MCP Explorer
 
 ---
 
-## Act 1: The AI Acts Through Token Vault (45 sec)
+## Act 1: Action Center — The 30-Second Wow (0:00–0:30)
 
-> "DealFlow is a sales assistant that acts on the user's behalf through Auth0 Token Vault. The AI never stores credentials."
+> Open on Action Center, already populated with AI suggestions. Do NOT start with chat.
 
-1. Type: **"What's on my calendar tomorrow?"**
-   - "Auth0 exchanges a refresh token for a short-lived Google access token. The AI gets a scoped token, never credentials."
+**Show the Action Center screen** — 5 AI-suggested actions with justification text, priority badges, and confidence scores visible.
 
-2. Type: **"I need to follow up with Sarah Chen about the Acme deal — check what we last discussed, find a time that works, and draft an email"**
-   - AI chains: `getDealDetails` → `searchEmails` → `checkCalendar` → `draftEmail` (4 tools, one prompt)
-   - "One prompt, four tools. The agent reasoned through the workflow — deal context, email history, calendar availability — then composed a follow-up. Each external call went through Token Vault."
-   - Approval card appears for draftEmail → approve it
-   - "The agent planned the whole chain autonomously, but paused before the sensitive action. That's graduated authorization."
+> "Most AI agents act first and apologize later. DealFlow suggests first and lets you decide."
 
-3. Type: **"Analyze my pipeline and suggest next steps"**
-   - AI calls `analyzePipeline`, creates suggestions
-   - "The AI read 8 deals across the full pipeline and generated prioritized action items for the Action Center."
+Point at a card:
+> "The AI analyzed my sales pipeline and generated five next steps. Each one explains why — 'Acme deal inactive 7 days, $150K in qualified stage, follow-up keeps momentum.' Every draft is editable. Nothing executes until I say so."
 
-## Act 2: Action Center — Review Before Execution (1 min)
+**Click Edit** on an email action → change the subject line → Save.
+> "I can refine the AI's draft before it goes anywhere. This is informed consent, not rubber-stamping."
 
-> "Authorized to Act means the user sees what the AI wants to do, why, and decides whether it happens."
+**Click Approve → Execute** on the edited email action.
+Watch: Approved (blue) → Executing (pulse) → Completed (green).
+> "That email draft just landed in Gmail through Auth0 Token Vault. The AI never touched my credentials."
 
-4. **Click Actions** in nav — show the Action Center
-   - Point at a card: "Each suggestion has a justification — the AI explains its reasoning."
-   - Point at priorities: "High priority for stale high-value deals, medium for routine follow-ups."
+---
 
-5. **Click Edit** on an email action → change the subject → Save
-   - "The user can customize every draft. This isn't rubber-stamping — it's informed consent."
+## Act 2: Chat — Multi-Step Orchestration (0:30–1:10)
 
-6. **Click Approve → Execute** on one email action
-   - Watch: Approved (blue) → Executing (pulse) → Completed (green)
-   - "That draft just landed in Gmail through Token Vault. Same OAuth flow as chat, different surface."
+> Switch to Chat. Show the AI is genuinely capable, not just a Token Vault wrapper.
 
-## Act 3: Scheduled Execution via CIBA (45 sec)
+Type: **"I need to follow up with Sarah Chen about the Acme deal — check what we last discussed, find a time that works, and draft an email"**
 
-> "The agent can act autonomously on a schedule — but only with device-level consent."
+AI chains: `getDealDetails` → `searchEmails` → `checkCalendar` → `draftEmail` (4 tools, one prompt).
+> "One prompt, four tools. The agent pulled deal context, searched email history, checked calendar availability, and composed a follow-up. Each external API call went through Token Vault — short-lived tokens, automatically exchanged."
 
-7. **Show the Schedule panel** at top of Action Center
-   - Point at checkboxes: "The user opts into review times. At each time, a single Guardian push goes to their phone."
-   - Point at "Run Now": "For the demo, we'll trigger it on demand."
+Approval card appears for draftEmail → **approve it**.
+> "The agent planned the whole chain autonomously but paused before the sensitive action. That's graduated authorization — the AI earns trust through transparency."
 
-8. **Click "Run Now"** → show "Awaiting approval..." in UI
-   - **Pick up phone** → show Guardian notification: "DealFlow: 5 actions - 3 email, 2 calendar"
-   - "One push, one decision. The binding message tells the user what they're authorizing."
-   - **Approve on phone** → watch actions flip from Pending to Sent in real-time
-   - "Token Vault exchanged tokens for Google and Slack — emails drafted, meetings scheduled, Slack updated. All within the CIBA token's time-boxed window."
+---
 
-## Act 3b: Confidence Routing + MCP Constraints (20 sec)
+## Act 3: CIBA Phone Approval — The Climax (1:10–1:55)
 
-> "The AI scores its own confidence, and the system routes accordingly."
+> This is the most memorable moment. Phone visible next to laptop.
 
-8b. **Show confidence routing** (in Action Center or Actions page)
-   - Point at confidence indicators: "The AI scores its confidence 0 to 1. Above 85%, actions auto-approve. Below 50%, forced to manual review. The middle band follows the user's autonomy setting — graduated trust, not binary."
+Type: **"Analyze my pipeline and suggest next steps"**
+AI calls `analyzePipeline`, creates new suggestions in Action Center.
 
-8c. **Show MCP parameter constraints** (in MCP client config at /dashboard/mcp)
-   - Click into a client's policy: "External agents can be constrained at the parameter level — regex patterns restrict what queries they can run. Defense in depth for the agent ecosystem."
+**Switch to Action Center** → **Show the Schedule panel** at top.
+> "The user can opt into scheduled review times. At 8am, noon, or 5pm, a single Guardian push goes to their phone for all pending actions."
 
-## Act 4: Trust Controls & Security (30 sec)
+**Click "Run Now"** → show "Awaiting approval..." with pulsing indicator.
+**Pick up phone** → show Guardian notification: "DealFlow: 5 actions - 3 email, 2 calendar"
+> "One push notification. One decision. The binding message tells the user exactly what they're authorizing."
 
-> "The same authorization model governs every surface — chat, Action Center, scheduled execution, and external agents."
+**Approve on phone** → watch actions flip from Pending to Completed in real-time.
+> "Token Vault exchanged tokens for Google and Slack. Emails drafted, meetings scheduled, Slack updated — all within the CIBA token's time-boxed window. The AI acted autonomously, but only after device-level consent."
 
-9. **Switch to Permissions tab** → disable Gmail (toggle off or trust to "never")
+---
 
-10. **Switch back to Actions** → try to Approve another email action
-   - **Blocked**: "Cannot approve: gmail is disabled"
-   - "Same control, consistent everywhere. The user's decision propagates to every surface."
+## Act 4: Unified Security + MCP (1:55–2:40)
 
-11. **Quick hits** (say while navigating, don't pause):
-   - Re-enable Gmail
-   - Click "Full audit log →": "Every action — chat and Action Center — logged with parameters, duration, status"
-   - Click "MCP" in nav: "External AI agents like OpenClaw can discover and use these same tools through MCP. Same Token Vault pipeline, same audit trail. This isn't just one app's security — it's a reusable pattern for the AI agent ecosystem."
+> Fast-paced. Prove the security model is real, not decorative.
 
-## Act 5: Closing (15 sec)
+### Disable-and-Block (15 sec)
+**Switch to Permissions** → disable Gmail (toggle off).
+**Switch to Actions** → try to approve an email action → **Blocked**: "Cannot approve: gmail is disabled"
+> "One toggle. Blocked in Actions, blocked in Chat, blocked for MCP agents. Same control, consistent everywhere."
+**Re-enable Gmail.**
 
-> Deliver standing at the Permissions page or MCP Explorer.
+### Confidence Routing (10 sec)
+Point at confidence indicators on action cards:
+> "The AI scores its own confidence. Above 85%, auto-approved. Below 50%, forced to manual review regardless of the user's autonomy setting. The AI's uncertainty becomes a routing signal."
 
-"DealFlow demonstrates four levels of 'Authorized to Act':
-1. **Per-tool** — capability toggles, trust levels, step-up approval
-2. **Per-action** — the Action Center queues AI suggestions for human review
-3. **Per-schedule** — CIBA batch consent with time-boxed execution for autonomous agent action
-4. **Per-agent** — MCP gives external agents the same secure, audited access
+<<<<<<< HEAD
+### MCP Ecosystem (20 sec)
+**Click MCP** in nav → show MCP Explorer with per-client policies.
+> "External AI agents connect through our MCP endpoint — same Token Vault pipeline, same audit trail. Each agent gets its own policy: 'Cursor' gets full read access, 'CI Pipeline' gets CRM only, with parameter constraints that restrict what queries it can run."
 
-All through Auth0 Token Vault. The AI never stores credentials. Every action is auditable. The user is always in control."
+### Audit Trail (10 sec)
+**Click Audit** → show cross-surface entries with policyReason badges.
+> "Every action across every surface — Chat, Action Center, MCP — logged with which policy layer decided, not just what happened."
+
+---
+
+## Act 5: Closing (2:40–3:00)
+
+> Deliver standing at the MCP Explorer or Audit page.
+
+"DealFlow demonstrates **graduated trust** for AI agents:
+
+1. **Per-tool** — capability toggles, trust levels, confidence routing
+2. **Per-action** — AI suggests with justification, user reviews and edits before execution
+3. **Per-schedule** — CIBA batch consent with time-boxed Token Vault execution
+4. **Per-agent** — MCP gives external agents individually scoped, audited access
+
+Three surfaces. One Auth0 Token Vault pipeline. The AI never stores credentials. Every action is auditable. And the system learns — after enough approvals, it suggests upgrading to auto-approve. Trust is earned, not assumed.
+
+27 documented insights. 310+ tests. Built in 5 days."
 
 ---
 
 ## Timing guide
 
-| Act | Content | Target |
-|-----|---------|--------|
-| 1 | Multi-step orchestration + pipeline analysis | 0:00–0:45 |
-| 2 | Action Center review + execute | 0:45–1:30 |
-| 3 | Scheduled execution via CIBA | 1:30–2:15 |
-| 3b | Confidence routing + MCP constraints | 2:15–2:35 |
-| 4 | Trust controls + audit + MCP | 2:35–2:50 |
-| 5 | Closing statement | 2:50–3:00 |
+| Act | Content | Target | Wow Moment |
+|-----|---------|--------|------------|
+| 1 | Action Center: justify, edit, execute | 0:00–0:30 | Screen full of reasoned AI suggestions |
+| 2 | Chat: multi-step tool orchestration | 0:30–1:10 | One prompt, four Token Vault exchanges |
+| 3 | CIBA: scheduled batch phone approval | 1:10–1:55 | Pick up phone, approve, watch UI flip |
+| 4 | Security: disable/block + confidence + MCP + audit | 1:55–2:40 | One toggle blocks all surfaces |
+| 5 | Closing: graduated trust thesis | 2:40–3:00 | Stats + thesis |
 
 ## If something breaks
 
 - Google not connected: "By design — the AI can't act without the user connecting first"
-- Execution fails: "Errors surface to the user with Retry — no silent failures"
-- No suggestions: "The AI only suggests when deals need attention — no spam"
-- Slow API: Keep talking through the wait, the animations cover the latency
+- CIBA push delayed: Keep talking about the binding message security. "The push includes exactly what's being authorized — no blank check."
+- Execution fails: "Errors surface to the user with Retry. No silent failures — that's production-aware design."
+- Slow API: Keep narrating. The status animations (pulse, color changes) cover latency visually.
+- No suggestions from analyzePipeline: Use pre-seeded actions. "The AI only suggests when deals need attention."
+
+## What NOT to show (put in Devpost text instead)
+
+- Glassmorphism / animation details — judges see it, don't narrate it
+- Scope narrowing — too subtle for video
+- Cross-agent delegation tool — complex, not visual
+- Provider branding details — invisible to judges
+- Architecture diagram — Devpost text
+- Landing page — skip directly to dashboard

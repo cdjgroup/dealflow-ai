@@ -62,13 +62,14 @@ export async function POST(req: Request) {
   // Level 2+ actions are auto-approved; level 1 are pending
   const targetStatus = settings.autonomyLevel >= 2 ? "approved" : "pending";
   const allActions = await getActions(userId, { status: targetStatus });
+  const notifyPriorities = settings.schedule?.notifyPriorities ?? ["high", "medium"];
   const eligible = allActions.filter(
-    (a) => a.priority === "high" || a.priority === "medium"
+    (a) => notifyPriorities.includes(a.priority)
   );
 
   if (eligible.length === 0) {
     return NextResponse.json(
-      { error: "No high/medium priority actions available" },
+      { error: "No eligible priority actions available" },
       { status: 400 }
     );
   }

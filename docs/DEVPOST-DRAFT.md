@@ -15,7 +15,18 @@ We built DealFlow to prove that an AI sales agent can be both powerful AND trust
 
 ## What it does
 
-DealFlow is an AI-powered sales assistant that manages your deal pipeline, communicates with prospects, and suggests proactive next steps — all through Auth0 Token Vault.
+DealFlow is an AI-powered sales assistant that manages your deal pipeline, communicates with prospects, and suggests proactive next steps — all through Auth0 Token Vault. The core innovation is a **graduated trust architecture**: four trust levels, three execution surfaces, one security pipeline. Each surface has different trust properties, and the security model adapts automatically.
+
+### Graduated Trust Architecture
+
+| Surface | Trust Level | Consent Mechanism | Why |
+|---------|------------|-------------------|-----|
+| **Action Center** | Low | In-app review + inline editing | User sees every suggestion, edits drafts, approves individually |
+| **Chat UI** | Medium | Real-time direction + step-up auth | User is present, AI pauses for sensitive actions |
+| **MCP + CIBA** | High | Guardian push notification | External agent triggers action, user consents on phone |
+| **MCP (read)** | Autonomous | None needed | Read-only queries, no user data modified |
+
+This maps to the three delegation patterns in IETF `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), and agent-to-agent (MCP). It also aligns with EU AI Act Article 14's requirement for human oversight proportional to action sensitivity.
 
 ### Three Surfaces, One Security Pipeline
 
@@ -217,9 +228,9 @@ Auth0, Token Vault, Next.js, React, TypeScript, Vercel AI SDK, Claude, Upstash R
 
 ## Video demo
 
-Record a 3-minute walkthrough following `docs/DEMO-SCRIPT.md`. Five acts:
-1. AI chat with Token Vault tool execution (45s)
-2. Action Center review, edit, execute (45s)
-3. Scheduled execution via CIBA (45s) + Confidence routing & MCP constraints (20s)
-4. Trust controls + audit + MCP story (30s)
-5. Closing — four levels of "Authorized to Act" (15s)
+Record a 3-minute walkthrough following `docs/DEMO-SCRIPT.md`. Lead with Action Center (wow in 30 sec), climax with CIBA phone approval:
+1. Action Center: AI justifications, inline edit, execute via Token Vault (0:00–0:30)
+2. Chat: multi-step tool orchestration — one prompt, four Token Vault exchanges (0:30–1:10)
+3. CIBA: "Run Now" → pick up phone → Guardian approval → batch execution (1:10–1:55)
+4. Security: disable-and-block + confidence routing + MCP per-client policies + audit (1:55–2:40)
+5. Closing: graduated trust thesis + stats (2:40–3:00)

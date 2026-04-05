@@ -168,9 +168,10 @@ export async function GET(req: Request) {
       const allActions = await getActions(userId, { status: targetStatus });
       // Filter by priority AND confidence — low-confidence actions stay for manual review
       const requireReview = settings.confidenceThresholds?.requireReview ?? 0.5;
+      const notifyPriorities = settings.schedule?.notifyPriorities ?? ["high", "medium"];
       const eligible = allActions.filter(
         (a) =>
-          (a.priority === "high" || a.priority === "medium") &&
+          notifyPriorities.includes(a.priority) &&
           (a.confidence === undefined || a.confidence > requireReview)
       );
 

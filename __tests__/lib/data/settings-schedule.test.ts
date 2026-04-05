@@ -46,6 +46,7 @@ describe("settings schedule extensions", () => {
         enabled: false,
         hours: [],
         timezone: "UTC",
+        notifyPriorities: ["high", "medium"],
       });
     });
   });
