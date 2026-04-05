@@ -2,41 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-04-05
+
+### Added
+- Per-client MCP policy system: create named clients with API keys, trust tiers, and tool allowlists
+- Dual MCP authentication: `dfk_`-prefixed API keys with SHA-256 hashing + Auth0 bearer tokens (backward compatible)
+- Surface policy registry: formal declarations for chat/mcp/actions trust boundaries
+- Trust tier spectrum: Full > Standard > Restricted > Read Only, each with default tool sets
+- API key management: generation, rotation, revocation via `/api/mcp/clients` REST endpoints
+- Per-client rate limiting: configurable requests/minute per MCP client via Upstash Ratelimit
+- Per-client usage analytics: call counts, success rates, top tools with daily granularity
+- Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
+- MCP client management UI in MCP Explorer: create/delete clients, trust tier visualization, tool checkboxes
+- MCP client card component: trust tier badge, allowed tools display, key rotation, delete confirmation
+
+### Security
+- API keys hashed with SHA-256 before storage; raw key shown only once on creation
+- CSRF enforcement on all MCP client management mutations
+- Per-client tool filtering: disallowed tools return error at `tools/call` time
+- User-scoped Redis keys prevent cross-user client access
+
 ## [0.5.2] - 2026-04-05
 
 ### Added
-- AI Autonomy Selector: 3-level control (Suggest Only / Auto-Approve / Full Autonomous) on Action Center
-- Level 2 auto-approves high/medium priority actions at creation; execution still requires CIBA
-- Level 3 auto-executes routine actions (<$50K deal value) without CIBA; high-value actions retain Guardian consent
-- Confirmation dialog when enabling Full Autonomous mode
-- Autonomy level persisted in user settings with Zod validation
-- LLM-powered action suggestions: `analyzePipeline` tool now calls Claude Haiku to generate personalized email drafts, meeting agendas, and Slack messages with AI reasoning instead of hardcoded templates
-- AI confidence scores (0-1) on suggested actions, displayed as badges in the Action Center
-- Trust calibration tracking: per-action-type approval/dismiss stats stored in Redis
-- Trust stats displayed in Permissions UI with approval rates and "Consider auto-approve" recommendation at >80%
-- Batch approve confirmation panel: type breakdown summary before approving (prevents accidental bulk approval)
-- `generationMethod` field in analyzePipeline return value distinguishes AI vs heuristic suggestions
-
-### Changed
-- SchedulePanel accepts `initialAutonomyLevel` prop, renders segmented control with color-coded states
-- Schedule description text adapts to current autonomy level
-- Cron schedule-initiate and schedule-trigger routes branch on autonomyLevel for CIBA vs direct execute
-- analyze-pipeline tool reads user settings to gate initial action status
-- `analyzePipeline` activities fetched in parallel (Promise.all) instead of sequential N+1 queries
-- Batch approve route now enforces same capability/trust guards as single-action approval
-- LLM-generated drafts validated against strict draftSchema before Redis write (defense-in-depth)
-
-### Security
-- Auto-execute path enforces capability toggles (gmail/calendar/slack) before execution
-- Auto-execute path checks connection disabled state (respects user disconnecting in Permissions)
-- Low priority actions excluded from auto-approve at all autonomy levels
-- LLM output validated through Zod draftSchema before persistence (prevents oversized/malformed drafts from prompt injection)
-- Batch route capability guard prevents approving actions for disabled integrations
-
-### Accessibility
-- Autonomy selector: `role="group"`, `aria-pressed` on toggle buttons
-- Status messages: `aria-live="polite"` for success, `aria-live="assertive"` for errors
-- Confirmation dialog: auto-focus on confirm button, 44px touch targets
+- AI Autonomy Selector: 3-level control (Suggest Only / Auto-Approve / Full Autonomous)
+- LLM-powered action suggestions via Claude Haiku subagent with confidence scores
+- Trust calibration tracking with approval rate display in Permissions UI
+- Surface policy registry + scope-aware MCP auth
 
 ## [0.5.1] - 2026-04-05
 

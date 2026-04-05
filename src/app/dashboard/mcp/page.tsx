@@ -21,7 +21,7 @@ export default async function McpPage() {
         </p>
       </div>
 
-      <McpExplorer initialMcpClients={settings?.mcpClients} />
+      <McpExplorer />
     </div>
   );
 }

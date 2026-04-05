@@ -1,39 +1,33 @@
 # Features
 
-## v0.5.2 — AI Autonomy Selector, AI-Powered Actions, Trust Calibration
+## v0.6.0 — Per-Client MCP Policy
 
-### AI Autonomy Selector
-A 3-level segmented control on the Action Center lets users choose how autonomous the AI agent is:
+### Per-Client Access Control for External AI Agents
+Create named MCP clients with unique API keys, trust tiers, and tool allowlists. Each external agent connecting to your MCP endpoint operates under its own policy — one agent gets full access, another gets read-only CRM, a third gets calendar only.
 
-| Level | Label | Behavior |
-|-------|-------|----------|
-| 1 | Suggest Only | AI queues actions as "pending". User reviews, edits, and approves each one. |
-| 2 | Auto-Approve | AI auto-approves high/medium priority actions at creation. Execution requires CIBA Guardian consent. |
-| 3 | Full Autonomous | AI auto-approves AND auto-executes routine actions on schedule. High-value (>$50K) actions still require CIBA. |
+### Trust Tier Spectrum
+Four escalating trust levels:
+1. **Read Only** — CRM data queries only (listDeals, getDealDetails, searchContacts)
+2. **Restricted** — CRM + Calendar + Email read access
+3. **Standard** — All read-only MCP tools including Slack
+4. **Full** — All MCP-safe tools
 
-### Safety Guardrails at Every Level
-- Low priority actions always stay "pending" regardless of autonomy level
-- Capability toggles (gmail/calendar/slack) enforced even in autonomous execution
-- Connection disabled state respected (disconnecting in Permissions stops autonomous execution)
-- Confirmation dialog required before enabling Level 3
-- High-value deal actions (>$50K) always require CIBA device consent
+### Dual MCP Authentication
+The MCP endpoint accepts two auth modes:
+- **API Key** (`dfk_` prefix): Per-client policy — tool allowlist, rate limit, trust tier enforced
+- **Auth0 Bearer Token**: Backward compatible default access — all MCP-safe tools available
 
-### Status Flow Per Level
-```
-Level 1: pending → [user approves] → approved → [execute / CIBA] → sent
-Level 2: approved (auto) → [CIBA push] → [phone approve] → sent
-Level 3: approved (auto) → sent  (routine <$50K)
-Level 3: approved (auto) → [CIBA push] → [phone approve] → sent  (>$50K)
-```
+### Per-Client Rate Limiting
+Each client has a configurable rate limit (requests/minute). Independent Upstash Ratelimit buckets ensure one agent's traffic doesn't affect another.
 
-### AI-Powered Action Suggestions
-The `analyzePipeline` tool now uses Claude Haiku as a subagent to analyze deal context and generate personalized suggestions. Instead of template strings ("Following up — {dealName}"), the AI reasons about each deal's stage, value, days since last activity, and contact relationship to craft unique email drafts, meeting agendas, and Slack messages. Each suggestion includes a confidence score (0.0-1.0).
+### Cross-Surface Audit Telemetry
+The audit log now tracks which surface (Chat, MCP, Actions) each tool call came from. Filter by source to see cross-surface activity. MCP entries include the client name for per-agent attribution.
 
-### Trust Calibration
-Every time you approve or dismiss a suggested action, the system tracks your decision per action type (email, calendar, slack). The Permissions page shows your approval rate alongside the trust level controls. When your approval rate exceeds 80%, a "Consider auto-approve" hint appears — demonstrating an adaptive trust spectrum where the system learns from your behavior.
+### Known Limitations
+- `tools/list` returns all MCP tools regardless of client (per-client filtering happens at `tools/call` time, not discovery)
+- Write tools remain excluded from MCP (no approval UI in the protocol)
 
-### Batch Approve Confirmation
-"Approve All Pending" now requires confirmation. An inline panel shows a type breakdown (e.g., "3 emails, 1 calendar event, 1 Slack message") with Confirm/Cancel buttons. This ensures thoughtful review even in batch mode.
+---
 
 ## v0.5.1 — Scheduled Action Review
 
@@ -153,19 +147,8 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 ### Token Vault Audit Visualization
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
-### MCP Server with Surface Policy & Per-Client Scopes
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (Claude Desktop, Cursor, CI pipelines) discover and invoke tools through standard MCP protocol.
-
-**Surface Policy Registry**: A formal policy registry (`src/lib/surface-policy.ts`) declares what each surface allows and why — the security constraints adapt per surface. If a surface can't support human consent, write access is revoked. The three surfaces:
-- **Chat UI** (full access): All 13 tools with SDK approval flow + CIBA step-up
-- **Action Center** (write-only): Pre-approved email/calendar/slack actions
-- **MCP** (read-only): Bearer token auth, no approval UI available
-
-**Scope-Aware Auth**: Bearer tokens validated against Auth0 `/userinfo`. Scopes derived from the surface policy (`crm:read`, `calendar:read`, `gmail:read`, `slack:read`) — not hardcoded. Per-request scope enforcement at tool execution time.
-
-**Per-Client Policies**: Different MCP clients can have different access levels. Configurable at `/dashboard/mcp` — e.g., Cursor IDE gets CRM + calendar, while a CI pipeline gets CRM-only. Client policies intersect with the MCP surface ceiling (can't exceed read-only). User capability toggles are respected — disabling calendar in settings also removes it from MCP scopes.
-
-All MCP calls logged to audit trail with scope denial tracking.
+### MCP Server for External AI Agents
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's read-only tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Approval-required tools are excluded since MCP has no approval UI. All MCP calls logged to audit trail.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.

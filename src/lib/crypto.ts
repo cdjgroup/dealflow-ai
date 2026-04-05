@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 
 const ALG = "aes-256-gcm";
 
@@ -34,4 +34,17 @@ export function decrypt(ciphertext: string): string {
   const decipher = createDecipheriv(ALG, key, iv);
   decipher.setAuthTag(tag);
   return decipher.update(encrypted, undefined, "utf8") + decipher.final("utf8");
+}
+
+const API_KEY_PREFIX = "dfk_";
+
+export function hashApiKey(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+export function generateApiKey(): { raw: string; hash: string; prefix: string } {
+  const random = randomBytes(32).toString("base64url");
+  const raw = `${API_KEY_PREFIX}${random}`;
+  const hash = hashApiKey(raw);
+  return { raw, hash, prefix: raw.substring(0, 12) };
 }

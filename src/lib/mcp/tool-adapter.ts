@@ -5,6 +5,8 @@ import { searchEmails } from "@/lib/tools/gmail";
 import { listSlackChannels } from "@/lib/tools/slack";
 import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { getMcpClientLimiter } from "@/lib/rate-limit";
+import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface, getReadToolNamesForScopes } from "@/lib/surface-policy";
 
 type AiTool = {
@@ -68,16 +70,18 @@ function getMcpSafeTools(): ToolEntry[] {
 /**
  * Returns a function that registers MCP-safe tools on an MCP server.
  *
- * Security model (two-layer enforcement):
+ * Security model (three-layer enforcement):
  * - Layer 1 (registration): Tool SET is determined by the surface policy registry.
  *   Only read-only tools are registered. This is a server-init-time decision.
  *   Note: tools/list returns the full registered set regardless of client scopes.
  *   This is intentional — discovery is not access. Clients see available tools
  *   but scope enforcement at execution prevents unauthorized calls.
- * - Layer 2 (execution): Per-REQUEST scope check validates authInfo.scopes against
+ * - Layer 2 (scope check): Per-REQUEST scope check validates authInfo.scopes against
  *   the tool's category. Different clients can have different scopes derived from
  *   user settings (per-client MCP policies).
- * - Audit trail records both successful calls and scope denials.
+ * - Layer 3 (client policy): Per-client API key users get additional tool allowlist
+ *   filtering, rate limiting, and usage analytics.
+ * - Audit trail records both successful calls and scope/policy denials.
  *
  * CRM tools are created per-request using the authenticated userId from
  * the MCP auth context (extra.authInfo.clientId).
@@ -104,22 +108,61 @@ export function adaptToolsForMcp() {
             };
           }
 
-          // Per-request scope check: verify the client's scopes include this tool
+          // Layer 2: Per-request scope check (from surface policy + user settings)
           const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
-          const scopeAllowedTools = new Set(getReadToolNamesForScopes(clientScopes));
-          if (!scopeAllowedTools.has(toolEntry.name)) {
-            writeAuditEntry(userId, {
-              threadId: "mcp",
-              toolName: toolEntry.name,
-              input: params,
-              result: "error",
-              errorMessage: `Scope denied: tool not authorized for this client's scope`,
-              durationMs: 0,
-            });
-            return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not authorized for this client's scope" }) }],
-              isError: true,
-            };
+          const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+
+          // For Auth0 token users (default), enforce scope-based filtering
+          if (!mcpClientId || mcpClientId === "default") {
+            const scopeAllowedTools = new Set(getReadToolNamesForScopes(clientScopes));
+            if (!scopeAllowedTools.has(toolEntry.name)) {
+              writeAuditEntry(userId, {
+                threadId: "mcp",
+                toolName: toolEntry.name,
+                input: params,
+                result: "error",
+                errorMessage: "Scope denied: tool not authorized for this client's scope",
+                durationMs: 0,
+                surface: "mcp",
+              });
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not authorized for this client's scope" }) }],
+                isError: true,
+              };
+            }
+          }
+
+          // Layer 3: Per-client API key filtering (AC-10, AC-11, AC-12)
+          const allowedTools = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
+
+          if (mcpClientId && mcpClientId !== "default" && allowedTools) {
+            if (!allowedTools.includes(toolEntry.name)) {
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool not available for this client" }) }],
+                isError: true,
+              };
+            }
+          }
+
+          // Per-client rate limiting (AC-13, AC-14)
+          const clientRateLimit = extra?.authInfo?.extra?.rateLimit as number | undefined;
+          if (mcpClientId && mcpClientId !== "default" && clientRateLimit) {
+            try {
+              const limiter = getMcpClientLimiter(mcpClientId, clientRateLimit);
+              const { success } = await limiter.limit(mcpClientId);
+              if (!success) {
+                return {
+                  content: [{ type: "text" as const, text: JSON.stringify({ error: "Rate limit exceeded" }) }],
+                  isError: true,
+                };
+              }
+            } catch (err) {
+              console.error("MCP rate limit check failed (fail-closed):", err);
+              return {
+                content: [{ type: "text" as const, text: JSON.stringify({ error: "Service temporarily unavailable" }) }],
+                isError: true,
+              };
+            }
           }
 
           const start = Date.now();
@@ -142,13 +185,24 @@ export function adaptToolsForMcp() {
             }
             const durationMs = Date.now() - start;
 
+            const clientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+            const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+
             writeAuditEntry(userId, {
-              threadId: "mcp",
+              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
               toolName: toolEntry.name,
               input: params,
               result: "success",
               durationMs,
+              surface: "mcp",
+              mcpClientId: clientId,
+              mcpClientName: clientName,
             });
+
+            // Record analytics for named clients
+            if (clientId) {
+              recordMcpCall(userId, clientId, toolEntry.name, true).catch(() => {});
+            }
 
             // Strip _tokenMeta from MCP response
             const clean = typeof result === "object" && result !== null
@@ -162,14 +216,26 @@ export function adaptToolsForMcp() {
             };
           } catch (err) {
             const durationMs = Date.now() - start;
+
+            const errClientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
+            const errClientName = extra?.authInfo?.extra?.clientName as string | undefined;
+
             writeAuditEntry(userId, {
-              threadId: "mcp",
+              threadId: mcpClientId ? `mcp:${mcpClientId}` : "mcp",
               toolName: toolEntry.name,
               input: params,
               result: "error",
               errorMessage: err instanceof Error ? err.message : "Unknown error",
               durationMs,
+              surface: "mcp",
+              mcpClientId: errClientId,
+              mcpClientName: errClientName,
             });
+
+            if (errClientId) {
+              recordMcpCall(userId, errClientId, toolEntry.name, false).catch(() => {});
+            }
+
             return {
               content: [{ type: "text" as const, text: JSON.stringify({ error: "Tool execution failed" }) }],
               isError: true,
