@@ -7,7 +7,8 @@ import { createCrmTools } from "@/lib/tools/crm";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
-import { getToolNamesForSurface, getReadToolNamesForScopes } from "@/lib/surface-policy";
+import { getToolNamesForSurface, getReadToolNamesForScopes, deriveMcpScopes } from "@/lib/surface-policy";
+import { getUserSettings } from "@/lib/data/settings";
 
 type AiTool = {
   description?: string;
@@ -109,11 +110,14 @@ export function adaptToolsForMcp() {
           }
 
           // Layer 2: Per-request scope check (from surface policy + user settings)
-          const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
+          // Re-derive scopes at execution time so capability toggle changes
+          // take effect immediately — not stale from token verification time.
           const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
+          let clientScopes: string[] = extra?.authInfo?.scopes ?? [];
 
-          // For Auth0 token users (default), enforce scope-based filtering
           if (!mcpClientId || mcpClientId === "default") {
+            const freshSettings = await getUserSettings(userId);
+            clientScopes = deriveMcpScopes(freshSettings);
             const scopeAllowedTools = new Set(getReadToolNamesForScopes(clientScopes));
             if (!scopeAllowedTools.has(toolEntry.name)) {
               writeAuditEntry(userId, {

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { adaptToolsForMcp } from "@/lib/mcp/tool-adapter";
 import { getToolNamesForSurface } from "@/lib/surface-policy";
+import { getUserSettings } from "@/lib/data/settings";
+import { DEFAULT_SETTINGS } from "@/lib/types/settings";
 
 // Mock all tool imports so tests don't need real Auth0/Redis
 vi.mock("@/lib/auth0", () => ({
@@ -31,6 +33,18 @@ vi.mock("@/lib/redis", () => ({
 
 vi.mock("@/lib/data/audit", () => ({
   writeAuditEntry: vi.fn(),
+}));
+
+vi.mock("@/lib/data/settings", () => ({
+  getUserSettings: vi.fn(),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  getMcpClientLimiter: vi.fn(),
+}));
+
+vi.mock("@/lib/data/mcp-analytics", () => ({
+  recordMcpCall: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("MCP tool adapter", () => {
@@ -82,6 +96,13 @@ describe("MCP tool adapter", () => {
     });
 
     it("AC-6: handler denies tool call when scope doesn't match", async () => {
+      // Mock getUserSettings to return settings with calendar disabled
+      // so fresh scope derivation excludes calendar:read
+      vi.mocked(getUserSettings).mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        capabilities: { ...DEFAULT_SETTINGS.capabilities, calendar: false },
+      });
+
       let capturedHandler: ((args: unknown, extra: unknown) => Promise<unknown>) | null = null;
       const mockServer = {
         registerTool: (name: string, _config: unknown, handler: (args: unknown, extra: unknown) => Promise<unknown>) => {
@@ -96,11 +117,12 @@ describe("MCP tool adapter", () => {
 
       expect(capturedHandler).not.toBeNull();
 
-      // Call with scopes that don't include calendar:read
+      // Scopes are now re-derived at execution time from fresh user settings,
+      // so the authInfo.scopes value doesn't matter — capability toggles do
       const result = await capturedHandler!({}, {
         authInfo: {
           clientId: "user-123",
-          scopes: ["crm:read"], // no calendar:read
+          scopes: ["crm:read"],
         },
       });
 
