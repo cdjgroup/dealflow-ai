@@ -4,6 +4,7 @@ import { TOOL_SCOPE_CONFIG, TOOL_SCOPES, scopeProvider } from "@/lib/tools/scope
 // The 5 Token Vault tools that must appear in TOOL_SCOPE_CONFIG (F3)
 const TOKEN_VAULT_TOOLS = [
   "checkCalendar",
+  "createCalendarEvent",
   "searchEmails",
   "draftEmail",
   "listSlackChannels",
@@ -85,7 +86,8 @@ describe("scope-map", () => {
       expect(TOOL_SCOPE_CONFIG["sendSlackMessage"].connection).toBe("sign-in-with-slack");
     });
 
-    it("AC-2: draftEmail and sendSlackMessage should have write accessLevel", () => {
+    it("AC-2: write tools should have write accessLevel", () => {
+      expect(TOOL_SCOPE_CONFIG["createCalendarEvent"].accessLevel).toBe("write");
       expect(TOOL_SCOPE_CONFIG["draftEmail"].accessLevel).toBe("write");
       expect(TOOL_SCOPE_CONFIG["sendSlackMessage"].accessLevel).toBe("write");
     });

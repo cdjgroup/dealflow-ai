@@ -9,6 +9,7 @@ export interface ToolScopeConfig {
 
 export type TokenVaultToolName =
   | "checkCalendar"
+  | "createCalendarEvent"
   | "searchEmails"
   | "draftEmail"
   | "listSlackChannels"
@@ -22,6 +23,14 @@ export const TOOL_SCOPE_CONFIG: Record<TokenVaultToolName, ToolScopeConfig> = {
     minScope: "calendar.readonly",
     accessLevel: "read",
     dataDescription: "Google Calendar events and availability",
+  },
+  createCalendarEvent: {
+    connection: "google-oauth2",
+    provider: "Google",
+    scopes: ["calendar.events"],
+    minScope: "calendar.events",
+    accessLevel: "write",
+    dataDescription: "Google Calendar event creation",
   },
   searchEmails: {
     connection: "google-oauth2",

@@ -2,7 +2,7 @@ import { streamText, stepCountIs, convertToModelMessages } from "ai";
 import type { Tool } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { requireAuth } from "@/lib/auth-guard";
-import { checkCalendar } from "@/lib/tools/calendar";
+import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 import { draftEmail, searchEmails } from "@/lib/tools/gmail";
 import { createCrmTools } from "@/lib/tools/crm";
 import { listSlackChannels, sendSlackMessage } from "@/lib/tools/slack";
@@ -261,6 +261,7 @@ export async function POST(req: Request) {
   // Filter tools based on user capability settings (U1)
   const allTools = {
     checkCalendar,
+    createCalendarEvent,
     draftEmail,
     searchEmails,
     listSlackChannels,
@@ -282,7 +283,7 @@ export async function POST(req: Request) {
   if (settings.capabilities.crmRead || settings.capabilities.crmWrite)
     availableTools.push("A CRM with deals, contacts, and activity history");
   if (settings.capabilities.calendar)
-    availableTools.push("Google Calendar to check the user's availability");
+    availableTools.push("Google Calendar to check availability and create events");
   if (settings.capabilities.gmail)
     availableTools.push(
       "Gmail to draft follow-up emails and search correspondence"
@@ -307,11 +308,11 @@ You have access to:
 ${availableTools.map((t) => `- ${t}`).join("\n")}
 
 When the user asks about their pipeline or deals, use the CRM tools.
-When they want to schedule something, check their calendar first.
+When they want to schedule something, check their calendar first, then create the event.
 When they want to reach out to a contact, draft an email (never send directly — always draft).
 
 You can chain multiple tools in a single response to complete complex workflows:
-- "Schedule a meeting with [contact]": searchContacts → checkCalendar → draftEmail (with proposed times)
+- "Schedule a meeting with [contact]": searchContacts → checkCalendar → createCalendarEvent → draftEmail (with invite)
 - "Follow up with [contact] about [deal]": getDealDetails → searchEmails → draftEmail
 - "Update the team about [deal]": getDealDetails → sendSlackMessage (with deal summary)
 When the user's request implies multiple steps, plan and execute them sequentially. Explain your plan before starting.

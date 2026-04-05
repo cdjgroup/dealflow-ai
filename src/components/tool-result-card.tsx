@@ -200,6 +200,33 @@ function ErrorCard({ data }: { data: Record<string, unknown> }) {
   );
 }
 
+function CalendarEventCreatedCard({ data }: { data: Record<string, unknown> }) {
+  return (
+    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 my-2">
+      <div className="flex items-center gap-2 mb-1">
+        <span>📅</span>
+        <span className="text-sm font-medium text-emerald-400">Event Created</span>
+      </div>
+      <p className="text-sm text-foreground">{String(data.summary || "")}</p>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+        <span className="font-mono">
+          {String(data.start || "").substring(11, 16)} – {String(data.end || "").substring(11, 16)}
+        </span>
+        {data.htmlLink && (
+          <a
+            href={String(data.htmlLink)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Open in Calendar
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ToolResultCard({ toolName, output }: ToolResultCardProps) {
   if (!output || typeof output !== "object") return null;
   const data = output as Record<string, unknown>;
@@ -210,6 +237,8 @@ export function ToolResultCard({ toolName, output }: ToolResultCardProps) {
   switch (toolName) {
     case "checkCalendar":
       return <CalendarCard data={data} />;
+    case "createCalendarEvent":
+      return <CalendarEventCreatedCard data={data} />;
     case "listDeals":
       return <DealListCard data={data} />;
     case "draftEmail":

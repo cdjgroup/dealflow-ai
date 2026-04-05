@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkCalendar } from "@/lib/tools/calendar";
+import { checkCalendar, createCalendarEvent } from "@/lib/tools/calendar";
 
 // Mock Auth0 session
 vi.mock("@/lib/auth0", () => ({
@@ -164,6 +164,92 @@ describe("calendar tools", () => {
       );
 
       // Assert
+      expect(result).not.toHaveProperty("_tokenMeta");
+    });
+  });
+
+  describe("createCalendarEvent", () => {
+    const eventInput = {
+      summary: "Meeting with Acme",
+      startDateTime: "2026-04-07T10:00:00-05:00",
+      endDateTime: "2026-04-07T11:00:00-05:00",
+    };
+
+    const MOCK_CREATED_EVENT = {
+      id: "event-123",
+      summary: "Meeting with Acme",
+      start: { dateTime: "2026-04-07T10:00:00-05:00" },
+      end: { dateTime: "2026-04-07T11:00:00-05:00" },
+      htmlLink: "https://calendar.google.com/event?eid=event-123",
+    };
+
+    it("should create an event and return success with _tokenMeta", async () => {
+      mockExchangeToken.mockResolvedValue(MOCK_TOKEN_SUCCESS);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => MOCK_CREATED_EVENT,
+      });
+
+      const result = await createCalendarEvent.execute(
+        eventInput,
+        { toolCallId: "test", messages: [], abortSignal: undefined as unknown as AbortSignal }
+      );
+
+      expect(result).toHaveProperty("success", true);
+      expect(result).toHaveProperty("eventId", "event-123");
+      expect(result).toHaveProperty("_tokenMeta");
+    });
+
+    it("should send POST to Google Calendar API with correct body", async () => {
+      mockExchangeToken.mockResolvedValue(MOCK_TOKEN_SUCCESS);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => MOCK_CREATED_EVENT,
+      });
+
+      await createCalendarEvent.execute(
+        { ...eventInput, attendees: ["bob@example.com"], description: "Discuss deal" },
+        { toolCallId: "test", messages: [], abortSignal: undefined as unknown as AbortSignal }
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: `Bearer ${MOCK_TOKEN_SUCCESS.token}`,
+          }),
+        })
+      );
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.summary).toBe("Meeting with Acme");
+      expect(body.attendees).toEqual([{ email: "bob@example.com" }]);
+      expect(body.description).toBe("Discuss deal");
+    });
+
+    it("should return error when token exchange fails", async () => {
+      mockExchangeToken.mockResolvedValue({ error: "access_denied" });
+
+      const result = await createCalendarEvent.execute(
+        eventInput,
+        { toolCallId: "test", messages: [], abortSignal: undefined as unknown as AbortSignal }
+      );
+
+      expect(result).toHaveProperty("error");
+      expect(result).not.toHaveProperty("_tokenMeta");
+    });
+
+    it("should return error when Calendar API fails", async () => {
+      mockExchangeToken.mockResolvedValue(MOCK_TOKEN_SUCCESS);
+      mockFetch.mockResolvedValue({ ok: false, status: 403 });
+
+      const result = await createCalendarEvent.execute(
+        eventInput,
+        { toolCallId: "test", messages: [], abortSignal: undefined as unknown as AbortSignal }
+      );
+
+      expect(result).toHaveProperty("error");
       expect(result).not.toHaveProperty("_tokenMeta");
     });
   });

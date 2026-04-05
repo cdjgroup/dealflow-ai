@@ -50,6 +50,7 @@
 | Tool | Source | Token Vault? |
 |------|--------|-------------|
 | checkCalendar | Google Calendar API | Yes — direct exchange |
+| createCalendarEvent | Google Calendar API | Yes — direct exchange |
 | draftEmail | Gmail API | Yes — direct exchange |
 | searchEmails | Gmail API | Yes — direct exchange |
 | listSlackChannels | Slack API | Yes — direct exchange |

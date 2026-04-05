@@ -266,13 +266,13 @@ const INTEGRATIONS: Integration[] = [
     label: "Google",
     icon: <GoogleIcon className="w-5 h-5" />,
     connectionId: "google-oauth2",
-    scopes: ["calendar.readonly", "gmail.readonly", "gmail.compose"],
+    scopes: ["calendar.readonly", "calendar.events", "gmail.readonly", "gmail.compose"],
     capabilities: [
       {
         key: "calendar",
-        label: "View your calendar",
-        description: "Check availability and view upcoming meetings",
-        toolNames: ["checkCalendar"],
+        label: "Calendar access",
+        description: "Check availability, view meetings, and create events",
+        toolNames: ["checkCalendar", "createCalendarEvent"],
       },
       {
         key: "gmail",
@@ -492,6 +492,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections }:
                                 {SCOPE_LABELS[
                                   // Map tool to its primary scope for labeling
                                   toolName === "checkCalendar" ? "calendar.readonly" :
+                                  toolName === "createCalendarEvent" ? "calendar.events" :
                                   toolName === "searchEmails" ? "gmail.readonly" :
                                   toolName === "draftEmail" ? "gmail.compose" :
                                   toolName === "listSlackChannels" ? "channels:read" :

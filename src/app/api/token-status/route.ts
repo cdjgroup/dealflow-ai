@@ -37,7 +37,7 @@ export async function GET() {
         connection: "google-oauth2",
         provider: "Google",
         connected: false,
-        scopes: ["calendar.readonly", "gmail.compose", "gmail.readonly"],
+        scopes: ["calendar.readonly", "calendar.events", "gmail.compose", "gmail.readonly"],
         error: "Please log out and log back in to enable connections.",
       },
       {
@@ -54,7 +54,7 @@ export async function GET() {
     {
       connection: "google-oauth2",
       provider: "Google",
-      scopes: ["calendar.readonly", "gmail.compose", "gmail.readonly"],
+      scopes: ["calendar.readonly", "calendar.events", "gmail.compose", "gmail.readonly"],
     },
     {
       connection: "sign-in-with-slack",
