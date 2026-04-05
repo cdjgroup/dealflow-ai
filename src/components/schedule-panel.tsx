@@ -135,7 +135,7 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
     }, Math.max(interval * 1000, 3000));
   }, [stopPolling, router]);
 
-  async function saveSettings(patch: { schedule?: ScheduleSettings; autonomyLevel?: AutonomyLevel }) {
+  async function saveSettings(patch: { schedule?: ScheduleSettings; autonomyLevel?: AutonomyLevel; confidenceThresholds?: ConfidenceThresholds }) {
     setSaving(true);
     setError(null);
     try {
