@@ -19,6 +19,7 @@ export interface AuditEntry {
   timestamp: string;
   tokenMeta?: TokenMeta;
   consentAction?: "auto" | "approved" | "denied" | "always-allowed";
+  policyReason?: string;
   cibaAuthReqId?: string;
   surface?: "chat" | "mcp" | "actions";
   mcpClientId?: string;

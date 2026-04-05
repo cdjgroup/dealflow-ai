@@ -29,7 +29,16 @@ describe("LandingAnimations", () => {
   it("renders existing hero content (AC-5)", () => {
     render(<LandingAnimations />);
     expect(screen.getByText("DealFlow AI")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /try the demo/i })).toBeInTheDocument();
+  });
+
+  it("renders What Makes This Different section", () => {
+    render(<LandingAnimations />);
+    expect(screen.getByText("What Makes This Different")).toBeInTheDocument();
+    expect(screen.getByText("CIBA Device Consent")).toBeInTheDocument();
+    expect(screen.getByText("MCP Tool Server")).toBeInTheDocument();
+    expect(screen.getByText("Scheduled Actions")).toBeInTheDocument();
+    expect(screen.getByText("Trust Spectrum")).toBeInTheDocument();
   });
 
   it("renders all 6 feature cards (AC-5)", () => {

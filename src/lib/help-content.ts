@@ -36,6 +36,27 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Configure which tools DealFlow AI can use",
     ctaLink: "/dashboard/permissions",
   },
+  {
+    id: "explore-mcp",
+    label: "Explore MCP",
+    description:
+      "See how external AI agents connect to your tools via Model Context Protocol",
+    ctaLink: "/dashboard/mcp",
+  },
+  {
+    id: "configure-schedule",
+    label: "Set up scheduled actions",
+    description:
+      "Choose review times for batch AI action execution with CIBA consent",
+    ctaLink: "/dashboard/actions",
+  },
+  {
+    id: "setup-guardian",
+    label: "Set up Guardian",
+    description:
+      "Install Auth0 Guardian on your phone for device-level CIBA approval",
+    ctaLink: "/dashboard/permissions",
+  },
 ];
 
 export interface ResourceLink {
@@ -66,6 +87,27 @@ export const RESOURCE_LINKS: { section: string; items: ResourceLink[] }[] = [
     items: [
       { label: "Manage Permissions", href: "/dashboard/permissions" },
       { label: "View Audit Log", href: "/dashboard/audit" },
+    ],
+  },
+  {
+    section: "Standards & Compliance",
+    items: [
+      {
+        label: "Model Context Protocol Spec",
+        href: "https://modelcontextprotocol.io/specification",
+      },
+      {
+        label: "CIBA (OpenID Connect)",
+        href: "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html",
+      },
+      {
+        label: "IETF AI Agent Auth Draft",
+        href: "https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/",
+      },
+      {
+        label: "EU AI Act Article 14 — Human Oversight",
+        href: "https://artificialintelligenceact.eu/article/14/",
+      },
     ],
   },
 ];

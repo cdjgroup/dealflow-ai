@@ -17,6 +17,7 @@ import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { isConnectionDisabled } from "@/lib/data/connections";
 import type { SuggestedAction } from "@/lib/types/actions";
+import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/constants/tools";
 
 const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
   email: "gmail",
@@ -110,6 +111,8 @@ async function executeActionsDirectly(
         input: action.draft as unknown as Record<string, unknown>,
         result: "success",
         durationMs: 0,
+        surface: "actions",
+        policyReason: "Autonomy L3: routine action, auto-executed without CIBA",
       }).catch(() => {});
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Execution failed";
@@ -122,6 +125,8 @@ async function executeActionsDirectly(
         input: action.draft as unknown as Record<string, unknown>,
         result: "error",
         durationMs: 0,
+        surface: "actions",
+        policyReason: "Autonomy L3: routine action, auto-execution failed",
       }).catch(() => {});
     }
   }
@@ -189,7 +194,9 @@ export async function GET(req: Request) {
         for (const action of eligible) {
           const deal = action.dealId ? await getDeal(userId, action.dealId) : null;
           const dealValue = deal?.value ?? 0;
-          if (dealValue > HIGH_VALUE_THRESHOLD) {
+          const isLowConfidence = action.confidence !== undefined
+            && action.confidence < LOW_CONFIDENCE_THRESHOLD;
+          if (dealValue > HIGH_VALUE_THRESHOLD || isLowConfidence) {
             highValueActions.push(action);
           } else {
             routineActions.push(action);

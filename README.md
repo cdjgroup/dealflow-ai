@@ -132,6 +132,32 @@ Most AI agents get blanket access to your data. DealFlow AI demonstrates five au
 
 ## Features
 
+### v0.6.2 — Confidence Routing + Intent Constraints
+- AI confidence scores (0.0–1.0) drive action routing: auto-approve above 85%, force manual review below 50%
+- Per-client MCP parameter constraints with regex validation
+- EU AI Act Article 14 alignment documentation
+
+### v0.6.0 — Per-Client MCP Policy + CIBA Write Tools
+- Named MCP clients with API keys, trust tiers, and tool allowlists
+- CIBA-gated write tools for external agents (draftEmail, createCalendarEvent, sendSlackMessage)
+- Two-layer circuit breaking: per-tool rate limits + per-request cap
+- Cross-surface audit telemetry with source attribution
+
+### v0.5.1 — Scheduled Action Review
+- Scheduled batch execution via Vercel cron + CIBA Guardian push
+- Priority filtering: high/medium auto-execute, low stays for manual review
+- "Run Now" for on-demand batch CIBA execution
+
+### v0.5.0 — CIBA Step-Up Authentication
+- Two-step consent for high-value chat actions: inline approval + Guardian push
+- CibaWaitingCard with binding message, pulse animation, countdown timer
+- Direct HTTP CIBA (no SDK wrapper, per ADR 004)
+
+### v0.4.0 — Action Center
+- AI-suggested next steps queued for human review with justifications
+- Inline editing of email/calendar/Slack drafts before approval
+- Execution via Token Vault with real-time status transitions
+
 ### v0.3.0 — Boundary-Pushing Auth
 
 #### Dynamic Scope Narrowing
@@ -177,7 +203,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens (stor
 - Conversation persistence with auto-save and 30-day TTL
 
 #### Onboarding & Help
-- Getting Started checklist (5 steps) with auto-detection of completed steps
+- Getting Started checklist (8 steps) with auto-detection of completed steps
 - Resource center with external docs, quick actions, and glossary
 
 ## MCP Integration

@@ -40,6 +40,11 @@ All notable changes to this project will be documented in this file.
 - Surface policy registry: formal declarations for chat/mcp/actions trust boundaries
 - Trust tier spectrum: Full > Standard > Restricted > Read Only, each with default tool sets
 - API key management: generation, rotation, revocation via `/api/mcp/clients` REST endpoints
+- Confidence-informed autonomy: low-confidence actions (<0.5) forced to manual review regardless of autonomy level
+- Structured confidence rubric in LLM prompt for better calibration (anchored at 0.9+/0.7-0.9/0.5-0.7/<0.5)
+- Policy reason in audit trail: every audit entry explains which authorization layer triggered the decision
+- `policyReason` field displayed in audit detail panel (amber "Policy Decision" row)
+- Per-client API key denials now audited (previously returned error without audit entry)
 - Per-client rate limiting: configurable requests/minute per MCP client via Upstash Ratelimit
 - Per-client usage analytics: call counts, success rates, top tools with daily granularity
 - Audit log source filter: filter by Chat, MCP, or Actions surface with colored badges
