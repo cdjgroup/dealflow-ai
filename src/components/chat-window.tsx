@@ -1,8 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import type { UIMessage } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
@@ -55,52 +54,6 @@ function parseInterrupt(error: Error | undefined): InterruptData | null {
   return null;
 }
 
-/**
- * One-shot gate for sendAutomaticallyWhen.
- *
- * The SDK checks the predicate in THREE places:
- * 1. addToolApprovalResponse — after user clicks Approve
- * 2. addToolOutput — after a tool result is added
- * 3. makeRequest finally block — after EVERY completed request
- *
- * Call site #3 would cause an infinite loop: request completes → old
- * approval-responded parts still in messages → predicate returns true → loop.
- *
- * Fix: module-level flag allows exactly ONE auto-send per approval click.
- * handleApproval sets it to false (armed), predicate fires once then sets it
- * to true (disarmed), blocking subsequent checks until the next approval.
- *
- * Why not regenerate()? regenerate() strips the last assistant message,
- * losing the approval context. The model re-proposes the tool, needsApproval
- * fires again, and the approval card loops forever. sendAutomaticallyWhen
- * preserves ALL messages including the approval-responded state, so the SDK's
- * collectToolApprovals() can find and execute the approved tool server-side.
- */
-let approvalSendFired = true; // Start disarmed
-
-function shouldSendAfterApproval({ messages }: { messages: UIMessage[] }): boolean {
-  if (approvalSendFired) return false;
-
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== "assistant") return false;
-
-  const hasPendingApproval = last.parts.some(
-    (p) =>
-      typeof p === "object" && p !== null &&
-      "type" in p && "state" in p &&
-      typeof (p as { type: unknown }).type === "string" &&
-      (p as { type: string }).type.startsWith("tool-") &&
-      (p as { state: unknown }).state === "approval-responded"
-  );
-
-  if (hasPendingApproval) {
-    approvalSendFired = true; // Disarm after one send
-    return true;
-  }
-
-  return false;
-}
-
 const suggestions = [
   "Analyze my pipeline and suggest next steps",
   "Show me my deals",
@@ -128,7 +81,11 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
     // IMPORTANT: onFinish is intentionally omitted. Per vercel/ai#10169,
     // having onFinish breaks the needsApproval/sendAutomaticallyWhen flow.
     // We trigger onConversationCreated via a status-change effect instead.
-    sendAutomaticallyWhen: shouldSendAfterApproval,
+    //
+    // Use SDK's built-in predicate — it checks step-start boundaries to avoid
+    // the infinite loop bug (old approval-responded parts in earlier steps
+    // don't re-trigger). No custom one-shot gate needed.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
   // Notify parent when the first assistant response completes (replaces onFinish)
@@ -196,16 +153,14 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
 
   const handleApproval = useCallback(
     (approvalId: string, approved: boolean) => {
-      // Arm the one-shot gate — allows exactly one auto-send via sendAutomaticallyWhen
-      approvalSendFired = false;
       addToolApprovalResponse({
         id: approvalId,
         approved,
         reason: approved ? "User approved" : "User denied",
       });
-      // SDK's sendAutomaticallyWhen fires automatically after state update,
-      // sending ALL messages (with approval-responded state preserved) to the
-      // server. No regenerate() — that strips the approval context.
+      // SDK's built-in lastAssistantMessageIsCompleteWithApprovalResponses
+      // fires automatically after state update, sending ALL messages
+      // (with approval-responded state preserved) to the server.
     },
     [addToolApprovalResponse]
   );
