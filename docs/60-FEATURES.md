@@ -1,5 +1,22 @@
 # Features
 
+## v0.6.6 — Per-Connection Autonomy + Permissions Consolidation
+
+### Per-Connection Autonomy Controls
+Each integration (Google, Slack) now has its own autonomy level and confidence routing thresholds, configured directly on the Permissions page. A new `connectionAutonomy` field on UserSettings stores per-connection overrides; the global settings serve as defaults for any connection without an override. Action routing resolves per-connection via an `ACTION_TYPE_TO_CONNECTION` map (email/calendar -> google, slack -> slack). CRM is excluded (no action generation).
+
+### Summary + Inline Expand UI (Apple iOS Settings Pattern)
+Per-connection behavior controls use progressive disclosure: a compact summary row shows a mini colored zone bar, the autonomy level label, and a "Customize" button. Clicking expands the full controls inline (segmented autonomy buttons + confidence toggle/viz/inputs). This keeps integration cards scannable (~120px collapsed) while providing full configurability (~350px expanded). Based on NNg progressive disclosure guidelines, Apple HIG disclosure controls, and Shneiderman's Information Seeking Mantra.
+
+### Permissions Page Consolidation
+The Permissions page is now the single control surface for both access (connection toggles, capability toggles, per-tool trust levels) and behavior (autonomy, confidence routing). Previously, autonomy and confidence controls were on the Actions page in the SchedulePanel. The Actions page now contains only schedule times, priority filters, and the Run Now button.
+
+### Page Width Standardization
+All dashboard content pages (Permissions, Actions, Audit, MCP) standardized to `max-w-4xl` (896px), matching the landing page. Previously Permissions and MCP used `max-w-3xl` while Actions and Audit inherited `max-w-7xl`.
+
+### Trust Nudge Demo Seeding
+"Reseed Demo Data" now pre-loads 4 email approvals (0 dismissals) into trust stats. The trust calibration nudge threshold is 5 decisions at >80% approval. One email approval in the Action Center triggers the nudge banner instantly — a 1-click demo of the closed feedback loop.
+
 ## v0.6.4 — Confidence Routing Overhaul + Light Mode
 
 ### Stripe Radar-Inspired Confidence Routing
@@ -230,7 +247,7 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
 ### MCP Server for External AI Agents
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow AI's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.
@@ -238,7 +255,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens store
 ## v0.2.1 — UI Polish & Visual Storytelling
 
 ### Animated Landing Page
-Gradient "DealFlow AI" title (text-7xl), staggered feature card animations, Token Vault architecture diagram showing the full auth flow (User → Auth0 → Token Vault → AI Agent → Google/Slack), and glow CTA button with indigo shadow.
+Gradient "DealFlow" title (text-7xl), staggered feature card animations, Token Vault architecture diagram showing the full auth flow (User → Auth0 → Token Vault → AI Agent → Google/Slack), and glow CTA button with indigo shadow.
 
 ### Chat Animations
 Staggered fade-in on messages and tool result cards via framer-motion. AI messages show a gradient "D" avatar badge; user messages show "You". Glassmorphism (backdrop-blur-sm) on chat bubbles. Animated suggestion chips on empty state.

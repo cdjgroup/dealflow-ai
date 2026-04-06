@@ -79,6 +79,27 @@ const settingsSchema = z.object({
       message: "autoApprove must be greater than requireReview",
     })
     .optional(),
+  connectionAutonomy: z
+    .record(
+      z.string().max(32),
+      z.object({
+        autonomyLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+        confidenceThresholds: z
+          .object({
+            enabled: z.boolean().optional(),
+            autoApprove: z.number().min(0).max(1),
+            requireReview: z.number().min(0).max(1),
+          })
+          .refine((t) => t.autoApprove > t.requireReview, {
+            message: "autoApprove must be greater than requireReview",
+          })
+          .optional(),
+      })
+    )
+    .refine((obj) => Object.keys(obj).length <= 5, {
+      message: "connectionAutonomy cannot contain more than 5 entries",
+    })
+    .optional(),
   mcpClients: z
     .record(
       z.string().max(128),

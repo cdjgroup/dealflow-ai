@@ -18,7 +18,7 @@ export default async function ActionsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Action Center</h1>
         <p className="text-sm text-muted-foreground">
@@ -27,7 +27,7 @@ export default async function ActionsPage() {
         </p>
       </div>
 
-      <SchedulePanel initialSchedule={settings.schedule} initialAutonomyLevel={settings.autonomyLevel} initialConfidenceThresholds={settings.confidenceThresholds} />
+      <SchedulePanel initialSchedule={settings.schedule} />
 
       <ActionList initialActions={actions} />
     </div>

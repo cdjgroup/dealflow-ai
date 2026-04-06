@@ -170,7 +170,7 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
               >
                 Welcome to{" "}
                 <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  DealFlow AI
+                  DealFlow
                 </span>
               </motion.h2>
               <motion.p

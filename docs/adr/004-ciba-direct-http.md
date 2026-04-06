@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI needs device-level step-up authentication for high-value actions ($50K+ deals, terminal stage changes). Auth0 supports CIBA (Client-Initiated Backchannel Authentication) which sends push notifications to the user's phone via Guardian for out-of-band approval.
+DealFlow needs device-level step-up authentication for high-value actions ($50K+ deals, terminal stage changes). Auth0 supports CIBA (Client-Initiated Backchannel Authentication) which sends push notifications to the user's phone via Guardian for out-of-band approval.
 
 The `@auth0/ai` package (v6.0.0, installed as a dependency) provides `withAsyncAuthorization()` — a tool wrapper that manages the CIBA lifecycle (initiate, poll, interrupt/resume, store). However, ADR 001 established that the `@auth0/ai` SDK wrappers swallow errors from Auth0 API calls ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175)), making failures difficult to debug. The `withAsyncAuthorization()` wrapper follows the same architectural pattern (intercepting tool execution via higher-order functions) and carries similar error observability risk.
 

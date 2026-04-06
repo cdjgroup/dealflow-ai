@@ -12,36 +12,8 @@ import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { isConnectionDisabled } from "@/lib/data/connections";
 import type { SuggestedAction } from "@/lib/types/actions";
-import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/constants/tools";
-
-const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
-  email: "gmail",
-  calendar: "calendar",
-  slack: "slack",
-};
-
-const HIGH_VALUE_THRESHOLD = 50_000;
-
-const CONNECTION_MAP: Record<string, string> = {
-  email: "google-oauth2",
-  calendar: "google-oauth2",
-  slack: "sign-in-with-slack",
-};
-
-function sanitize(msg: string): string {
-  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
-}
-
-function buildBatchMessage(actions: SuggestedAction[]): string {
-  const counts: Record<string, number> = {};
-  for (const a of actions) {
-    counts[a.type] = (counts[a.type] || 0) + 1;
-  }
-  const parts = Object.entries(counts)
-    .map(([type, count]) => `${count} ${type}`)
-    .join(", ");
-  return sanitize(`DealFlow: ${actions.length} actions - ${parts}`);
-}
+import { LOW_CONFIDENCE_THRESHOLD, CONNECTION_MAP, CAPABILITY_MAP, HIGH_VALUE_THRESHOLD } from "@/lib/constants/tools";
+import { buildBatchMessage } from "@/lib/cron/batch-utils";
 
 /**
  * On-demand trigger for batch action execution.

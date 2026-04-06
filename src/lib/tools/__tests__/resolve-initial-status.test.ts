@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { resolveInitialStatus } from "@/lib/tools/analyze-pipeline";
 import type { ActionPriority } from "@/lib/types/actions";
-import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
+import type { AutonomyLevel, ConfidenceThresholds, ConnectionAutonomyConfig } from "@/lib/types/settings";
+import type { ActionType } from "@/lib/types/actions";
 
 // Default thresholds per AC-5 and DEFAULT_SETTINGS
 const DEFAULT_THRESHOLDS: ConfidenceThresholds = {
@@ -200,6 +201,112 @@ describe("resolveInitialStatus", () => {
       const suggestion = { priority: "high" as ActionPriority, confidence: 0.3 };
       const settings = { autonomyLevel: 3 as AutonomyLevel };
 
+      expect(resolveInitialStatus(suggestion, settings)).toBe("pending");
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // AC-3 (plan): Per-connection autonomy overrides global
+  // ---------------------------------------------------------------------------
+  describe("per-connection autonomy overrides", () => {
+    it("AC-3: should use connection-specific autonomy for email actions (google connection)", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7, type: "email" as ActionType };
+      const settings = {
+        autonomyLevel: 1 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+        connectionAutonomy: {
+          google: { autonomyLevel: 2 as AutonomyLevel },
+        },
+      };
+      // Global autonomy is 1 (would be pending), but Google override is 2 → approved
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-3: should use connection-specific autonomy for calendar actions (google connection)", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7, type: "calendar" as ActionType };
+      const settings = {
+        autonomyLevel: 1 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+        connectionAutonomy: {
+          google: { autonomyLevel: 2 as AutonomyLevel },
+        },
+      };
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-3: slack action uses slack connection override, not google", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7, type: "slack" as ActionType };
+      const settings = {
+        autonomyLevel: 1 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+        connectionAutonomy: {
+          google: { autonomyLevel: 2 as AutonomyLevel },
+          slack: { autonomyLevel: 1 as AutonomyLevel },
+        },
+      };
+      // Slack override is 1 → pending
+      expect(resolveInitialStatus(suggestion, settings)).toBe("pending");
+    });
+
+    it("AC-4: falls back to global when no connection override exists", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7, type: "slack" as ActionType };
+      const settings = {
+        autonomyLevel: 2 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+        connectionAutonomy: {
+          google: { autonomyLevel: 1 as AutonomyLevel },
+        },
+      };
+      // No slack override, global is 2 → approved
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-4: falls back to global when connectionAutonomy is undefined", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7, type: "email" as ActionType };
+      const settings = {
+        autonomyLevel: 2 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+      };
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-4: falls back to global when suggestion has no type", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.7 };
+      const settings = {
+        autonomyLevel: 2 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS,
+        connectionAutonomy: {
+          google: { autonomyLevel: 1 as AutonomyLevel },
+        },
+      };
+      // No type → no connection lookup → uses global 2 → approved
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-8: per-connection confidence thresholds override global", () => {
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.75, type: "email" as ActionType };
+      const settings = {
+        autonomyLevel: 1 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS, // autoApprove: 0.85
+        connectionAutonomy: {
+          google: {
+            autonomyLevel: 1 as AutonomyLevel,
+            confidenceThresholds: { autoApprove: 0.7, requireReview: 0.3 },
+          },
+        },
+      };
+      // Google's autoApprove is 0.7, confidence 0.75 exceeds it → approved
+      expect(resolveInitialStatus(suggestion, settings)).toBe("approved");
+    });
+
+    it("AC-8: global thresholds would have kept it pending", () => {
+      // Same scenario as above but using global settings
+      const suggestion = { priority: "medium" as ActionPriority, confidence: 0.75 };
+      const settings = {
+        autonomyLevel: 1 as AutonomyLevel,
+        confidenceThresholds: DEFAULT_THRESHOLDS, // autoApprove: 0.85
+      };
+      // Global autoApprove is 0.85, confidence 0.75 is in middle band, autonomy 1 → pending
       expect(resolveInitialStatus(suggestion, settings)).toBe("pending");
     });
   });

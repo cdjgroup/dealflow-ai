@@ -16,7 +16,7 @@ export default async function Home() {
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <span className="text-lg font-bold tracking-tight">
             <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              DealFlow AI
+              DealFlow
             </span>
           </span>
           <Link

@@ -13,7 +13,7 @@ export default async function AuditPage() {
   const log = await getAuditLog(user.sub, { limit: 100 });
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Audit Log</h1>
         <p className="text-sm text-muted-foreground">

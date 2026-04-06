@@ -32,18 +32,25 @@ function computeFreeSlots(events: EventSlot[], date: string, calendarTz?: string
   // Date.getTime() gives correct absolute timestamps for comparison.
   // We construct boundaries the same way: if we have a tz, use it;
   // otherwise fall back to UTC (server timezone on Vercel).
-  let dayStart: Date;
-  let dayEnd: Date;
-  if (calendarTz) {
-    // Create dates at 09:00 and 17:00 in the calendar's timezone
-    const baseDate = new Date(`${date}T12:00:00Z`); // noon UTC as anchor
-    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: calendarTz, timeZoneName: "shortOffset" });
-    const parts = formatter.formatToParts(baseDate);
+  // Compute business-hour boundaries in the calendar's timezone.
+  // We compute offsets separately for 9am and 5pm to handle DST transitions
+  // where the offset may differ between morning and afternoon.
+  function dateInTz(dateStr: string, time: string, tz?: string): Date {
+    if (!tz) return new Date(`${dateStr}T${time}:00Z`);
+    const anchor = new Date(`${dateStr}T${time}:00Z`);
+    const formatter = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "shortOffset" });
+    const parts = formatter.formatToParts(anchor);
     const offsetPart = parts.find(p => p.type === "timeZoneName")?.value || "+00:00";
     const offsetStr = offsetPart.replace("GMT", "").replace("UTC", "") || "+00:00";
-    dayStart = new Date(`${date}T09:00:00${offsetStr}`);
-    dayEnd = new Date(`${date}T17:00:00${offsetStr}`);
-  } else {
+    return new Date(`${dateStr}T${time}:00${offsetStr}`);
+  }
+
+  let dayStart: Date;
+  let dayEnd: Date;
+  try {
+    dayStart = dateInTz(date, "09:00", calendarTz);
+    dayEnd = dateInTz(date, "17:00", calendarTz);
+  } catch {
     dayStart = new Date(`${date}T09:00:00Z`);
     dayEnd = new Date(`${date}T17:00:00Z`);
   }

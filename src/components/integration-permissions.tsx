@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback, useRef } from "react";
-import type { UserSettings, TrustLevel, TrustStats } from "@/lib/types/settings";
+import type { UserSettings, TrustLevel, TrustStats, AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
 import { SCOPE_LABELS } from "@/lib/constants/tools";
+import { ConnectionAutonomyControls } from "@/components/connection-autonomy";
 
 /* ─── Types ─── */
 
@@ -384,6 +385,33 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
     updateSettings({ toolTrust: newTrust });
   }
 
+  function handleConnectionAutonomyChange(connectionId: string, level: AutonomyLevel) {
+    const current = settings.connectionAutonomy ?? {};
+    const existing = current[connectionId] ?? {
+      autonomyLevel: settings.autonomyLevel,
+      confidenceThresholds: settings.confidenceThresholds,
+    };
+    updateSettings({
+      connectionAutonomy: {
+        ...current,
+        [connectionId]: { ...existing, autonomyLevel: level },
+      },
+    });
+  }
+
+  function handleConnectionConfidenceChange(connectionId: string, thresholds: ConfidenceThresholds) {
+    const current = settings.connectionAutonomy ?? {};
+    const existing = current[connectionId] ?? {
+      autonomyLevel: settings.autonomyLevel,
+    };
+    updateSettings({
+      connectionAutonomy: {
+        ...current,
+        [connectionId]: { ...existing, confidenceThresholds: thresholds },
+      },
+    });
+  }
+
   return (
     <div className="space-y-3">
       {INTEGRATIONS.map((integration) => {
@@ -526,15 +554,6 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                                     </button>
                                   );
                                 })}
-                                {settings.toolTrust?.[toolName] && (
-                                  <button
-                                    onClick={() => clearTrust(toolName)}
-                                    className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
-                                    aria-label={`Reset to default`}
-                                  >
-                                    reset
-                                  </button>
-                                )}
                               </div>
                               {/* Trust calibration stats */}
                               {(() => {
@@ -564,6 +583,31 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                 );
               })}
             </div>
+
+            {/* Behavior section — per-connection autonomy (only for action-generating integrations) */}
+            {integration.id !== "crm" && isConnected && !isDisconnected && (
+              <div className="px-4 py-3 border-t border-border/50">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Behavior
+                </h4>
+                <ConnectionAutonomyControls
+                  connectionId={integration.id}
+                  connectionLabel={integration.label}
+                  autonomyLevel={
+                    settings.connectionAutonomy?.[integration.id]?.autonomyLevel
+                    ?? settings.autonomyLevel
+                  }
+                  confidenceThresholds={
+                    settings.connectionAutonomy?.[integration.id]?.confidenceThresholds
+                    ?? settings.confidenceThresholds
+                    ?? { enabled: true, autoApprove: 0.85, requireReview: 0.5 }
+                  }
+                  onAutonomyChange={handleConnectionAutonomyChange}
+                  onConfidenceChange={handleConnectionConfidenceChange}
+                  saving={isPending}
+                />
+              </div>
+            )}
 
             {/* CRM approval toggle (only for CRM integration) */}
             {integration.id === "crm" && (

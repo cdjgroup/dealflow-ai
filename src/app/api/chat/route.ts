@@ -25,6 +25,7 @@ import type { CibaInterrupt } from "@/lib/ciba/types";
 import { NextResponse } from "next/server";
 import { attachRateLimiter, RequestToolCounter } from "@/lib/rate-limiter";
 import type { RateLimitResult } from "@/lib/rate-limiter";
+import { sanitizeBindingMessage } from "@/lib/cron/batch-utils";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
 const MAX_TOOL_STEPS = 7;
@@ -37,31 +38,27 @@ const MAX_OUTPUT_TOKENS = 4096;
  * which Anthropic rejects. Convert them into completed results with a
  * denial message so the model gets a valid tool_result.
  */
-interface ToolPartLike {
-  type: string;
-  state?: string;
-  toolName?: string;
-  approval?: { approved?: boolean };
-  [key: string]: unknown;
+function isToolPart(p: unknown): p is { type: string; state?: string; toolName?: string; approval?: { approved?: boolean } } {
+  return typeof p === "object" && p !== null && "type" in p && typeof (p as { type: unknown }).type === "string";
 }
+
 function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(messages: T[]): T[] {
   return messages.map((msg) => {
     if (msg.role !== "assistant" || !msg.parts) return msg;
 
     const newParts = msg.parts.map((part) => {
-      const p = part as ToolPartLike;
+      if (!isToolPart(part)) return part;
       if (
-        typeof p.type === "string" &&
-        p.type.startsWith("tool-") &&
-        p.state === "approval-responded" &&
-        p.approval?.approved === false
+        part.type.startsWith("tool-") &&
+        part.state === "approval-responded" &&
+        part.approval?.approved === false
       ) {
         return {
-          ...p,
+          ...part,
           state: "result",
           output: {
             denied: true,
-            message: `User denied ${p.toolName || "this action"}. Ask the user how they'd like to proceed.`,
+            message: `User denied ${part.toolName || "this action"}. Ask the user how they'd like to proceed.`,
           },
         };
       }
@@ -133,15 +130,6 @@ function attachApprovalChecks(
  * Build a binding message for CIBA push notification.
  * Action-focused format per design decision.
  */
-/**
- * Sanitize binding message for Auth0 CIBA.
- * Only allows: alphanumerics, whitespace, and +-_.,:#
- * Must not have leading/trailing whitespace.
- */
-function sanitizeBindingMessage(msg: string): string {
-  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
-}
-
 function buildBindingMessage(
   toolName: string,
   params: Record<string, unknown>
@@ -400,7 +388,7 @@ export async function POST(req: Request) {
       execute: async ({ writer }) => {
         const result = streamText({
           model: anthropic(process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"),
-          system: `You are DealFlow AI, an intelligent sales assistant. You help sales professionals manage their pipeline, schedule meetings, and communicate with prospects.
+          system: `You are DealFlow, an intelligent sales assistant. You help sales professionals manage their pipeline, schedule meetings, and communicate with prospects.
 
 You have access to:
 ${availableTools.map((t) => `- ${t}`).join("\n")}

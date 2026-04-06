@@ -1,3 +1,19 @@
+/** Maps action types to Auth0 federated connection names for token exchange */
+export const CONNECTION_MAP: Record<string, string> = {
+  email: "google-oauth2",
+  calendar: "google-oauth2",
+  slack: "sign-in-with-slack",
+};
+
+/** Maps action types to user capability setting keys */
+export const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
+  email: "gmail",
+  calendar: "calendar",
+  slack: "slack",
+};
+
+export const HIGH_VALUE_THRESHOLD = 50_000;
+
 export const toolIcons: Record<string, string> = {
   checkCalendar: "📅",
   createCalendarEvent: "📅",

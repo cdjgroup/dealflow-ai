@@ -28,9 +28,13 @@
 .env.local
 .env*.local
 
-# framework state (gitignored)
-.claude/state/
-.claude/expected-branch.txt
+# claude code (local dev tooling)
+.claude/
+.claude-port
+.git-env
+__pycache__/
+
+# framework state
 .context/
 .qa-reports/
 .fw-sync-backups/
@@ -56,5 +60,4 @@ next-env.d.ts
 .fw-sync-cache/
 
 # worktrees
-.claude/worktrees/
 test-results/

@@ -50,7 +50,7 @@ async function verifyApiKey(rawKey: string): Promise<AuthInfo | undefined> {
       },
     };
   } catch (err) {
-    console.error("MCP API key verification failed:", err);
+    console.error("MCP API key verification failed:", err instanceof Error ? err.message : "unknown");
     return undefined;
   }
 }
@@ -69,7 +69,6 @@ async function verifyAuth0Token(
     const userinfo = await response.json();
     if (!userinfo.sub) return undefined;
 
-    // Derive scopes from surface policy + user's per-client MCP config
     const settings = await getUserSettings(userinfo.sub);
     const scopes = deriveMcpScopes(settings, userinfo.sub);
 
@@ -82,7 +81,7 @@ async function verifyAuth0Token(
       },
     };
   } catch (err) {
-    console.error("MCP Auth0 token verification failed:", err);
+    console.error("MCP Auth0 token verification failed:", err instanceof Error ? err.message : "unknown");
     return undefined;
   }
 }

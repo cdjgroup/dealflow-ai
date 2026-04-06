@@ -14,13 +14,8 @@ import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { CONNECTION_MAP } from "@/lib/constants/tools";
 import type { SuggestedAction } from "@/lib/types/actions";
-
-const CONNECTION_MAP: Record<string, string> = {
-  email: "google-oauth2",
-  calendar: "google-oauth2",
-  slack: "sign-in-with-slack",
-};
 
 async function getTokenForAction(
   action: SuggestedAction,
