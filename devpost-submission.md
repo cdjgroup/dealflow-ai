@@ -1,16 +1,31 @@
 # DealFlow — Devpost Submission
 
-> Condensed submission text for Devpost form fields. See `docs/DEVPOST-DRAFT.md` for the full internal draft with screenshots checklist and extended details.
-
----
 
 ## Inspiration
 
-AI agents that draft emails, schedule meetings, and post Slack updates are powerful — but dangerous without guardrails. Most AI agent frameworks treat authorization as an afterthought. We built DealFlow to prove an AI sales agent can be both powerful AND trustworthy: suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI never touches credentials. Then we went further — exposing the same secure pipeline to external AI agents via MCP, turning one app's security into a reusable pattern for the AI agent ecosystem.
+DealFlow was built to prove an AI agent can be both powerful AND trustworthy by suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI never touches credentials. Then it was extended by exposing the same secure pipeline to external AI agents via MCP, turning one app's security into a reusable pattern for the AI agent ecosystem.
+
 
 ## What it does
 
-DealFlow is an AI sales assistant with a **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline.
+DealFlow follows a **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline.
+
+Graduated trust is the idea that not every AI action deserves the same level of scrutiny — and not every action deserves the same level of freedom either. Think about how trust works with a new employee. Day one, you don't hand them the company credit card and say "go for it." But you also don't make them get approval to send a calendar invite. You calibrate low-risk stuff to flow freely, high-stakes stuff gets a checkpoint, and over time as they prove themselves, the checkpoints relax. DealFlow does the same thing with an AI sales agent, but structurally baked into the architecture.
+
+Four levels, from most autonomous to most controlled:
+
+  **1. Autonomous read (MCP external agents)** — Checking a calendar, listing deals, searching contacts. No human in the loop. The data flows and nobody needs to tap anything. This is the equivalent of letting the new hire look at the shared drive.
+
+  **2. High trust with device consent (MCP write + CIBA)** — An external AI agent wants to draft an email or book a meeting through your system. That's a real action in the real world with your name on it. So before it happens, your phone buzzes with a Guardian push notification describing exactly what's about to happen. One tap to approve and the action executes within a time-boxed window. You didn't have to be at your computer but, you did have to consciously say yes.
+  
+  **3. Collaborative with guardrails (Chat UI)** — You're in the conversation, directing the agent in real time. It can chain tools together ie. pull deal details, check your calendar, draft a follow-up email etd. If it tries to create a deal over $50K or close one as won, the system hits a speed bump. Step-up approval right in the chat, and for the really sensitive stuff, CIBA sends it to your phone too.
+  
+  **4. Maximum control (Action Center)** — The AI proposes actions based on what it sees in your pipeline: "you should email this prospect", "book a follow-up
+   with that account", but it doesn't do anything. You see the draft, you can edit it word by word, and only when you explicitly hit approve does it execute through Token Vault. This is the "I want to see everything before it goes out" mode.
+
+  The key insight: all four levels use the same Auth0 Token Vault pipeline underneath. It's not four different auth systems. It's one pipeline with consent gates that open or close based on how much trust the context warrants. The security adapts to the situation rather than forcing one-size-fits-all.
+
+And it's not static. The system watches your approval patterns — if you've approved 5+ similar actions at high confidence, it nudges you: "hey, want to auto-approve these?" It never auto-escalates its own permissions, but it does suggest relaxing yours. Trust grows over time, just like it does with people.
 
 | Surface | Trust | Consent | Use Case |
 |---------|-------|---------|----------|
@@ -18,6 +33,8 @@ DealFlow is an AI sales assistant with a **graduated trust architecture** — fo
 | Chat UI | Medium | Real-time + step-up | User directs, AI pauses for sensitive ops |
 | MCP + CIBA | High | Phone push notification | External agent acts, user consents on device |
 | MCP (read) | Autonomous | None needed | Read-only queries, no data modified |
+
+### **Key Features**
 
 **Action Center** — The AI analyzes your sales pipeline and generates prioritized suggestions (follow-up emails, demo meetings, Slack updates). Each includes the AI's reasoning and confidence score. Users review, edit drafts inline, and approve before execution. Scheduled batch execution via CIBA sends one Guardian push for all pending actions — approve on your phone, and everything executes within Token Vault's time-boxed window.
 
@@ -27,31 +44,31 @@ DealFlow is an AI sales assistant with a **graduated trust architecture** — fo
 
 **Unified Security** — Disable Gmail in Permissions → blocked in Chat, Action Center, AND MCP. One control, consistent everywhere. Trust calibration suggests upgrading tools to auto-approve after 5+ approvals at >80% rate — but never auto-escalates.
 
-## How we built it
+## How it was built it
 
-Next.js 16 (App Router), Auth0 Token Vault, Claude Sonnet 4.6 via Vercel AI SDK v6, Upstash Redis, Model Context Protocol. Direct RFC 8693 token exchange and CIBA via HTTP — the `@auth0/ai-vercel` SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)), so we call Auth0 endpoints directly for full observability.
+Next.js 16 (App Router), Auth0 Token Vault, Claude Sonnet 4.6 via Vercel AI SDK v6, Upstash Redis, Model Context Protocol. Direct RFC 8693 token exchange and CIBA via HTTP — the `@auth0/ai-vercel` SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)), Auth0 endpoints called directly for full observability.
 
-Built in 5 days (March 31 – April 5, 2026). 250+ commits, 310+ tests, 9 ADRs, 27 documented insights.
+Built in 6 days (March 31 – April 6, 2026). 250+ commits, 310+ tests, 9 ADRs, 27 documented insights.
 
-## Challenges we ran into
+## Challenges encountered
 
 1. **SDK error swallowing** — `@auth0/ai-vercel` v5's `TokenVaultAuthorizerBase` silently returns `undefined` on failed exchanges, masking the real Auth0 API error. Fix: direct HTTP to `/oauth/token`.
 2. **Token Vault tokenset deletion doesn't revoke access** — Auth0 silently re-provisions. Fix: application-level disconnect via Redis flags.
 3. **Token Vault doesn't support scope narrowing** — the `scope` parameter is ignored on federated exchanges. Fix: application-layer scope awareness.
-4. **CIBA + Token Vault composition** — Auth0 documents them as separate pillars. No official guide combines CIBA as a gate before Token Vault exchange in a batch model. We wired them together.
+4. **CIBA + Token Vault composition** — Auth0 documents them as separate pillars. No official guide combines CIBA as a gate before Token Vault exchange in a batch model. DealFlow wired them together.
 
 ## Accomplishments we're proud of
 
 - **Graduated trust architecture**: Four trust levels, three surfaces, one Token Vault pipeline — security adapts to the surface's trust properties
-- **IETF draft alignment**: DealFlow's three surfaces implement the three delegation patterns from`draft-klrc-aiagent-auth-01` (March 2026). Further, it implements 7 of 9 AIMS layers substantively, with the two gaps (SPIFFE workload identity and hardware attestation) being infrastructure-level concerns that the framework itself acknowledges are deployment-specific. Our strongest alignment is at Layer 6 (Authorization) — we implement all three delegation scenarios, RFC 8693 token exchange, CIBA human-in-the-loop, step-up auth, and surface-aware trust graduation. This is the layer the framework spends the most time on, and it's where our implementation is most complete.
+- **IETF draft alignment**: DealFlow's three surfaces implement the three delegation patterns from`draft-klrc-aiagent-auth-01` (March 2026). Further, it implements 7 of 9 AIMS layers substantively, with the two gaps (SPIFFE workload identity and hardware attestation) being infrastructure-level concerns that the framework itself acknowledges are deployment-specific. Our strongest alignment is at Layer 6 (Authorization), implementing all delegation scenarios: RFC 8693 token exchange, CIBA human-in-the-loop, step-up auth, and surface-aware trust graduation. This is the layer the framework spends the most time on, and it's where our implementation is most complete.
 - **CIBA batch scheduling**: One Guardian push approves all actions, time-boxed execution within the CIBA token's lifetime
-- **Trust calibration**: System observes approval patterns and recommends autonomy upgrades — user decides, never auto-escalates
-- **Confidence routing**: AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review regardless of autonomy setting
+- **Trust calibration**: System observes approval patterns and recommends autonomy upgrades and user decides, never auto-escalating on its own
+- **Confidence routing**: AI scores suggestions where users can elect to have high confidence auto-approve and/or low confidence forced reviews regardless of autonomy setting
 - **Per-client MCP policies**: Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
 - **27 documented insights**: SDK bugs, Token Vault behaviors, CIBA patterns, and IETF alignment findings that benefit the Auth0 community
 
 
-## What we learned
+## What was learned
 
 Token Vault is a powerful primitive, but "Authorized to Act" requires more than token management:
 
@@ -77,13 +94,24 @@ Auth0, Token Vault, CIBA, Next.js, React, TypeScript, Vercel AI SDK, Claude, Ups
 
 ### Graduated Trust: What "Authorized to Act" Really Means for AI Agents
 
-Every entry in this hackathon integrates Auth0 Token Vault. That's table stakes — Token Vault handles the hard problem of credential management. But Token Vault answers "how does an AI agent get my credentials?" The harder question is: **"How do I control what happens with those credentials across a growing ecosystem of AI interfaces?"**
+Token Vault handles the hard problem of credential management. But Token Vault answers "how does an AI agent get my credentials?" The harder question is: **"How do I control what happens with those credentials across a growing ecosystem of AI interfaces?"**
 
-We spent five days building DealFlow and discovered that the answer isn't a single mechanism — it's a spectrum. We call it **graduated trust**.
+DealFlow didn't approach this as a yes or no but as a trust spectrum called **graduated trust**. Graduated trust is the idea that not every AI action deserves the same level of scrutiny — and not every action deserves the same level of freedom either. Think about how trust works with a new employee. Day one, you don't hand them the company credit card and say "go for it." But you also don't make them get approval to send a calendar invite. You calibrate low-risk stuff to flow freely, high-stakes stuff gets a checkpoint, and over time as they prove themselves, the checkpoints relax. DealFlow does the same thing with an AI sales agent, but structurally baked into the architecture.
 
-**The problem with binary authorization.** Most AI agent frameworks offer two modes: the agent can act, or it can't. But real-world authorization is contextual. When I'm in a chat with the AI, I want it to check my calendar immediately (low risk) but pause before emailing a client (high risk). When I've scheduled the AI to review my pipeline overnight, I want one phone approval for the whole batch, not 12 separate prompts. When an external agent queries my CRM via MCP, I want read access but not write access — unless it goes through CIBA device consent.
+Four levels, from most autonomous to most controlled:
 
-**Four trust levels, one pipeline.** DealFlow implements four distinct trust levels across three execution surfaces, all sharing one Auth0 Token Vault pipeline:
+  **1. Autonomous read (MCP external agents)** — Checking a calendar, listing deals, searching contacts. No human in the loop. The data flows and nobody needs to tap anything. This is the equivalent of letting the new hire look at the shared drive.
+
+  **2. High trust with device consent (MCP write + CIBA)** — An external AI agent wants to draft an email or book a meeting through your system. That's a real action in the real world with your name on it. So before it happens, your phone buzzes with a Guardian push notification describing exactly what's about to happen. One tap to approve and the action executes within a time-boxed window. You didn't have to be at your computer but, you did have to consciously say yes.
+  
+  **3. Collaborative with guardrails (Chat UI)** — You're in the conversation, directing the agent in real time. It can chain tools together ie. pull deal details, check your calendar, draft a follow-up email etd. If it tries to create a deal over $50K or close one as won, the system hits a speed bump. Step-up approval right in the chat, and for the really sensitive stuff, CIBA sends it to your phone too.
+  
+  **4. Maximum control (Action Center)** — The AI proposes actions based on what it sees in your pipeline: "you should email this prospect", "book a follow-up
+   with that account", but it doesn't do anything. You see the draft, you can edit it word by word, and only when you explicitly hit approve does it execute through Token Vault. This is the "I want to see everything before it goes out" mode.
+
+  The key insight: all four levels use the same Auth0 Token Vault pipeline underneath. It's not four different auth systems. It's one pipeline with consent gates that open or close based on how much trust the context warrants. The security adapts to the situation rather than forcing one-size-fits-all.
+
+And it's not static. The system watches your approval patterns — if you've approved 5+ similar actions at high confidence, it nudges you: "hey, want to auto-approve these?" It never auto-escalates its own permissions, but it does suggest relaxing yours. Trust grows over time, just like it does with people.
 
 - **Action Center (low trust)**: The AI suggests actions with confidence scores and justification. The user reviews every suggestion, edits drafts inline, and approves individually. Nothing executes without explicit consent.
 - **Chat (medium trust)**: The user directs the AI in real-time. The AI confirms with the user before executing write actions (Slack, email, calendar). High-value operations (>$50K deals, terminal stages) trigger CIBA Guardian push for device-level consent.
@@ -100,20 +128,20 @@ We spent five days building DealFlow and discovered that the answer isn't a sing
 
 **The pattern is reusable.** Any application with Auth0 Token Vault can expose tools via MCP. Our per-client policy system gives each external agent its own API key, trust tier, tool allowlist, and parameter constraints. The Security Model adapts per client: a trusted IDE gets full access, a CI pipeline gets read-only CRM, a research bot gets email search constrained to specific domains. Adding a new agent doesn't require new security code — just a new client with the right policy.
 
-**What we found along the way.** We documented 27 non-obvious insights during development, including:
+**What was found along the way.** 27 insights were captured during development, including:
 - The `@auth0/ai-vercel` SDK silently swallows token exchange errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175))
 - Token Vault tokenset deletion doesn't prevent re-provisioning
 - Token Vault doesn't accept a `scope` parameter on federated exchanges
 - CIBA binding messages have strict character restrictions that aren't documented clearly
-- MCP endpoints need every security layer the primary endpoint has — capability filtering, approval checks, audit attribution
+- MCP endpoints need every security layer the primary endpoint has: capability filtering, approval checks, audit attribution
 
-These aren't complaints. They're the kind of findings that help the Auth0 community build more robust agent integrations. Every one is documented with technical details, root cause, and fix in our `docs/70-INSIGHTS.md`.
+All documented with technical details, root cause, and fix in our `docs/70-INSIGHTS.md`.
 
-**The bottom line.** "Authorized to Act" isn't a single mechanism. It's a spectrum — from full human review to autonomous read access, with CIBA device consent and confidence-based routing in between. Auth0 Token Vault provides the credential management. The application provides the trust model. Together, they make AI agents that are both powerful and trustworthy.
+**The bottom line.** "Authorized to Act" isn't a single mechanism. It's a spectrum  from full human review to autonomous read access, with CIBA device consent and confidence-based routing in between. Auth0 Token Vault provides the credential management. The application provides the trust model. Together, they make AI agents that are both powerful and trustworthy.
 
 ---
 
-*DealFlow: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 5 days.*
+*DealFlow: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 6 days.*
 *Live: https://dealflow-ai-seven.vercel.app | Code: https://github.com/cdjgroup/dealflow-ai*
 
 ---
@@ -125,4 +153,4 @@ A demo Google account is provided so you can test the full Auth0 Token Vault int
 - **Email:** Demouser.ai.a
 - **Password:** Claudec0deisthebest
 
-Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. The account has pre-seeded calendar events and emails for the demo flow. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions at any time.
+Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. The account has pre-seeded calendar events and emails for the demo flow. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions at any time (Note: Use "Clear All" on Actions page first). Also note the MCP Playground on the MCP page where, after creating an MCP client, you can verify with tests.

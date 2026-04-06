@@ -1,8 +1,6 @@
-![DealFlow AI — AI Sales Agent with Auth0 Token Vault](docs/images/hero.png)
-
 # DealFlow
 
-AI-powered sales agent with **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
+AI-powered sales agent with graduated trust architecture — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
 
 Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
@@ -10,7 +8,7 @@ Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.d
 
 ## What Makes This Different
 
-Most AI agents get blanket access to your data. DealFlow implements a **graduated trust spectrum** where security adapts to each surface's trust properties:
+Most AI agents get blanket access to your data. DealFlow implements a graduated trust spectrum where security adapts to each surface's trust properties:
 
 | Surface | Trust Level | Consent | What Happens |
 |---------|------------|---------|--------------|
@@ -21,7 +19,7 @@ Most AI agents get blanket access to your data. DealFlow implements a **graduate
 
 Key innovations:
 1. **CIBA Batch Scheduling** — One Guardian push approves all pending actions on a schedule, time-boxed to token lifetime
-2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review
+2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review (configurable)
 3. **Trust Calibration** — System observes approval patterns and suggests upgrading tools to auto-approve (never auto-escalates)
 4. **Per-Client MCP Policies** — Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
 5. **Reasoning-Aware Audit** — Every entry logs which policy layer decided, not just what happened
@@ -168,7 +166,7 @@ Key innovations:
 - Inline editing of email/calendar/Slack drafts before approval
 - Execution via Token Vault with real-time status transitions
 
-### v0.3.0 — Boundary-Pushing Auth
+### v0.3.0 — Auth
 
 #### Dynamic Scope Narrowing
 Token exchange captures the full granted scope from Auth0, while each tool declares its minimum required scope. The UI shows "Using calendar.readonly of 3 granted scopes" — voluntary least-privilege at the application layer.
