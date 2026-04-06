@@ -17,9 +17,9 @@ function create(prefix: string, requests: number, window: string): Ratelimit {
   return limiter;
 }
 
-// 10 req/min — AI chat, seed, action execute, batch operations
+// 20 req/min — AI chat, seed, action execute, batch operations
 export function getRateLimiter(): Ratelimit {
-  return create("default", 10, "1 m");
+  return create("default", 20, "1 m");
 }
 
 // 30 req/min — polling endpoints (CIBA status, token status)
