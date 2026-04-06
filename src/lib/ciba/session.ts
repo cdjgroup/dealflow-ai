@@ -22,15 +22,41 @@ export async function storeCibaSession(
     { ex: CIBA_TTL }
   );
   // H3: O(1) lookup index — avoids KEYS scan in status endpoint
-  p.set(authReqLookupKey(session.authReqId), session.userId, { ex: CIBA_TTL });
+  // Store userId:toolName so status endpoint can update sessions by authReqId
+  p.set(authReqLookupKey(session.authReqId), `${session.userId}:${session.toolName}`, { ex: CIBA_TTL });
   await p.exec();
+}
+
+/**
+ * Parse the reverse lookup value: "userId:toolName" or legacy "userId".
+ */
+function parseLookupValue(value: string): { userId: string; toolName: string | null } {
+  const colonIdx = value.indexOf(":");
+  if (colonIdx === -1) return { userId: value, toolName: null };
+  return { userId: value.slice(0, colonIdx), toolName: value.slice(colonIdx + 1) };
 }
 
 export async function getSessionOwner(
   authReqId: string
 ): Promise<string | null> {
   const redis = getRedis();
-  return redis.get<string>(authReqLookupKey(authReqId));
+  const raw = await redis.get<string>(authReqLookupKey(authReqId));
+  if (!raw) return null;
+  return parseLookupValue(raw).userId;
+}
+
+/**
+ * Look up the full session by authReqId using the reverse index.
+ */
+export async function getSessionByAuthReqId(
+  authReqId: string
+): Promise<CibaSession | null> {
+  const redis = getRedis();
+  const raw = await redis.get<string>(authReqLookupKey(authReqId));
+  if (!raw) return null;
+  const { userId, toolName } = parseLookupValue(raw);
+  if (!toolName) return null;
+  return getCibaSession(userId, toolName);
 }
 
 export async function getCibaSession(
