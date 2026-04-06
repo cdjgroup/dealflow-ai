@@ -498,6 +498,14 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     p.sadd(activityIndexKey(userId, activity.dealId), activity.id);
   }
 
+  // Seed trust stats: 4 email approvals, 0 dismissals — one more approval
+  // triggers the Trust Calibration Nudge banner (threshold: 5 decisions, >80%)
+  p.set(`${userId}:trustStats`, JSON.stringify({
+    email: { approved: 4, dismissed: 0 },
+    calendar: { approved: 0, dismissed: 0 },
+    slack: { approved: 0, dismissed: 0 },
+  }));
+
   await p.exec();
 
   return {

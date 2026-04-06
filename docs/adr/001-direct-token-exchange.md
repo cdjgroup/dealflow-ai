@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI uses Auth0 Token Vault to access Google Calendar and Gmail on behalf of users. The `@auth0/ai-vercel` SDK provides a `withTokenVault()` wrapper that handles OAuth token exchange automatically.
+DealFlow uses Auth0 Token Vault to access Google Calendar and Gmail on behalf of users. The `@auth0/ai-vercel` SDK provides a `withTokenVault()` wrapper that handles OAuth token exchange automatically.
 
 During initial development (April 2, 2026), we encountered silent failures when integrating the wrapper. The SDK's `TokenVaultAuthorizerBase` swallows federated connection errors — when the HTTP token exchange fails, it silently returns `undefined` instead of surfacing the actual error ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175), still open). This `undefined` flows into `validateToken()`, which throws a `TokenVaultInterrupt` with a misleading "Authorization required" message — making it appear the user hasn't authorized, when the real problem could be misconfigured credentials, wrong connection name, or an expired refresh token.
 

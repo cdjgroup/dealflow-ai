@@ -114,7 +114,7 @@ export function LandingAnimations() {
       <FadeIn delay={0.1}>
         <h1 className="text-6xl sm:text-7xl font-bold mb-4 tracking-tighter">
           <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            DealFlow AI
+            DealFlow
           </span>
         </h1>
       </FadeIn>
@@ -239,7 +239,7 @@ export function LandingAnimations() {
             What Makes This Different
           </h2>
           <p className="text-sm text-muted-foreground mb-4 max-w-2xl">
-            Most AI demos stop at &quot;connect your account.&quot; DealFlow AI
+            Most AI demos stop at &quot;connect your account.&quot; DealFlow
             goes further with device-level consent, external agent support, and
             autonomous scheduled execution — all gated by Auth0.
           </p>

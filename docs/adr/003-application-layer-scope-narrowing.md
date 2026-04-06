@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI v0.3.0 needed a dynamic scope narrowing feature where the AI agent uses only the minimum required OAuth scopes for each tool operation, demonstrating voluntary least-privilege.
+DealFlow v0.3.0 needed a dynamic scope narrowing feature where the AI agent uses only the minimum required OAuth scopes for each tool operation, demonstrating voluntary least-privilege.
 
 The initial assumption was that Auth0 Token Vault's federated connection exchange (RFC 8693) would accept a `scope` parameter to request narrowed scopes at exchange time.
 

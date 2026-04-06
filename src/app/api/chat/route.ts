@@ -325,7 +325,7 @@ export async function POST(req: Request) {
       execute: async ({ writer }) => {
         const result = streamText({
           model: anthropic(process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"),
-          system: `You are DealFlow AI, an intelligent sales assistant. You help sales professionals manage their pipeline, schedule meetings, and communicate with prospects.
+          system: `You are DealFlow, an intelligent sales assistant. You help sales professionals manage their pipeline, schedule meetings, and communicate with prospects.
 
 You have access to:
 ${availableTools.map((t) => `- ${t}`).join("\n")}

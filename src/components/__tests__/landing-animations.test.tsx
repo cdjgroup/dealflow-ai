@@ -28,7 +28,7 @@ vi.mock("next/link", () => ({
 describe("LandingAnimations", () => {
   it("renders existing hero content (AC-5)", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("DealFlow AI")).toBeInTheDocument();
+    expect(screen.getByText("DealFlow")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /try the demo/i })).toBeInTheDocument();
   });
 
