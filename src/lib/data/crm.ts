@@ -587,13 +587,13 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     slack: { approved: 0, dismissed: 0 },
   }));
 
-  // Reset toolTrust to defaults — clears any "ask" overrides that can trigger
-  // the SDK approval loop bug (vercel/ai#9968). Reads current settings and
-  // overwrites toolTrust with empty object while preserving other settings.
+  // Reset settings that affect demo behavior:
+  // - toolTrust: {} — clears "ask" overrides that trigger approval loop bug
+  // - autonomyLevel: 1 — "Suggest Only" so actions start as pending, not auto-approved
   const settingsKey = `${userId}:settings`;
   const currentSettings = await redis.get<Record<string, unknown>>(settingsKey);
   if (currentSettings) {
-    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: {} }));
+    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: {}, autonomyLevel: 1 }));
   }
 
   await p.exec();
