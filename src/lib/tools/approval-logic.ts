@@ -10,7 +10,11 @@ const CRM_WRITE_TOOLS = new Set([
   "logActivity",
 ]);
 
-// External action tools always require approval (sends data outside the app)
+// External action tools — approval handled via conversational confirmation
+// (model asks "Does this look good?" → user says "go" → tool executes).
+// SDK-level needsApproval removed because the approval-responded → auto-resend
+// cycle creates duplicate tool_use IDs that Anthropic's API rejects.
+// Users can still enable per-tool SDK approval via toolTrust settings.
 const EXTERNAL_ACTION_TOOLS = new Set([
   "createCalendarEvent",
   "draftEmail",
@@ -39,10 +43,12 @@ export function createApprovalCheck(
     if (trust === "always") return false;
     if (trust === "ask" || trust === "never") return true;
 
-    // S3: External action tools always need approval
-    if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
-      return true;
-    }
+    // S3: External action tools — conversational confirmation only.
+    // SDK needsApproval disabled (causes approval-retry loop + duplicate tool_use IDs).
+    // Uncomment to re-enable if SDK fixes the approval-responded message conversion.
+    // if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
+    //   return true;
+    // }
 
     // Read-only tools never need approval (unless T1 overrode above)
     if (!CRM_WRITE_TOOLS.has(toolName)) {
