@@ -36,11 +36,11 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
       <div className="bg-muted/20 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="font-medium text-sm text-foreground">{client.name}</span>
-          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${tier.bg} ${tier.color}`}>
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${tier.bg} ${tier.color}`}>
             {tier.label}
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{client.rateLimit} req/min</span>
           {client.lastUsedAt && (
             <span>Last used: {new Date(client.lastUsedAt).toLocaleDateString()}</span>
@@ -51,7 +51,7 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
       {/* Body */}
       <div className="px-4 py-3 space-y-3">
         {client.description && (
-          <p className="text-xs text-muted-foreground">{client.description}</p>
+          <p className="text-sm text-muted-foreground">{client.description}</p>
         )}
 
         {/* API Key prefix */}
@@ -63,7 +63,7 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
 
         {/* Allowed tools */}
         <div>
-          <p className="text-[10px] font-medium text-muted-foreground mb-1.5">
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">
             Tools ({client.allowedTools.length} of {allMcpTools.length})
           </p>
           <div className="flex flex-wrap gap-1">
@@ -72,7 +72,7 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
               return (
                 <span
                   key={tool}
-                  className={`text-[10px] rounded px-1.5 py-0.5 ${
+                  className={`text-xs rounded px-1.5 py-0.5 ${
                     allowed
                       ? "text-emerald-600 bg-emerald-500/15 border border-emerald-500/20"
                       : "text-muted-foreground/40 bg-muted/30 line-through"
@@ -93,29 +93,29 @@ export function McpClientCard({ client, onDelete, onRotateKey }: McpClientCardPr
               try { await onRotateKey(client.id); } finally { setRotating(false); }
             }}
             disabled={rotating}
-            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           >
             Rotate Key
           </button>
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="text-[10px] text-red-600 hover:text-red-500 transition-colors ml-auto"
+              className="text-xs text-red-600 hover:text-red-500 transition-colors ml-auto"
             >
               Delete
             </button>
           ) : (
             <div className="flex items-center gap-1 ml-auto">
-              <span className="text-[10px] text-red-600">Confirm?</span>
+              <span className="text-xs text-red-600">Confirm?</span>
               <button
                 onClick={() => onDelete(client.id)}
-                className="text-[10px] text-red-600 font-medium hover:text-red-500"
+                className="text-xs text-red-600 font-medium hover:text-red-500"
               >
                 Yes
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="text-[10px] text-muted-foreground hover:text-foreground"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 No
               </button>
