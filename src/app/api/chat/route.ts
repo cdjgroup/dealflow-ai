@@ -73,37 +73,26 @@ function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(mes
  * Attach needsApproval to tools based on approval logic.
  * Returns a new tools record with needsApproval wired in.
  *
- * Tracks which tools have already been approved in this request so the AI
- * model cannot trigger an infinite approve→execute→re-propose loop for
- * external action tools (draftEmail, sendSlackMessage, etc.).
+ * Uses an external `executedTools` set (populated by onToolCallFinish) to
+ * skip re-approval for tools already executed in this request. The set must
+ * live outside this function because CIBA and rate-limiter wrappers replace
+ * the execute function after this runs.
  */
 function attachApprovalChecks(
   tools: Record<string, Tool>,
-  userId: string
+  userId: string,
+  executedTools: Set<string>
 ): Record<string, Tool> {
-  const approvedThisRequest = new Set<string>();
   const result: Record<string, Tool> = {};
   for (const [name, t] of Object.entries(tools)) {
     const check = createApprovalCheck(userId, name);
-    const originalExecute = (t as { execute?: (...args: unknown[]) => unknown }).execute;
 
-    // Wrap needsApproval to skip if already approved+executed in this request
     const wrappedCheck = async (params: Record<string, unknown>) => {
-      if (approvedThisRequest.has(name)) return false;
+      if (executedTools.has(name)) return false;
       return check(params);
     };
 
-    // Wrap execute to record approval grant on successful execution
-    const wrappedTool = { ...t, needsApproval: wrappedCheck } as Tool;
-    if (originalExecute) {
-      (wrappedTool as Record<string, unknown>).execute = async (...args: unknown[]) => {
-        const result = await originalExecute(...args);
-        approvedThisRequest.add(name);
-        return result;
-      };
-    }
-
-    result[name] = wrappedTool;
+    result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
   }
   return result;
 }
@@ -297,8 +286,12 @@ export async function POST(req: Request) {
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
 
+  // Track tools that have executed in this request — fed by onToolCallFinish,
+  // consumed by needsApproval to prevent approval retry loops
+  const executedTools = new Set<string>();
+
   // Attach needsApproval checks (S1 value-based, S3 external actions, U2 user settings)
-  const withApproval = attachApprovalChecks(filtered, userId);
+  const withApproval = attachApprovalChecks(filtered, userId, executedTools);
 
   // Attach CIBA step-up auth for high-value actions (C1 layer — runs after inline approval)
   const withCiba = attachCibaChecks(withApproval, userId);
@@ -378,6 +371,11 @@ Some actions require user approval before they execute (drafting emails, sending
           stopWhen: stepCountIs(MAX_TOOL_STEPS),
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           experimental_onToolCallFinish(event) {
+            // Record execution so needsApproval skips re-approval in later rounds
+            if (event.success) {
+              executedTools.add(event.toolCall.toolName);
+            }
+
             // Console logging (existing)
             logToolExecution({
               userId,

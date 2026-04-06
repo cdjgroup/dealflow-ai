@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.5] - 2026-04-05
+
+### Fixed
+- Approval retry loop: external action tools re-requested approval on every tool-call round, burning rate limits. Root cause: `needsApproval` was stateless and CIBA/rate-limiter wrappers overwrote the execute tracking. Fix: shared `executedTools` Set populated by `onToolCallFinish` callback.
+- Rate limits too tight for multi-tool workflows: write tier 5→10/min, endpoint 10→20/min
+
 ## [0.6.4] - 2026-04-05
 
 ### Added

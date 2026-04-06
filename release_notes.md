@@ -1,4 +1,28 @@
-# Release Notes — v0.6.4
+# Release Notes — v0.6.5
+
+## DealFlow AI: Approval Retry Loop Fix
+
+Fixed an infinite approve→execute→re-propose loop that caused rate limit errors on external action tools (draftEmail, sendSlackMessage, createCalendarEvent).
+
+### What's new
+
+- **Approval loop fix**: `needsApproval` was stateless — external action tools always returned `true`, so the AI model re-proposed the same tool after each execution round, creating an 8-cycle loop until rate limits killed it. Now tracks approved tools per-request via a `Set` so subsequent rounds skip the approval check.
+- **Rate limit headroom**: Write-tier tools raised from 5→10 req/min, endpoint-level raised from 10→20 req/min to accommodate multi-tool chat workflows.
+- **Insight #029**: Stateless needsApproval creates approval loops in multi-step AI SDK flows.
+
+### Architecture
+
+- `attachApprovalChecks()` now wraps both `needsApproval` and `execute` — the execute wrapper records the tool name in a per-request `approvedThisRequest` Set, and the needsApproval wrapper short-circuits to `false` if the tool is already in the Set.
+- Rate limit changes are defense-in-depth — the loop fix is the primary solution.
+
+### Deployment
+
+- Live at: https://dealflow-ai-seven.vercel.app
+- Repo: https://github.com/cdjgroup/dealflow-ai
+
+---
+
+# Release Notes — v0.6.4 (Previous)
 
 ## DealFlow: Confidence Routing Overhaul + Light Mode
 
