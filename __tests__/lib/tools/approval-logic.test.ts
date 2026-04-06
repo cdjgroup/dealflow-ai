@@ -120,14 +120,14 @@ describe("approval-logic", () => {
       expect(result).toBe(false);
     });
 
-    it("T1 override still works: draftEmail requires approval when trust is 'ask'", async () => {
+    it("T1 'ask' cannot re-enable approval for external action tools (SDK bug protection)", async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
         toolTrust: { draftEmail: "ask" },
       });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(true);
+      expect(result).toBe(false); // S3 hard-block overrides T1
     });
   });
 
@@ -248,14 +248,14 @@ describe("approval-logic", () => {
       expect(result).toBe(true);
     });
 
-    it('T1 "never" blocks draftEmail (returns true to trigger blocking)', async () => {
+    it('T1 "never" cannot block external action tools (SDK bug protection)', async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
         toolTrust: { draftEmail: "never" },
       });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(true);
+      expect(result).toBe(false); // S3 hard-block overrides T1
     });
 
     it("empty toolTrust ({}) falls through — draftEmail does NOT require approval (S3 disabled)", async () => {

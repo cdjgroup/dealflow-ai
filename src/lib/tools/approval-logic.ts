@@ -36,19 +36,22 @@ export function createApprovalCheck(
   toolName: string
 ): (params: Record<string, unknown>) => Promise<boolean> {
   return async (params: Record<string, unknown>) => {
+    // S3: External action tools — never use SDK approval.
+    // Uses conversational confirmation instead (model asks, user confirms).
+    // SDK approval disabled due to AI SDK bugs: duplicate tool_use IDs from
+    // approval-responded cycle (vercel/ai#9968) and sendAutomaticallyWhen
+    // re-trigger loop (vercel/ai#7683). This check is BEFORE T1 so that
+    // even user-set toolTrust="ask" cannot re-enable the broken flow.
+    if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
+      return false;
+    }
+
     const settings = await getUserSettings(userId);
 
     // T1: Trust level override — highest priority
     const trust = settings.toolTrust?.[toolName];
     if (trust === "always") return false;
     if (trust === "ask" || trust === "never") return true;
-
-    // S3: External action tools — conversational confirmation only.
-    // SDK needsApproval disabled (causes approval-retry loop + duplicate tool_use IDs).
-    // Uncomment to re-enable if SDK fixes the approval-responded message conversion.
-    // if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
-    //   return true;
-    // }
 
     // Read-only tools never need approval (unless T1 overrode above)
     if (!CRM_WRITE_TOOLS.has(toolName)) {
