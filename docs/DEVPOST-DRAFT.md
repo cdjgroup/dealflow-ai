@@ -213,6 +213,17 @@ Auth0, Token Vault, Next.js, React, TypeScript, Vercel AI SDK, Claude, Upstash R
 
 ---
 
+## Testing Instructions (for judges)
+
+A demo Google account is provided so judges can test the full Auth0 Token Vault integration:
+
+- **Email:** Demouser.ai.a
+- **Password:** Claudec0deisthebest
+
+Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions.
+
+---
+
 ## Screenshots needed
 
 1. **Chat with AI tool execution** — calendar check or email draft flowing through Token Vault

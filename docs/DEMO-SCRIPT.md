@@ -5,9 +5,16 @@
 > **Thesis (say this or a variant within 30 seconds):**
 > "DealFlow implements graduated trust for AI agents — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline."
 
+## Demo Account
+
+- **Email:** Demouser.ai.a
+- **Password:** Claudec0deisthebest
+
+---
+
 ## Setup (before recording)
 
-1. Log in at https://dealflow-ai-seven.vercel.app
+1. Log in at https://dealflow-ai-seven.vercel.app (use demo account above)
 2. Google and Slack connected (green badges on Permissions)
 3. Click "Reseed Demo Data" on dashboard (resets CRM + actions)
 4. Run "Analyze my pipeline" in chat so Action Center has AI-generated suggestions

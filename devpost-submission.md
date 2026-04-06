@@ -43,12 +43,13 @@ Built in 5 days (March 31 – April 5, 2026). 250+ commits, 310+ tests, 9 ADRs, 
 ## Accomplishments we're proud of
 
 - **Graduated trust architecture**: Four trust levels, three surfaces, one Token Vault pipeline — security adapts to the surface's trust properties
+- **IETF draft alignment**: DealFlow's three surfaces implement the three delegation patterns from`draft-klrc-aiagent-auth-01` (March 2026). Further, it implements 7 of 9 AIMS layers substantively, with the two gaps (SPIFFE workload identity and hardware attestation) being infrastructure-level concerns that the framework itself acknowledges are deployment-specific. Our strongest alignment is at Layer 6 (Authorization) — we implement all three delegation scenarios, RFC 8693 token exchange, CIBA human-in-the-loop, step-up auth, and surface-aware trust graduation. This is the layer the framework spends the most time on, and it's where our implementation is most complete.
 - **CIBA batch scheduling**: One Guardian push approves all actions, time-boxed execution within the CIBA token's lifetime
 - **Trust calibration**: System observes approval patterns and recommends autonomy upgrades — user decides, never auto-escalates
 - **Confidence routing**: AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review regardless of autonomy setting
 - **Per-client MCP policies**: Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
 - **27 documented insights**: SDK bugs, Token Vault behaviors, CIBA patterns, and IETF alignment findings that benefit the Auth0 community
-- **IETF draft alignment**: Our three surfaces implement the three delegation patterns from `draft-klrc-aiagent-auth-01` (March 2026)
+
 
 ## What we learned
 
@@ -114,3 +115,14 @@ These aren't complaints. They're the kind of findings that help the Auth0 commun
 
 *DealFlow: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 5 days.*
 *Live: https://dealflow-ai-seven.vercel.app | Code: https://github.com/cdjgroup/dealflow-ai*
+
+---
+
+## Testing Instructions (for judges)
+
+A demo Google account is provided so you can test the full Auth0 Token Vault integration without using your own credentials:
+
+- **Email:** Demouser.ai.a
+- **Password:** Claudec0deisthebest
+
+Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. The account has pre-seeded calendar events and emails for the demo flow. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions at any time.
