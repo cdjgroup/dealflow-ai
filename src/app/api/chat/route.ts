@@ -110,7 +110,19 @@ function attachApprovalChecks(
       params: Record<string, unknown>,
       context: { toolCallId: string; messages: unknown[] }
     ) => {
-      if (toolAlreadyExecuted(name, context.messages as Record<string, unknown>[])) {
+      // Debug: log what messages look like so we can verify the format
+      const msgs = context.messages as Record<string, unknown>[];
+      const toolMsgs = msgs.filter((m) => m.role === "tool");
+      console.log(`[approval-fix] needsApproval(${name}): ${msgs.length} messages, ${toolMsgs.length} tool messages`);
+      if (toolMsgs.length > 0) {
+        console.log(`[approval-fix] tool messages:`, JSON.stringify(toolMsgs.map((m) => {
+          const content = m.content as Array<Record<string, unknown>>;
+          return content?.map((c) => ({ type: c.type, toolName: c.toolName }));
+        })));
+      }
+      const already = toolAlreadyExecuted(name, msgs);
+      console.log(`[approval-fix] toolAlreadyExecuted(${name}): ${already}`);
+      if (already) {
         return false;
       }
       return check(params);
