@@ -75,17 +75,38 @@ function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(mes
 /**
  * Attach needsApproval to tools based on approval logic.
  * Returns a new tools record with needsApproval wired in.
+ *
+ * Tracks which tools have already been approved in this request so the AI
+ * model cannot trigger an infinite approve→execute→re-propose loop for
+ * external action tools (draftEmail, sendSlackMessage, etc.).
  */
 function attachApprovalChecks(
   tools: Record<string, Tool>,
   userId: string
 ): Record<string, Tool> {
+  const approvedThisRequest = new Set<string>();
   const result: Record<string, Tool> = {};
   for (const [name, t] of Object.entries(tools)) {
     const check = createApprovalCheck(userId, name);
-    // Wrap the tool with needsApproval — the SDK will pause execution
-    // and stream an approval-requested state to the client
-    result[name] = { ...t, needsApproval: check } as Tool;
+    const originalExecute = (t as { execute?: (...args: unknown[]) => unknown }).execute;
+
+    // Wrap needsApproval to skip if already approved+executed in this request
+    const wrappedCheck = async (params: Record<string, unknown>) => {
+      if (approvedThisRequest.has(name)) return false;
+      return check(params);
+    };
+
+    // Wrap execute to record approval grant on successful execution
+    const wrappedTool = { ...t, needsApproval: wrappedCheck } as Tool;
+    if (originalExecute) {
+      (wrappedTool as Record<string, unknown>).execute = async (...args: unknown[]) => {
+        const result = await originalExecute(...args);
+        approvedThisRequest.add(name);
+        return result;
+      };
+    }
+
+    result[name] = wrappedTool;
   }
   return result;
 }

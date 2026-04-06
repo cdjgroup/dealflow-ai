@@ -22,10 +22,10 @@ export const TOOL_RATE_LIMITS: Record<string, ToolRateLimitConfig> = {
   searchEmails: { tier: "read", requests: 10, window: "1 m" },
   listSlackChannels: { tier: "read", requests: 10, window: "1 m" },
 
-  // write tier — 5/min
-  draftEmail: { tier: "write", requests: 5, window: "1 m" },
-  createCalendarEvent: { tier: "write", requests: 5, window: "1 m" },
-  sendSlackMessage: { tier: "write", requests: 5, window: "1 m" },
+  // write tier — 10/min
+  draftEmail: { tier: "write", requests: 10, window: "1 m" },
+  createCalendarEvent: { tier: "write", requests: 10, window: "1 m" },
+  sendSlackMessage: { tier: "write", requests: 10, window: "1 m" },
 
   // crm-read tier — 20/min
   listDeals: { tier: "crm-read", requests: 20, window: "1 m" },
