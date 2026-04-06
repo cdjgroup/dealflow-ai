@@ -100,10 +100,10 @@ export function ConnectionAutonomyControls({
       {/* Expanded controls */}
       {expanded && (
         <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-          {/* Autonomy Level Selector */}
+          {/* Actions Behavior Selector */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">
-              Autonomy Level
+            <label className="text-sm font-semibold text-foreground block mb-1.5">
+              Actions Behavior
             </label>
             <div className="flex gap-1" role="group" aria-label={`${connectionLabel} autonomy level`}>
               {AUTONOMY_LEVELS.map((opt) => {
@@ -162,7 +162,7 @@ export function ConnectionAutonomyControls({
           {/* Confidence Routing */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-muted-foreground">
+              <label className="text-sm font-semibold text-foreground">
                 Confidence Routing
               </label>
               <button
@@ -185,6 +185,12 @@ export function ConnectionAutonomyControls({
                 />
               </button>
             </div>
+
+            <p className="text-xs text-muted-foreground mt-1">
+              {routingEnabled
+                ? "Overrides Actions Behavior at extremes — high-confidence actions auto-approve, low-confidence always require review."
+                : "Off — actions follow Actions Behavior setting only."}
+            </p>
 
             {routingEnabled && (
               <>
