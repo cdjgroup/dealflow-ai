@@ -83,10 +83,10 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
               );
             }
 
-            // Approval responded — show result if available, otherwise show badge
+            // Approval responded — show result if available, otherwise badge
             if (state === "approval-responded" && approval) {
               const approved = approval.approved;
-              // If tool was executed and has output, show the result card
+              // If tool has output, show result card
               if (approved && output) {
                 return (
                   <motion.div
@@ -98,6 +98,14 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
                     <ToolResultCard toolName={toolName} output={output} />
                   </motion.div>
                 );
+              }
+              // If the message also has text content (the model's response),
+              // the approval badge is redundant — the data speaks for itself
+              const hasTextContent = message.parts?.some(
+                (p) => p.type === "text" && "text" in p && (p as { text: string }).text.trim().length > 0
+              );
+              if (approved && hasTextContent) {
+                return null; // Hide badge — result is in the text below
               }
               return (
                 <div key={i}>
