@@ -97,9 +97,11 @@ const WRITE_TOOLS = new Set(["draftEmail", "sendSlackMessage", "createCalendarEv
  * Attach needsApproval to tools based on approval logic.
  * Returns a new tools record with needsApproval wired in.
  *
- * For write tools: if the tool already has a result in context.messages
- * (from an earlier step in the same streamText call), returns false to
- * skip a second approval card.
+ * ALL tools get the context-aware wrapper: if the tool already has a result
+ * in context.messages (from collectToolApprovals execution in the same
+ * streamText call), returns false to skip a re-approval card. Without this,
+ * the model may re-propose an approved tool and needsApproval would fire
+ * again, creating an infinite approval loop.
  */
 function attachApprovalChecks(
   tools: Record<string, Tool>,
@@ -109,20 +111,16 @@ function attachApprovalChecks(
   for (const [name, t] of Object.entries(tools)) {
     const check = createApprovalCheck(userId, name);
 
-    if (WRITE_TOOLS.has(name)) {
-      const wrappedCheck = async (
-        params: Record<string, unknown>,
-        context?: { messages?: unknown[] }
-      ) => {
-        if (context?.messages && toolAlreadyExecuted(name, context.messages)) {
-          return false;
-        }
-        return check(params);
-      };
-      result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
-    } else {
-      result[name] = { ...t, needsApproval: check } as Tool;
-    }
+    const wrappedCheck = async (
+      params: Record<string, unknown>,
+      context?: { messages?: unknown[] }
+    ) => {
+      if (context?.messages && toolAlreadyExecuted(name, context.messages)) {
+        return false;
+      }
+      return check(params);
+    };
+    result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
   }
   return result;
 }
