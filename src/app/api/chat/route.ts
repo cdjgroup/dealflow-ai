@@ -88,8 +88,12 @@ function attachApprovalChecks(
     const check = createApprovalCheck(userId, name);
 
     const wrappedCheck = async (params: Record<string, unknown>) => {
-      if (executedTools.has(name)) return false;
-      return check(params);
+      const alreadyExecuted = executedTools.has(name);
+      console.log(`[approval-debug] needsApproval(${name}): executedTools=[${[...executedTools]}] alreadyExecuted=${alreadyExecuted}`);
+      if (alreadyExecuted) return false;
+      const result = await check(params);
+      console.log(`[approval-debug] needsApproval(${name}): check returned ${result}`);
+      return result;
     };
 
     result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
@@ -294,12 +298,20 @@ export async function POST(req: Request) {
     const m = msg as { role?: string; parts?: Array<{ type?: string; toolName?: string; state?: string }> };
     if (m.role === "assistant" && Array.isArray(m.parts)) {
       for (const part of m.parts) {
-        if (part.type?.startsWith("tool-") && part.state === "result" && part.toolName) {
-          executedTools.add(part.toolName);
+        if (part.type?.startsWith("tool-") && part.toolName) {
+          console.log(`[approval-debug] part: tool=${part.toolName} state=${part.state} type=${part.type}`);
+          if (
+            part.state === "result" ||
+            part.state === "output-available" ||
+            part.state === "output-error"
+          ) {
+            executedTools.add(part.toolName);
+          }
         }
       }
     }
   }
+  console.log(`[approval-debug] pre-populated executedTools:`, [...executedTools]);
 
   // Attach needsApproval checks (S1 value-based, S3 external actions, U2 user settings)
   const withApproval = attachApprovalChecks(filtered, userId, executedTools);
@@ -383,8 +395,10 @@ Some actions require user approval before they execute (drafting emails, sending
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           experimental_onToolCallFinish(event) {
             // Record execution so needsApproval skips re-approval in later rounds
+            console.log(`[approval-debug] onToolCallFinish: tool=${event.toolCall.toolName} success=${event.success}`);
             if (event.success) {
               executedTools.add(event.toolCall.toolName);
+              console.log(`[approval-debug] executedTools now: [${[...executedTools]}]`);
             }
 
             // Console logging (existing)
