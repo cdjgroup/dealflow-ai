@@ -35,7 +35,15 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
         "state" in p &&
         ((p as { state: string }).state === "output-available" || (p as { state: string }).state === "result")
     );
-    if (hasApprovedTool && !hasToolOutput) {
+    // Only collapse if the message is short (just intro text like "Let me
+    // check your calendar!"). The second message has the actual data/response
+    // text — don't collapse that.
+    const totalText = message.parts
+      .filter((p) => p.type === "text" && "text" in p)
+      .map((p) => (p as { text: string }).text)
+      .join("")
+      .trim();
+    if (hasApprovedTool && !hasToolOutput && totalText.length < 100) {
       // Render as a minimal status line instead of a full bubble
       const toolPart = message.parts.find((p) => p.type.startsWith("tool-"));
       const toolName = toolPart
