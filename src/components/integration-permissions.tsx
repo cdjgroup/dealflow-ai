@@ -482,20 +482,6 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
             </div>
 
             {/* Scope summary for OAuth integrations */}
-            {isOAuth && isConnected && integration.scopes && (
-              <div className="px-4 py-1.5 bg-muted/10 border-t border-border/50 flex flex-wrap gap-1.5">
-                {integration.scopes.map((scope) => (
-                  <span
-                    key={scope}
-                    className="text-xs text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5"
-                    title={scope}
-                  >
-                    {SCOPE_LABELS[scope] || scope}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Capability toggles */}
             <div className="divide-y divide-border/50">
               {integration.capabilities.map(({ key, label, description, toolNames }) => {
