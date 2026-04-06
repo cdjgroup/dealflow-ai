@@ -14,6 +14,7 @@ import { getScheduleRefreshToken } from "@/lib/data/schedule-tokens";
 import { exchangeTokenWithRefresh } from "@/lib/token-exchange";
 import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
+import { getRedis } from "@/lib/redis";
 import { CONNECTION_MAP } from "@/lib/constants/tools";
 import type { SuggestedAction } from "@/lib/types/actions";
 
@@ -70,6 +71,17 @@ export async function GET(_req: Request) {
   }
 
   if (pollResult.status === "approved") {
+    // Distributed lock: prevent duplicate execution from overlapping cron ticks
+    const redis = getRedis();
+    const lockResult = await redis.set(
+      `ciba:executing:${userId}:${session.batchId}`,
+      "1",
+      { ex: 120, nx: true }
+    );
+    if (lockResult !== "OK") {
+      return NextResponse.json({ status: "already-executing" });
+    }
+
     const refreshToken = await getScheduleRefreshToken(userId);
     if (!refreshToken) {
       await batchUpdateStatus(userId, session.actionIds, "failed");

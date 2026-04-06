@@ -10,7 +10,22 @@ import { executeAction } from "@/lib/actions/executor";
 import { initiateCiba } from "@/lib/ciba/authorize";
 import { pollCiba } from "@/lib/ciba/poll";
 import { getCibaSession, storeCibaSession, deleteCibaSession } from "@/lib/ciba/session";
+import { getRedis } from "@/lib/redis";
 import type { ActionType } from "@/lib/types/actions";
+
+/**
+ * Atomic execution lock — prevents duplicate sends when concurrent requests
+ * both read "approved" before either marks "executing" (TOCTOU race).
+ */
+async function claimActionExecution(userId: string, actionId: string): Promise<boolean> {
+  const redis = getRedis();
+  const result = await redis.set(
+    `action:exec:${userId}:${actionId}`,
+    "1",
+    { ex: 120, nx: true }
+  );
+  return result === "OK";
+}
 
 // Map action types to the tool names used in capability/trust settings
 const ACTION_TOOL_MAP: Record<ActionType, { tool: string; capability: "gmail" | "calendar" | "slack" }> = {
@@ -155,6 +170,15 @@ export async function POST(
         return NextResponse.json({ error: msg }, { status: 502 });
       }
     }
+  }
+
+  // Distributed lock: prevent duplicate sends from concurrent requests
+  const claimed = await claimActionExecution(auth.userId, id);
+  if (!claimed) {
+    return NextResponse.json(
+      { error: "Action is already being executed" },
+      { status: 409 }
+    );
   }
 
   // Mark as executing
