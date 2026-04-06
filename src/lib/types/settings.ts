@@ -29,6 +29,11 @@ export interface McpClientPolicy {
   label?: string;
 }
 
+export interface ConnectionAutonomyConfig {
+  autonomyLevel: AutonomyLevel;
+  confidenceThresholds?: ConfidenceThresholds;
+}
+
 export interface UserSettings {
   capabilities: {
     crmRead: boolean;
@@ -50,6 +55,7 @@ export interface UserSettings {
   mcpClients?: Record<string, McpClientPolicy>;
   autonomyLevel: AutonomyLevel;
   confidenceThresholds?: ConfidenceThresholds;
+  connectionAutonomy?: Record<string, ConnectionAutonomyConfig>;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {

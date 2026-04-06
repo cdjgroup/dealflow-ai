@@ -29,6 +29,9 @@ export async function updateUserSettings(
     confidenceThresholds: patch.confidenceThresholds
       ? { ...current.confidenceThresholds, ...patch.confidenceThresholds }
       : current.confidenceThresholds,
+    connectionAutonomy: patch.connectionAutonomy !== undefined
+      ? { ...current.connectionAutonomy, ...patch.connectionAutonomy }
+      : current.connectionAutonomy,
   };
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);

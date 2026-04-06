@@ -7,7 +7,7 @@ import { createAction, getActions } from "@/lib/data/actions";
 import { getUserSettings } from "@/lib/data/settings";
 import type { ActionType, ActionPriority, ActionDraft } from "@/lib/types/actions";
 import { draftSchema } from "@/lib/schemas/action-draft";
-import type { AutonomyLevel, ConfidenceThresholds } from "@/lib/types/settings";
+import type { AutonomyLevel, ConfidenceThresholds, ConnectionAutonomyConfig } from "@/lib/types/settings";
 
 const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
   enabled: true,
@@ -15,16 +15,32 @@ const DEFAULT_CONFIDENCE_THRESHOLDS: ConfidenceThresholds = {
   requireReview: 0.5,
 };
 
+// Maps action types to their parent connection for per-connection autonomy lookup
+const ACTION_TYPE_TO_CONNECTION: Record<string, string> = {
+  email: "google",
+  calendar: "google",
+  slack: "slack",
+};
+
 export function resolveInitialStatus(
-  suggestion: { priority: ActionPriority; confidence?: number },
-  settings: { autonomyLevel: AutonomyLevel; confidenceThresholds?: ConfidenceThresholds }
+  suggestion: { priority: ActionPriority; confidence?: number; type?: ActionType },
+  settings: {
+    autonomyLevel: AutonomyLevel;
+    confidenceThresholds?: ConfidenceThresholds;
+    connectionAutonomy?: Record<string, ConnectionAutonomyConfig>;
+  }
 ): "approved" | "pending" {
-  const thresholds = settings.confidenceThresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS;
+  // Resolve per-connection overrides
+  const connectionId = suggestion.type ? ACTION_TYPE_TO_CONNECTION[suggestion.type] : undefined;
+  const connectionConfig = connectionId ? settings.connectionAutonomy?.[connectionId] : undefined;
+  const effectiveAutonomy = connectionConfig?.autonomyLevel ?? settings.autonomyLevel;
+  const thresholds = connectionConfig?.confidenceThresholds ?? settings.confidenceThresholds ?? DEFAULT_CONFIDENCE_THRESHOLDS;
+
   const { confidence, priority } = suggestion;
 
   // When confidence routing is disabled, skip to autonomy-level routing
   if (thresholds.enabled === false) {
-    return settings.autonomyLevel >= 2 && priority !== "low" ? "approved" : "pending";
+    return effectiveAutonomy >= 2 && priority !== "low" ? "approved" : "pending";
   }
 
   if (confidence !== undefined) {
@@ -32,7 +48,7 @@ export function resolveInitialStatus(
     if (confidence <= thresholds.requireReview) return "pending";
   }
 
-  return settings.autonomyLevel >= 2 && priority !== "low" ? "approved" : "pending";
+  return effectiveAutonomy >= 2 && priority !== "low" ? "approved" : "pending";
 }
 
 interface SuggestionInput {
