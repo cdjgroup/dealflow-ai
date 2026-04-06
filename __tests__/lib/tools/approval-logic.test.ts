@@ -89,9 +89,15 @@ describe("approval-logic", () => {
   });
 
   describe("createApprovalCheck for external action tools (S3)", () => {
-    // S3 SDK approval is DISABLED due to ai@6.0.142 infinite loop bug.
-    // The AI confirms with the user in chat instead.
-    it("does not require SDK approval for draftEmail (S3 disabled)", async () => {
+    // S3 SDK approval is disabled (returns false) due to ai@6.0.142 loop bug.
+    // However, T1 trust layer runs first — DEFAULT_TOOL_TRUST sets write tools
+    // to "ask", so T1 returns true before S3 is reached. To test S3 in isolation,
+    // override toolTrust to "always" to bypass T1.
+    it("S3 returns false when T1 bypassed (draftEmail with trust always)", async () => {
+      mockGetUserSettings.mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        toolTrust: { draftEmail: "always" },
+      });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({
         to: "sarah@example.com",
@@ -101,7 +107,11 @@ describe("approval-logic", () => {
       expect(result).toBe(false);
     });
 
-    it("does not require SDK approval for sendSlackMessage (S3 disabled)", async () => {
+    it("S3 returns false when T1 bypassed (sendSlackMessage with trust always)", async () => {
+      mockGetUserSettings.mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        toolTrust: { sendSlackMessage: "always" },
+      });
       const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
       const result = await check({
         channel: "general",
@@ -110,13 +120,28 @@ describe("approval-logic", () => {
       expect(result).toBe(false);
     });
 
-    it("does not require SDK approval for createCalendarEvent (S3 disabled)", async () => {
+    it("S3 returns false when T1 bypassed (createCalendarEvent with trust always)", async () => {
+      mockGetUserSettings.mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        toolTrust: { createCalendarEvent: "always" },
+      });
       const check = createApprovalCheck(TEST_USER, "createCalendarEvent");
       const result = await check({
         title: "Meeting",
         date: "2026-04-10",
       });
       expect(result).toBe(false);
+    });
+
+    it("T1 overrides S3: write tools with default trust 'ask' require approval", async () => {
+      // DEFAULT_TOOL_TRUST sets write tools to "ask" — T1 returns true before S3
+      const check = createApprovalCheck(TEST_USER, "draftEmail");
+      const result = await check({
+        to: "sarah@example.com",
+        subject: "Follow up",
+        body: "Hello",
+      });
+      expect(result).toBe(true);
     });
   });
 
