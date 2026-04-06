@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.7] - 2026-04-05
+
+### Fixed
+- Approval retry loop: hand-rolled `sendAutomaticallyWhen` checked ALL message parts; replaced with SDK's built-in `lastAssistantMessageIsCompleteWithApprovalResponses` which scopes to last step only (vercel/ai#9968, #7683)
+- Write tool re-execution: model re-proposing draftEmail/sendSlackMessage/createCalendarEvent within same `streamText` call now returns "already completed" via execute dedup wrapper
+- Rate limits: write tier 5→10/min, endpoint 10→20/min
+- Action badge count: polled `?status=pending` instead of all active actions; now matches server-side `getPendingActionCount` logic
+
+### Changed
+- "Autonomy Level" → "Actions Behavior" with larger font in per-connection controls
+- Confidence Routing description: "Overrides Actions Behavior at extremes" when enabled
+- Reseed resets autonomyLevel to 1 (Suggest Only), clears toolTrust, clears old actions
+
 ## [0.6.6] - 2026-04-05
 
 ### Added

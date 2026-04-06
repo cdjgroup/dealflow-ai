@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.6 — Per-Connection Autonomy + Permissions Consolidation
+## Current Version: 0.6.7 — Approval Loop Fix + Action Center Polish
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
