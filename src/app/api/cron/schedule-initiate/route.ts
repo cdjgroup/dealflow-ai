@@ -17,22 +17,10 @@ import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { isConnectionDisabled } from "@/lib/data/connections";
 import type { SuggestedAction } from "@/lib/types/actions";
-import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/constants/tools";
-
-const CAPABILITY_MAP: Record<string, "gmail" | "calendar" | "slack"> = {
-  email: "gmail",
-  calendar: "calendar",
-  slack: "slack",
-};
+import { LOW_CONFIDENCE_THRESHOLD, CONNECTION_MAP, CAPABILITY_MAP, HIGH_VALUE_THRESHOLD } from "@/lib/constants/tools";
+import { buildBatchMessage } from "@/lib/cron/batch-utils";
 
 const MAX_USERS_PER_HOUR = 50;
-const HIGH_VALUE_THRESHOLD = 50_000;
-
-const CONNECTION_MAP: Record<string, string> = {
-  email: "google-oauth2",
-  calendar: "google-oauth2",
-  slack: "sign-in-with-slack",
-};
 
 function getHourInTimezone(date: Date, timezone: string): number {
   try {
@@ -43,23 +31,8 @@ function getHourInTimezone(date: Date, timezone: string): number {
     });
     return parseInt(formatter.format(date), 10);
   } catch {
-    return -1; // Invalid timezone — no match
+    return -1;
   }
-}
-
-function sanitize(msg: string): string {
-  return msg.replace(/[^\w\s+\-_.,:#]/g, "").trim().slice(0, 64);
-}
-
-function buildBatchMessage(actions: SuggestedAction[]): string {
-  const counts: Record<string, number> = {};
-  for (const a of actions) {
-    counts[a.type] = (counts[a.type] || 0) + 1;
-  }
-  const parts = Object.entries(counts)
-    .map(([type, count]) => `${count} ${type}`)
-    .join(", ");
-  return sanitize(`DealFlow: ${actions.length} actions - ${parts}`);
 }
 
 async function executeActionsDirectly(
@@ -245,7 +218,7 @@ export async function GET(req: Request) {
               actionCount: highValueActions.length,
             });
           } catch (err) {
-            console.error(`CIBA initiation failed for ${userId}:`, err);
+            console.error(`CIBA initiation failed for ${userId}:`, err instanceof Error ? err.message : "unknown");
             results.push({ userId, status: "error" });
           }
         }
@@ -281,7 +254,7 @@ export async function GET(req: Request) {
           actionCount: eligible.length,
         });
       } catch (err) {
-        console.error(`CIBA initiation failed for ${userId}:`, err);
+        console.error(`CIBA initiation failed for ${userId}:`, err instanceof Error ? err.message : "unknown");
         results.push({ userId, status: "error" });
       }
     }

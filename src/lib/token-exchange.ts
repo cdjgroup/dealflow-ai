@@ -11,14 +11,6 @@ export type TokenExchangeSuccess = {
 
 type TokenResult = TokenExchangeSuccess | { error: string };
 
-/**
- * Exchange a refresh token for a short-lived access token via Auth0 Token Vault.
- * Uses RFC 8693 federated connection access token exchange.
- *
- * This is the single source of truth for token exchange — used by
- * calendar, gmail, slack tools, and the token-status endpoint.
- * Respects user-set disabled flags (disconnect).
- */
 export async function exchangeToken(connection: string): Promise<TokenResult> {
   const session = await auth0.getSession();
   const refreshToken = session?.tokenSet?.refreshToken;
@@ -76,7 +68,7 @@ export async function exchangeTokenWithRefresh(
       exchangedAt: new Date().toISOString(),
     };
   } catch (err) {
-    console.error("Token exchange network error:", err);
+    console.error("Token exchange network error:", err instanceof Error ? err.message : "unknown");
     return { error: "Token exchange failed — please try again" };
   }
 }

@@ -15,13 +15,8 @@ import { executeActionWithToken } from "@/lib/actions/executor";
 import { writeAuditEntry } from "@/lib/data/audit";
 import { verifyCronSecret } from "@/lib/cron-auth";
 import { getRedis } from "@/lib/redis";
+import { CONNECTION_MAP } from "@/lib/constants/tools";
 import type { SuggestedAction } from "@/lib/types/actions";
-
-const CONNECTION_MAP: Record<string, string> = {
-  email: "google-oauth2",
-  calendar: "google-oauth2",
-  slack: "sign-in-with-slack",
-};
 
 async function getTokenForAction(
   action: SuggestedAction,
@@ -124,7 +119,7 @@ export async function GET(req: Request) {
               surface: "actions",
               policyReason: "CIBA: approved by user via Guardian push",
             }).catch((err) =>
-              console.error("Audit write failed for action", actionId, err)
+              console.error("Audit write failed for action", actionId, err instanceof Error ? err.message : "unknown")
             );
           } catch (err) {
             const errorMessage =
@@ -143,7 +138,7 @@ export async function GET(req: Request) {
               surface: "actions",
               policyReason: "CIBA: approved but execution failed",
             }).catch((err) =>
-              console.error("Audit write failed for action", actionId, err)
+              console.error("Audit write failed for action", actionId, err instanceof Error ? err.message : "unknown")
             );
           }
         }
