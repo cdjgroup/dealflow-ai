@@ -1,20 +1,28 @@
 # DealFlow
 
-AI-powered sales agent that securely manages your pipeline, checks calendars, drafts emails, and sends Slack updates — all authenticated through **Auth0 Token Vault** with boundary-pushing authorization controls.
+AI-powered sales agent with **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
 
 Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
-**Live:** [dealflow-ai-seven.vercel.app](https://dealflow-ai-seven.vercel.app)
+> **Demo Video:** [Watch the 3-minute walkthrough](TODO_YOUTUBE_LINK) | **Live:** [dealflow-ai-seven.vercel.app](https://dealflow-ai-seven.vercel.app)
 
 ## What Makes This Different
 
-Most AI agents get blanket access to your data. DealFlow demonstrates five authorization patterns that put the user in control:
+Most AI agents get blanket access to your data. DealFlow implements a **graduated trust spectrum** where security adapts to each surface's trust properties:
 
-1. **Dynamic Scope Narrowing** — The AI voluntarily restricts itself to minimum required scopes, even though the token grants broader access
-2. **Consent-Aware Tool Selection** — Per-tool trust levels (always / ask each time / never) that override default approval behavior
-3. **Token Vault Audit Visualization** — Audit trail showing how tokens flow through each API call with metadata (scope, TTL, provider)
-4. **MCP Server for External Agents** — Any AI agent (OpenClaw, Claude Desktop, Cursor) can securely use these tools via the Model Context Protocol
-5. **Cross-Agent Delegation** — Scoped, time-limited delegation tokens that let one agent grant restricted access to another
+| Surface | Trust Level | Consent | What Happens |
+|---------|------------|---------|--------------|
+| **Action Center** | Low | In-app review + edit | AI suggests, user reviews every action |
+| **Chat UI** | Medium | Real-time + step-up | User directs, AI pauses for sensitive ops |
+| **MCP + CIBA** | High | Phone push notification | External agent acts, user consents on device |
+| **MCP (read)** | Autonomous | None needed | Read-only queries, no data modified |
+
+Key innovations:
+1. **CIBA Batch Scheduling** — One Guardian push approves all pending actions on a schedule, time-boxed to token lifetime
+2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review
+3. **Trust Calibration** — System observes approval patterns and suggests upgrading tools to auto-approve (never auto-escalates)
+4. **Per-Client MCP Policies** — Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
+5. **Reasoning-Aware Audit** — Every entry logs which policy layer decided, not just what happened
 
 ## Architecture
 
