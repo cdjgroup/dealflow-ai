@@ -18,6 +18,46 @@ interface Props {
 export function ChatMessage({ message, index = 0, onApproval }: Props) {
   const isUser = message.role === "user";
 
+  // Collapse "approval-only" assistant messages into a minimal status line.
+  // These are the initial messages where the model proposed a tool, the user
+  // approved, and the result appears in the NEXT message. Without this, the
+  // message shows duplicate text ("Let me check your calendar for tomorrow!").
+  if (!isUser && message.parts) {
+    const hasApprovedTool = message.parts.some(
+      (p) =>
+        p.type.startsWith("tool-") &&
+        "state" in p && p.state === "approval-responded" &&
+        "approval" in p && (p.approval as { approved?: boolean })?.approved === true
+    );
+    const hasToolOutput = message.parts.some(
+      (p) =>
+        p.type.startsWith("tool-") &&
+        "state" in p &&
+        ((p as { state: string }).state === "output-available" || (p as { state: string }).state === "result")
+    );
+    if (hasApprovedTool && !hasToolOutput) {
+      // Render as a minimal status line instead of a full bubble
+      const toolPart = message.parts.find((p) => p.type.startsWith("tool-"));
+      const toolName = toolPart
+        ? ("toolName" in toolPart ? String(toolPart.toolName) : toolPart.type.replace(/^tool-/, ""))
+        : "tool";
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex justify-start mb-2"
+        >
+          <div className="flex items-center gap-2 text-xs text-emerald-400 pl-9">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Approved {toolName}</span>
+          </div>
+        </motion.div>
+      );
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
