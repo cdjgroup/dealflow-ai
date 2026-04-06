@@ -7,6 +7,16 @@ import type { JsonRpcResponse } from "@/lib/mcp/client";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+/** Helper to build a mock Response with headers.get() support. */
+function mockResponse(ok: boolean, jsonBody: unknown, status = 200) {
+  return {
+    ok,
+    status,
+    headers: { get: (name: string) => (name === "content-type" ? "application/json" : null) },
+    json: async () => jsonBody,
+  };
+}
+
 // Dynamic import so the vi.stubGlobal above is in place first.
 const { mcpCall } = await import("@/lib/mcp/client");
 
@@ -25,10 +35,7 @@ describe("mcpCall", () => {
       id: 1,
       result: { ok: true },
     };
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => successResponse,
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, successResponse));
 
     // Act
     await mcpCall("tools/list", { filter: "all" }, "test-api-key");
@@ -48,10 +55,7 @@ describe("mcpCall", () => {
   // -----------------------------------------------------------------------
   it("should send Content-Type application/json and Authorization Bearer header", async () => {
     // Arrange
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse),
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, { jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse));
 
     // Act
     await mcpCall("ping", {}, "my-secret-key");
@@ -68,10 +72,7 @@ describe("mcpCall", () => {
   // -----------------------------------------------------------------------
   it("should POST to /api/mcp", async () => {
     // Arrange
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: "pong" } satisfies JsonRpcResponse),
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, { jsonrpc: "2.0", id: 1, result: "pong" } satisfies JsonRpcResponse));
 
     // Act
     await mcpCall("ping", {}, "key");
@@ -92,10 +93,7 @@ describe("mcpCall", () => {
       id: 1,
       result: { deals: ["ACME Corp"], count: 1 },
     };
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => expected,
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, expected));
 
     // Act
     const response = await mcpCall("crm/list-deals", {}, "api-key");
@@ -114,10 +112,7 @@ describe("mcpCall", () => {
       id: 1,
       error: { code: -32601, message: "Method not found" },
     };
-    mockFetch.mockResolvedValue({
-      ok: true, // HTTP 200 but JSON-RPC error in body
-      json: async () => errorResponse,
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, errorResponse));
 
     // Act
     const response = await mcpCall("tools/unknown-method", {}, "api-key");
@@ -139,10 +134,7 @@ describe("mcpCall", () => {
       id: 1,
       error: { code: -32602, message: "Invalid params", data: { field: "method" } },
     };
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => errorResponse,
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, errorResponse));
 
     // Act
     const response = await mcpCall("tools/call", { name: 42 }, "api-key");
@@ -156,11 +148,7 @@ describe("mcpCall", () => {
   // -----------------------------------------------------------------------
   it("should throw when the HTTP response status is 401 Unauthorized", async () => {
     // Arrange
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: async () => ({ error: "unauthorized" }),
-    });
+    mockFetch.mockResolvedValue(mockResponse(false, { error: "unauthorized" }, 401));
 
     // Act & Assert
     await expect(mcpCall("tools/list", {}, "bad-key")).rejects.toThrow();
@@ -171,11 +159,7 @@ describe("mcpCall", () => {
   // -----------------------------------------------------------------------
   it("should throw when the HTTP response status is 500 Internal Server Error", async () => {
     // Arrange
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => ({ error: "server error" }),
-    });
+    mockFetch.mockResolvedValue(mockResponse(false, { error: "server error" }, 500));
 
     // Act & Assert
     await expect(mcpCall("tools/call", { name: "listDeals" }, "api-key")).rejects.toThrow();
@@ -198,10 +182,7 @@ describe("mcpCall", () => {
   it("should use a 55000ms AbortSignal timeout when timeoutMs is not specified", async () => {
     // Arrange
     const abortTimeoutSpy = vi.spyOn(AbortSignal, "timeout");
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse),
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, { jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse));
 
     // Act
     await mcpCall("ping", {}, "api-key");
@@ -217,10 +198,7 @@ describe("mcpCall", () => {
   it("should use the provided timeoutMs for the AbortSignal when specified", async () => {
     // Arrange
     const abortTimeoutSpy = vi.spyOn(AbortSignal, "timeout");
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: "ok" } satisfies JsonRpcResponse),
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, { jsonrpc: "2.0", id: 1, result: "ok" } satisfies JsonRpcResponse));
 
     // Act
     await mcpCall("tools/list", {}, "api-key", 10000);
@@ -237,10 +215,7 @@ describe("mcpCall", () => {
     // Arrange
     const fakeSignal = {} as AbortSignal;
     vi.spyOn(AbortSignal, "timeout").mockReturnValue(fakeSignal);
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse),
-    });
+    mockFetch.mockResolvedValue(mockResponse(true, { jsonrpc: "2.0", id: 1, result: null } satisfies JsonRpcResponse));
 
     // Act
     await mcpCall("ping", {}, "api-key");

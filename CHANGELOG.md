@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.6] - 2026-04-05
+
+### Added
+- Per-connection autonomy: each integration (Google, Slack) gets its own autonomy level and confidence thresholds via `connectionAutonomy` field
+- ConnectionAutonomyControls component: Apple iOS Settings pattern (summary row + inline expand) on Permissions page
+- Action routing resolves per-connection via ACTION_TYPE_TO_CONNECTION map with global fallback
+- MCP Playground error display: discovery failures now shown in Connection card
+- Trust calibration nudge demo seeding: reseed creates 4/5 email approvals for 1-click demo trigger
+- ADR 010: Per-Connection Autonomy with Global Fallback
+
+### Changed
+- Moved AI Autonomy Level and Confidence Routing from Actions page to Permissions page (per-connection)
+- SchedulePanel slimmed to schedule times + priority filters only
+- Standardized all dashboard page widths to max-w-4xl (matches landing page)
+- MCP Playground moved to top of MCP page for demo visibility
+- Post-merge connectionAutonomy size enforcement at data layer (max 5 entries)
+
 ## [0.6.5] - 2026-04-05
 
 ### Fixed

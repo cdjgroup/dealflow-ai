@@ -11,3 +11,4 @@
 | 007 | [CIBA-Gated Write Tools for MCP](007-mcp-ciba-write-tools.md) | ACCEPTED | 2026-04-05 |
 | 008 | [Per-Client MCP Policy System](008-per-client-mcp-policy.md) | ACCEPTED | 2026-04-05 |
 | 009 | [Trust Calibration via Threshold-Based Nudge](009-trust-calibration-nudge.md) | ACCEPTED | 2026-04-05 |
+| 010 | [Per-Connection Autonomy with Global Fallback](010-per-connection-autonomy.md) | ACCEPTED | 2026-04-05 |

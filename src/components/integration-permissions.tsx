@@ -554,15 +554,6 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                                     </button>
                                   );
                                 })}
-                                {settings.toolTrust?.[toolName] && (
-                                  <button
-                                    onClick={() => clearTrust(toolName)}
-                                    className="text-[10px] text-muted-foreground hover:text-foreground ml-1"
-                                    aria-label={`Reset to default`}
-                                  >
-                                    reset
-                                  </button>
-                                )}
                               </div>
                               {/* Trust calibration stats */}
                               {(() => {
