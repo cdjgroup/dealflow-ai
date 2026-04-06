@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.4 — Confidence Routing Overhaul + Light Mode
+## Current Version: 0.6.5 — Approval Retry Loop Fix
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
