@@ -122,7 +122,7 @@ AI agent suggests next steps based on CRM deal context. Actions are queued at `/
 ## Security & User Control (v0.2.0)
 
 - **Capability Toggles:** Per-tool ON/OFF at `/dashboard/permissions` (stored in Redis)
-- **Step-Up Auth:** AI SDK `needsApproval` for deals >$50K and closed-won stage changes
+- **Step-Up Auth:** CIBA Guardian push for deals >$50K and closed-won stage changes (AI SDK `needsApproval` disabled for write tools due to [unfixed recursive loop](https://github.com/vercel/ai/issues/10169); AI confirms in chat instead)
 - **Audit Trail:** Every tool call logged to Redis + viewable at `/dashboard/audit`
 - **CSRF:** All mutation endpoints require `X-Requested-With: XMLHttpRequest`
 - **Scope Indicator:** Live display of active OAuth scopes during tool execution

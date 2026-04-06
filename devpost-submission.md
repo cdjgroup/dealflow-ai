@@ -85,7 +85,7 @@ We spent five days building DealFlow and discovered that the answer isn't a sing
 **Four trust levels, one pipeline.** DealFlow implements four distinct trust levels across three execution surfaces, all sharing one Auth0 Token Vault pipeline:
 
 - **Action Center (low trust)**: The AI suggests actions with confidence scores and justification. The user reviews every suggestion, edits drafts inline, and approves individually. Nothing executes without explicit consent.
-- **Chat (medium trust)**: The user directs the AI in real-time. Most operations proceed immediately, but sensitive actions (>$50K deals, terminal stages) trigger step-up approval via AI SDK's `needsApproval`.
+- **Chat (medium trust)**: The user directs the AI in real-time. The AI confirms with the user before executing write actions (Slack, email, calendar). High-value operations (>$50K deals, terminal stages) trigger CIBA Guardian push for device-level consent.
 - **MCP with CIBA (high trust)**: External agents can execute write operations, but every write triggers a Guardian push notification to the user's phone. The user approves on their device without opening the app.
 - **MCP read-only (autonomous)**: Read queries execute without consent. No data is modified.
 
