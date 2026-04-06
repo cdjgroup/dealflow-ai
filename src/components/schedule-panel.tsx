@@ -255,10 +255,10 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-      {/* Autonomy Level Selector */}
+      {/* Actions Behavior Selector */}
       <div>
-        <h3 className="text-sm font-semibold mb-1">AI Autonomy Level</h3>
-        <p className="text-xs text-muted-foreground mb-3">
+        <h3 className="text-base font-semibold mb-1">Actions Behavior</h3>
+        <p className="text-sm text-muted-foreground mb-3">
           Control how much the AI can do without your intervention
         </p>
         <div className="flex gap-1" role="group" aria-label="AI autonomy level">
@@ -284,6 +284,11 @@ export function SchedulePanel({ initialSchedule, initialAutonomyLevel, initialCo
             );
           })}
         </div>
+        {confidenceThresholds.enabled !== false && (
+          <p className="text-xs text-muted-foreground mt-2 italic">
+            Note: Confidence routing can override this setting — high-confidence actions may auto-approve even at Level 1.
+          </p>
+        )}
       </div>
 
       {/* Level 3 Confirmation Dialog */}
