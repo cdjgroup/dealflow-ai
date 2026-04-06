@@ -83,9 +83,22 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
               );
             }
 
-            // Approval responded (user already approved/denied)
+            // Approval responded — show result if available, otherwise show badge
             if (state === "approval-responded" && approval) {
               const approved = approval.approved;
+              // If tool was executed and has output, show the result card
+              if (approved && output) {
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <ToolResultCard toolName={toolName} output={output} />
+                  </motion.div>
+                );
+              }
               return (
                 <div key={i}>
                   <div className={`text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 ${
