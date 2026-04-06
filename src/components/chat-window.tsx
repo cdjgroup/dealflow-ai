@@ -78,11 +78,10 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
-    // sendAutomaticallyWhen is intentionally OMITTED. The SDK's auto-send mechanism
-    // has an unfixable loop: it checks the predicate in makeRequest's finally block
-    // (line 13271) after EVERY completed request, creating infinite recursion.
-    // Instead, we use regenerate() in handleApproval — the same pattern used for
-    // token vault interrupts and CIBA flows.
+    // sendAutomaticallyWhen removed: the SDK predicate has multiple loop bugs
+    // (vercel/ai#7717, #10169). Instead, handleApproval explicitly calls
+    // regenerate() after addToolApprovalResponse — same pattern as Token Vault
+    // and CIBA interrupt flows. Works reliably for both read and write tools.
   });
 
   // Notify parent when the first assistant response completes (replaces onFinish)
@@ -149,14 +148,18 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   };
 
   const handleApproval = useCallback(
-    (approvalId: string, approved: boolean) => {
-      addToolApprovalResponse({
+    async (approvalId: string, approved: boolean) => {
+      await addToolApprovalResponse({
         id: approvalId,
         approved,
         reason: approved ? "User approved" : "User denied",
       });
+      // Explicitly resend after approval. The SDK's sendAutomaticallyWhen has
+      // multiple loop bugs (vercel/ai#7717, #10169) so we use regenerate()
+      // instead — same proven pattern as Token Vault and CIBA interrupt flows.
+      regenerate();
     },
-    [addToolApprovalResponse]
+    [addToolApprovalResponse, regenerate]
   );
 
   return (
