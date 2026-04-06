@@ -104,7 +104,7 @@ export const sendSlackMessage = tool({
     if (!data.ok) {
       const friendlyErrors: Record<string, string> = {
         channel_not_found: `Channel "${channel}" not found. Check the channel name and try again.`,
-        not_in_channel: `The bot is not in channel "${channel}". Invite it first with /invite.`,
+        not_in_channel: `Not in channel "${channel}". In Slack, type /invite @YourAppName in that channel to add the bot.`,
         msg_too_long: "Message is too long. Try a shorter message.",
         missing_scope: "Slack connection is missing required permissions. Ask the user to disconnect and reconnect Slack in Permissions to grant the correct scopes.",
       };
