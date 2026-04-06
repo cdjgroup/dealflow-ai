@@ -56,48 +56,45 @@ function parseInterrupt(error: Error | undefined): InterruptData | null {
 }
 
 /**
- * Custom replacement for SDK's lastAssistantMessageIsCompleteWithApprovalResponses.
+ * One-shot gate for sendAutomaticallyWhen.
  *
- * The SDK built-in helper (vercel/ai index.mjs:13338-13344) has a bug: it treats
- * "output-available" as a valid terminal state alongside "approval-responded", so
- * it returns true AFTER the tool already executed (output-available). This causes
- * an infinite re-send loop: approve → execute → result arrives (output-available)
- * → helper still true → re-send → execute again → ...
+ * The SDK checks sendAutomaticallyWhen in THREE places:
+ * 1. addToolApprovalResponse (line 13032) — after user clicks Approve
+ * 2. addToolOutput (line 13062) — after a tool result is added
+ * 3. makeRequest finally block (line 13271) — after EVERY completed request
  *
- * Our fix: only return true when there are approval-responded parts that have NOT
- * yet progressed to output-available or output-error (i.e., pending execution).
+ * Call site #3 creates an infinite loop: request completes → predicate returns
+ * true (old approval-responded parts still in messages) → fires another request
+ * → completes → checks again → ...
+ *
+ * Fix: a module-level flag that allows exactly ONE auto-send per approval click.
+ * handleApproval resets it to false (armed), the predicate fires once and sets
+ * it to true (disarmed), blocking all subsequent checks until the next approval.
  */
+let approvalSendFired = true; // Start disarmed — only arm on explicit approval click
+
 function shouldSendAfterApproval({ messages }: { messages: UIMessage[] }): boolean {
+  // One-shot gate: if we already fired for this approval, refuse
+  if (approvalSendFired) return false;
+
   const last = messages[messages.length - 1];
   if (!last || last.role !== "assistant") return false;
 
-  // Find the last step boundary
-  const lastStepStart = last.parts.reduce(
-    (idx, part, i) => (part.type === "step-start" ? i : idx),
-    -1
-  );
-
-  const toolParts = last.parts.slice(lastStepStart + 1).filter(
-    (p): p is typeof p & { type: string; state: string } =>
-      typeof p === "object" && p !== null && "type" in p &&
-      typeof (p as { type: unknown }).type === "string" &&
-      (p as { type: string }).type.startsWith("tool-")
-  );
-
-  if (toolParts.length === 0) return false;
-
-  // Must have at least one approval-responded that hasn't executed yet
-  const pendingApprovals = toolParts.filter(
-    (p) => p.state === "approval-responded"
-  );
-  if (pendingApprovals.length === 0) return false;
-
-  // ALL tool parts must be in a non-executing state (no "call" or "partial-call" in progress)
-  return toolParts.every(
+  const hasPendingApproval = last.parts.some(
     (p) =>
-      p.state === "approval-responded" ||
-      p.state === "approval-requested"
+      typeof p === "object" && p !== null &&
+      "type" in p && "state" in p &&
+      typeof (p as { type: unknown }).type === "string" &&
+      (p as { type: string }).type.startsWith("tool-") &&
+      (p as { state: unknown }).state === "approval-responded"
   );
+
+  if (hasPendingApproval) {
+    approvalSendFired = true; // Disarm — only one send per approval
+    return true;
+  }
+
+  return false;
 }
 
 const suggestions = [
@@ -200,6 +197,8 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
 
   const handleApproval = useCallback(
     (approvalId: string, approved: boolean) => {
+      // Arm the one-shot gate — allows exactly one auto-send
+      approvalSendFired = false;
       addToolApprovalResponse({
         id: approvalId,
         approved,
