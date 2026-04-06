@@ -41,5 +41,23 @@ export async function mcpCall(
     throw new Error(`MCP request failed with status ${response.status}`);
   }
 
+  const contentType = response.headers.get("content-type") ?? "";
+
+  // Server may respond with JSON directly or SSE stream
+  if (contentType.includes("text/event-stream")) {
+    const text = await response.text();
+    // Extract the last JSON-RPC data line from SSE events
+    let lastData: string | undefined;
+    for (const line of text.split("\n")) {
+      if (line.startsWith("data: ")) {
+        lastData = line.slice(6);
+      }
+    }
+    if (!lastData) {
+      throw new Error("No data received from MCP server");
+    }
+    return JSON.parse(lastData) as JsonRpcResponse;
+  }
+
   return response.json() as Promise<JsonRpcResponse>;
 }
