@@ -66,7 +66,7 @@ describe("TOOL_RATE_LIMITS", () => {
     for (const tool of writeTools) {
       expect(TOOL_RATE_LIMITS).toHaveProperty(tool);
       expect(TOOL_RATE_LIMITS[tool].tier).toBe("write");
-      expect(TOOL_RATE_LIMITS[tool].requests).toBe(5);
+      expect(TOOL_RATE_LIMITS[tool].requests).toBe(10);
     }
   });
 

@@ -86,7 +86,6 @@ AI calls `analyzePipeline`, creates new suggestions in Action Center.
 Point at confidence indicators on action cards:
 > "The AI scores its own confidence. Above 85%, auto-approved. Below 50%, forced to manual review regardless of the user's autonomy setting. The AI's uncertainty becomes a routing signal."
 
-<<<<<<< HEAD
 ### MCP Ecosystem (20 sec)
 **Click MCP** in nav → show MCP Explorer with per-client policies.
 > "External AI agents connect through our MCP endpoint — same Token Vault pipeline, same audit trail. Each agent gets its own policy: 'Cursor' gets full read access, 'CI Pipeline' gets CRM only, with parameter constraints that restrict what queries it can run."

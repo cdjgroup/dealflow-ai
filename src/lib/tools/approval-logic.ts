@@ -10,7 +10,11 @@ const CRM_WRITE_TOOLS = new Set([
   "logActivity",
 ]);
 
-// External action tools always require approval (sends data outside the app)
+// External action tools — approval handled via conversational confirmation
+// (model asks "Does this look good?" → user says "go" → tool executes).
+// SDK-level needsApproval removed because the approval-responded → auto-resend
+// cycle creates duplicate tool_use IDs that Anthropic's API rejects.
+// Users can still enable per-tool SDK approval via toolTrust settings.
 const EXTERNAL_ACTION_TOOLS = new Set([
   "createCalendarEvent",
   "draftEmail",
@@ -32,17 +36,22 @@ export function createApprovalCheck(
   toolName: string
 ): (params: Record<string, unknown>) => Promise<boolean> {
   return async (params: Record<string, unknown>) => {
+    // S3: External action tools — never use SDK approval.
+    // Uses conversational confirmation instead (model asks, user confirms).
+    // SDK approval disabled due to AI SDK bugs: duplicate tool_use IDs from
+    // approval-responded cycle (vercel/ai#9968) and sendAutomaticallyWhen
+    // re-trigger loop (vercel/ai#7683). This check is BEFORE T1 so that
+    // even user-set toolTrust="ask" cannot re-enable the broken flow.
+    if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
+      return false;
+    }
+
     const settings = await getUserSettings(userId);
 
     // T1: Trust level override — highest priority
     const trust = settings.toolTrust?.[toolName];
     if (trust === "always") return false;
     if (trust === "ask" || trust === "never") return true;
-
-    // S3: External action tools always need approval
-    if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
-      return true;
-    }
 
     // Read-only tools never need approval (unless T1 overrode above)
     if (!CRM_WRITE_TOOLS.has(toolName)) {

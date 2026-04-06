@@ -1,5 +1,22 @@
 # Features
 
+## v0.6.6 — Per-Connection Autonomy + Permissions Consolidation
+
+### Per-Connection Autonomy Controls
+Each integration (Google, Slack) now has its own autonomy level and confidence routing thresholds, configured directly on the Permissions page. A new `connectionAutonomy` field on UserSettings stores per-connection overrides; the global settings serve as defaults for any connection without an override. Action routing resolves per-connection via an `ACTION_TYPE_TO_CONNECTION` map (email/calendar -> google, slack -> slack). CRM is excluded (no action generation).
+
+### Summary + Inline Expand UI (Apple iOS Settings Pattern)
+Per-connection behavior controls use progressive disclosure: a compact summary row shows a mini colored zone bar, the autonomy level label, and a "Customize" button. Clicking expands the full controls inline (segmented autonomy buttons + confidence toggle/viz/inputs). This keeps integration cards scannable (~120px collapsed) while providing full configurability (~350px expanded). Based on NNg progressive disclosure guidelines, Apple HIG disclosure controls, and Shneiderman's Information Seeking Mantra.
+
+### Permissions Page Consolidation
+The Permissions page is now the single control surface for both access (connection toggles, capability toggles, per-tool trust levels) and behavior (autonomy, confidence routing). Previously, autonomy and confidence controls were on the Actions page in the SchedulePanel. The Actions page now contains only schedule times, priority filters, and the Run Now button.
+
+### Page Width Standardization
+All dashboard content pages (Permissions, Actions, Audit, MCP) standardized to `max-w-4xl` (896px), matching the landing page. Previously Permissions and MCP used `max-w-3xl` while Actions and Audit inherited `max-w-7xl`.
+
+### Trust Nudge Demo Seeding
+"Reseed Demo Data" now pre-loads 4 email approvals (0 dismissals) into trust stats. The trust calibration nudge threshold is 5 decisions at >80% approval. One email approval in the Action Center triggers the nudge banner instantly — a 1-click demo of the closed feedback loop.
+
 ## v0.6.4 — Confidence Routing Overhaul + Light Mode
 
 ### Stripe Radar-Inspired Confidence Routing
