@@ -33,6 +33,10 @@ export async function updateUserSettings(
       ? { ...current.connectionAutonomy, ...patch.connectionAutonomy }
       : current.connectionAutonomy,
   };
+  // Enforce max 5 connection autonomy entries post-merge (Zod only validates the incoming patch)
+  if (merged.connectionAutonomy && Object.keys(merged.connectionAutonomy).length > 5) {
+    throw new Error("connectionAutonomy cannot contain more than 5 entries");
+  }
   const redis = getRedis();
   await redis.set(settingsKey(userId), merged);
   return merged;
