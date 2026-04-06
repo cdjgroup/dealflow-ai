@@ -1,3 +1,5 @@
+![DealFlow AI — AI Sales Agent with Auth0 Token Vault](docs/images/hero.png)
+
 # DealFlow
 
 AI-powered sales agent with **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
