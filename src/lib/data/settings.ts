@@ -1,5 +1,5 @@
 import { getRedis } from "@/lib/redis";
-import { type UserSettings, DEFAULT_SETTINGS, type TrustStats, DEFAULT_TRUST_STATS } from "@/lib/types/settings";
+import { type UserSettings, DEFAULT_SETTINGS, DEFAULT_TOOL_TRUST, type TrustStats, DEFAULT_TRUST_STATS } from "@/lib/types/settings";
 
 function settingsKey(userId: string): string {
   return `${userId}:settings`;
@@ -9,7 +9,9 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
   const redis = getRedis();
   const raw = await redis.get<UserSettings>(settingsKey(userId));
   if (!raw) return { ...DEFAULT_SETTINGS };
-  return { ...DEFAULT_SETTINGS, ...raw, toolTrust: { ...raw.toolTrust } };
+  // Merge defaults UNDER stored values so user overrides always win,
+  // but missing keys get sensible defaults (read=always, write=ask).
+  return { ...DEFAULT_SETTINGS, ...raw, toolTrust: { ...DEFAULT_TOOL_TRUST, ...raw.toolTrust } };
 }
 
 export async function updateUserSettings(

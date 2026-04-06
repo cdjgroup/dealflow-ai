@@ -58,6 +58,19 @@ export interface UserSettings {
   connectionAutonomy?: Record<string, ConnectionAutonomyConfig>;
 }
 
+// Default trust: read tools auto-execute, write tools require approval.
+// Seeded into Redis via getUserSettings() merge so approval-logic.ts
+// always sees explicit values and the UI never lies about active state.
+export const DEFAULT_TOOL_TRUST: Record<string, TrustLevel> = {
+  checkCalendar: "always",
+  searchEmails: "always",
+  listSlackChannels: "always",
+  createCalendarEvent: "ask",
+  draftEmail: "ask",
+  sendSlackMessage: "ask",
+  delegateResearch: "ask",
+};
+
 export const DEFAULT_SETTINGS: UserSettings = {
   capabilities: {
     crmRead: true,
@@ -69,7 +82,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   approvalRequired: {
     crmWrite: false,
   },
-  toolTrust: {},
+  toolTrust: { ...DEFAULT_TOOL_TRUST },
   schedule: {
     enabled: false,
     hours: [],
