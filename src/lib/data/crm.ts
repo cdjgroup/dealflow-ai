@@ -498,6 +498,16 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     p.sadd(activityIndexKey(userId, activity.dealId), activity.id);
   }
 
+  // Clear old actions on reseed (start fresh — AI generates actions via analyzePipeline)
+  const actionIdxKey = `${userId}:_idx:actions`;
+  const oldActionIds = await redis.smembers(actionIdxKey);
+  if (oldActionIds.length > 0) {
+    for (const id of oldActionIds) {
+      p.del(`${userId}:action:${id}`);
+    }
+    p.del(actionIdxKey);
+  }
+
   // Seed trust stats: 4 email approvals, 0 dismissals — one more approval
   // triggers the Trust Calibration Nudge banner (threshold: 5 decisions, >80%)
   p.set(`${userId}:trustStats`, JSON.stringify({
@@ -505,6 +515,15 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     calendar: { approved: 0, dismissed: 0 },
     slack: { approved: 0, dismissed: 0 },
   }));
+
+  // Reset settings that affect demo behavior:
+  // - toolTrust: {} — clears "ask" overrides that trigger approval loop bug
+  // - autonomyLevel: 1 — "Suggest Only" so actions start as pending, not auto-approved
+  const settingsKey = `${userId}:settings`;
+  const currentSettings = await redis.get<Record<string, unknown>>(settingsKey);
+  if (currentSettings) {
+    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: {}, autonomyLevel: 1 }));
+  }
 
   await p.exec();
 

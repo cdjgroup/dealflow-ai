@@ -196,7 +196,7 @@ export function McpExplorer() {
         className="bg-card border border-border rounded-lg p-6"
       >
         <h2 className="text-lg font-semibold text-foreground mb-3">Trust Spectrum</h2>
-        <p className="text-xs text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Each MCP client operates within a trust tier that controls which tools it can access.
           Higher tiers grant access to more tool categories.
         </p>
@@ -204,8 +204,8 @@ export function McpExplorer() {
           {TRUST_TIERS.map((t, i) => (
             <div key={t.tier} className="flex-1 flex items-center gap-2">
               <div className={`flex-1 rounded-md border px-3 py-2 text-center ${t.color}`}>
-                <div className="text-xs font-medium">{t.label}</div>
-                <div className="text-[10px] mt-0.5 opacity-70">{t.desc}</div>
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="text-xs mt-0.5 opacity-70">{t.desc}</div>
               </div>
               {i < TRUST_TIERS.length - 1 && (
                 <span className="text-muted-foreground/30 text-xs shrink-0">&rarr;</span>
@@ -243,7 +243,7 @@ export function McpExplorer() {
               exit={{ opacity: 0, height: 0 }}
               className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/15 p-4"
             >
-              <p className="text-xs font-medium text-amber-700 mb-2">
+              <p className="text-sm font-medium text-amber-700 mb-2">
                 Save this API key — it will not be shown again:
               </p>
               <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function McpExplorer() {
               <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Name</label>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Name</label>
                     <input
                       type="text"
                       value={createForm.name}
@@ -286,7 +286,7 @@ export function McpExplorer() {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Description</label>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Description</label>
                     <input
                       type="text"
                       value={createForm.description}
@@ -298,7 +298,7 @@ export function McpExplorer() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Trust Tier</label>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Trust Tier</label>
                     <select
                       value={createForm.trustTier}
                       onChange={(e) => setCreateForm({ ...createForm, trustTier: e.target.value })}
@@ -311,7 +311,7 @@ export function McpExplorer() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-medium text-muted-foreground block mb-1">Rate Limit (req/min)</label>
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">Rate Limit (req/min)</label>
                     <input
                       type="number"
                       value={createForm.rateLimit}
@@ -323,7 +323,7 @@ export function McpExplorer() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-medium text-muted-foreground block mb-1.5">Allowed Tools</label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1.5">Allowed Tools</label>
                   <div className="flex flex-wrap gap-1.5">
                     {allMcpTools.map((tool) => {
                       const selected = createForm.selectedTools.includes(tool);
@@ -339,7 +339,7 @@ export function McpExplorer() {
                                 : [...createForm.selectedTools, tool],
                             });
                           }}
-                          className={`text-[10px] rounded px-2 py-1 border transition-colors ${
+                          className={`text-xs rounded px-2 py-1 border transition-colors ${
                             selected
                               ? "text-emerald-600 bg-emerald-500/15 border-emerald-500/20"
                               : "text-muted-foreground bg-muted/30 border-border hover:border-muted-foreground/30"
@@ -352,11 +352,11 @@ export function McpExplorer() {
                   </div>
                 </div>
                 <details className="group">
-                  <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
                     Parameter Constraints ({createForm.constraints.length}) &darr;
                   </summary>
                   <div className="mt-2 space-y-2">
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Restrict what parameters MCP clients can pass to tools (e.g., only search emails from specific domains).
                     </p>
                     {createForm.constraints.map((c, i) => (
@@ -425,7 +425,7 @@ export function McpExplorer() {
                           constraints: [...createForm.constraints, { tool: "", param: "", pattern: "", description: "" }],
                         });
                       }}
-                      className="text-[10px] text-primary hover:text-primary/80 transition-colors"
+                      className="text-xs text-primary hover:text-primary/80 transition-colors"
                     >
                       + Add constraint
                     </button>
@@ -445,7 +445,7 @@ export function McpExplorer() {
 
         {/* Client Cards */}
         {clients.length === 0 && !showCreateForm && (
-          <p className="text-xs text-muted-foreground text-center py-6">
+          <p className="text-sm text-muted-foreground text-center py-6">
             No MCP clients configured. Create one to generate an API key for external agents.
           </p>
         )}
@@ -473,9 +473,9 @@ export function McpExplorer() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Endpoint</h2>
           {endpointStatus === "checking" ? (
-            <span className="text-[10px] text-muted-foreground">Checking...</span>
+            <span className="text-xs text-muted-foreground">Checking...</span>
           ) : endpointStatus === "live" ? (
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-emerald-600 bg-emerald-500/15 border border-emerald-500/20 rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/15 border border-emerald-500/20 rounded-full px-2.5 py-1">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -483,7 +483,7 @@ export function McpExplorer() {
               LIVE
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-red-600 bg-red-500/15 border border-red-500/20 rounded-full px-2.5 py-1">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 bg-red-500/15 border border-red-500/20 rounded-full px-2.5 py-1">
               DOWN
             </span>
           )}
@@ -494,7 +494,7 @@ export function McpExplorer() {
               https://dealflow-ai-seven.vercel.app/api/mcp
             </code>
           </div>
-          <div className="flex flex-wrap gap-2 text-[10px]">
+          <div className="flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-border px-2 py-0.5 text-muted-foreground">
               Streamable HTTP
             </span>
@@ -508,7 +508,7 @@ export function McpExplorer() {
               Per-Client Policy
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Supports both Auth0 bearer tokens (default access) and DealFlow API keys (per-client policy).
             API keys are generated when you create an MCP client above.
           </p>
@@ -525,7 +525,7 @@ export function McpExplorer() {
         <h2 className="text-lg font-semibold text-foreground mb-2">
           Available Tools ({MCP_TOOLS.length})
         </h2>
-        <p className="text-xs text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Tools available via MCP. Per-client policies can restrict which tools each client can access.
           Write operations require the chat UI for approval.
         </p>
@@ -539,8 +539,8 @@ export function McpExplorer() {
               className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2"
             >
               <div className="flex items-center gap-2">
-                <code className="text-xs font-mono text-foreground">{tool.name}</code>
-                <span className={`text-[10px] rounded px-1.5 py-0.5 ${
+                <code className="text-sm font-mono text-foreground">{tool.name}</code>
+                <span className={`text-xs rounded px-1.5 py-0.5 ${
                   tool.provider === "Google" ? "text-blue-600 bg-blue-500/15" :
                   tool.provider === "Slack" ? "text-purple-600 bg-purple-500/15" :
                   "text-muted-foreground bg-muted"
@@ -548,21 +548,21 @@ export function McpExplorer() {
                   {tool.provider}
                 </span>
               </div>
-              <span className="text-[10px] text-muted-foreground hidden sm:inline">{tool.description}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">{tool.description}</span>
             </motion.div>
           ))}
         </div>
 
         {/* Excluded tools */}
         <details className="mt-4">
-          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
+          <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">
             {EXCLUDED_TOOLS.length} tools excluded (requires approval) &darr;
           </summary>
           <div className="mt-2 space-y-1">
             {EXCLUDED_TOOLS.map((tool) => (
               <div key={tool.name} className="flex items-center justify-between text-xs px-3 py-1.5 text-muted-foreground/60">
                 <code className="font-mono line-through">{tool.name}</code>
-                <span className="text-[10px]">{tool.reason}</span>
+                <span className="text-xs">{tool.reason}</span>
               </div>
             ))}
           </div>
@@ -600,7 +600,7 @@ export function McpExplorer() {
           </pre>
           <button
             onClick={copyConfig}
-            className="absolute top-2 right-2 text-[10px] bg-card border border-border rounded px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute top-2 right-2 text-xs bg-card border border-border rounded px-2 py-1 text-muted-foreground hover:text-foreground transition-colors"
           >
             {copied ? "Copied!" : "Copy"}
           </button>

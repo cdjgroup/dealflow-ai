@@ -24,9 +24,22 @@ export function ActionList({ initialActions }: Props) {
   const [nudge, setNudge] = useState<TrustNudge | null>(null);
   const router = useRouter();
 
-  // Sync with server data when initialActions changes (e.g., after router.refresh())
+  // Sync with server data, but preserve in-flight local statuses that the
+  // server may not have committed yet (prevents the Execute button from
+  // reappearing mid-execution due to a stale router.refresh()).
+  const IN_FLIGHT = new Set(["executing", "ciba-pending"]);
   useEffect(() => {
-    setActions(initialActions);
+    setActions((prev) => {
+      const localMap = new Map(prev.map((a) => [a.id, a]));
+      return initialActions.map((serverAction) => {
+        const local = localMap.get(serverAction.id);
+        // Keep local state if it's in-flight and server hasn't caught up
+        if (local && IN_FLIGHT.has(local.status) && !IN_FLIGHT.has(serverAction.status) && serverAction.status !== "sent") {
+          return local;
+        }
+        return serverAction;
+      });
+    });
   }, [initialActions]);
 
   // Refetch server data after state-changing operations

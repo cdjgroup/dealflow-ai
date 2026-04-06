@@ -173,30 +173,30 @@ export function McpPlayground() {
         className="bg-card border border-border rounded-lg p-6"
       >
         <h2 className="text-lg font-semibold text-foreground mb-1">Connection</h2>
-        <p className="text-xs text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Select an MCP client or paste an API key to authenticate as an external agent.
         </p>
 
         {clients.length > 0 && (
           <div className="mb-3">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               Your MCP Clients
             </label>
             <div className="flex flex-wrap gap-2">
               {clients.map((c) => (
-                <span key={c.id} className="text-[10px] rounded-full border border-border px-2.5 py-1 text-muted-foreground">
+                <span key={c.id} className="text-xs rounded-full border border-border px-2.5 py-1 text-muted-foreground">
                   {c.name} ({c.trustTier}) — {c.apiKeyPrefix}...
                 </span>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground/70 mt-1">
+            <p className="text-xs text-muted-foreground/70 mt-1">
               Paste the full API key from one of these clients below.
             </p>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
+          <label className="block text-sm font-medium text-muted-foreground mb-1">
             API Key {clients.length > 0 && "(paste the full key)"}
           </label>
           <div className="flex gap-2">
@@ -218,13 +218,13 @@ export function McpPlayground() {
         </div>
 
         {error && tools.length === 0 && (
-          <p className="text-xs text-red-400 mt-3">
+          <p className="text-sm text-red-400 mt-3">
             {error}
           </p>
         )}
 
         {!hasKey && clients.length === 0 && (
-          <p className="text-xs text-amber-700 mt-3">
+          <p className="text-sm text-amber-700 mt-3">
             No MCP clients found.{" "}
             <a href="/dashboard/mcp" className="underline hover:text-amber-500">
               Create one in MCP Explorer
@@ -245,13 +245,13 @@ export function McpPlayground() {
           <h2 className="text-lg font-semibold text-foreground mb-1">
             Available Tools ({tools.length})
           </h2>
-          <p className="text-xs text-muted-foreground mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Select a tool to configure and execute. Write tools (email, calendar, Slack) require Guardian push approval via CIBA.
           </p>
 
           {/* Tool picker */}
           <div className="mb-4">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Tool</label>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Tool</label>
             <select
               value={selectedTool?.name ?? ""}
               onChange={(e) => handleToolSelect(e.target.value)}
@@ -276,18 +276,18 @@ export function McpPlayground() {
                   {TOOL_DISPLAY_NAMES[selectedTool.name] ?? selectedTool.name}
                 </span>
                 {cibaRequired ? (
-                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/15 text-amber-700">
+                  <span className="text-xs rounded-full border px-2.5 py-1 border-amber-500/30 bg-amber-500/15 text-amber-700">
                     CIBA Required
                   </span>
                 ) : (
-                  <span className="text-[10px] rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
+                  <span className="text-xs rounded-full border px-2.5 py-1 border-emerald-500/30 bg-emerald-500/15 text-emerald-600">
                     Read Only
                   </span>
                 )}
               </div>
 
               {selectedTool.description && (
-                <p className="text-xs text-muted-foreground">{selectedTool.description}</p>
+                <p className="text-sm text-muted-foreground">{selectedTool.description}</p>
               )}
 
               <McpToolForm

@@ -83,7 +83,7 @@ export function ConnectionAutonomyControls({
           </div>
         )}
 
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {currentLevel?.label ?? "Unknown"}
           {routingEnabled && ` \u00b7 Review <${reviewPct}% \u00b7 Auto >${approvePct}%`}
         </span>
@@ -100,10 +100,10 @@ export function ConnectionAutonomyControls({
       {/* Expanded controls */}
       {expanded && (
         <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-          {/* Autonomy Level Selector */}
+          {/* Actions Behavior Selector */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1.5">
-              Autonomy Level
+            <label className="text-sm font-semibold text-foreground block mb-1.5">
+              Actions Behavior
             </label>
             <div className="flex gap-1" role="group" aria-label={`${connectionLabel} autonomy level`}>
               {AUTONOMY_LEVELS.map((opt) => {
@@ -121,7 +121,7 @@ export function ConnectionAutonomyControls({
                     } ${saving ? "opacity-50 pointer-events-none" : ""}`}
                   >
                     <div className="font-semibold">{opt.label}</div>
-                    <div className={`mt-0.5 text-[10px] ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+                    <div className={`mt-0.5 text-xs ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
                       {opt.description}
                     </div>
                   </button>
@@ -162,7 +162,7 @@ export function ConnectionAutonomyControls({
           {/* Confidence Routing */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-muted-foreground">
+              <label className="text-sm font-semibold text-foreground">
                 Confidence Routing
               </label>
               <button
@@ -185,6 +185,12 @@ export function ConnectionAutonomyControls({
                 />
               </button>
             </div>
+
+            <p className="text-sm text-muted-foreground mt-1">
+              {routingEnabled
+                ? "Overrides Actions Behavior at extremes — high-confidence actions auto-approve, low-confidence always require review."
+                : "Off — actions follow Actions Behavior setting only."}
+            </p>
 
             {routingEnabled && (
               <>
@@ -219,7 +225,7 @@ export function ConnectionAutonomyControls({
                 {/* Threshold inputs */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Review below</label>
+                    <label className="text-sm text-muted-foreground block mb-1">Review below</label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
@@ -240,7 +246,7 @@ export function ConnectionAutonomyControls({
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Auto-approve above</label>
+                    <label className="text-sm text-muted-foreground block mb-1">Auto-approve above</label>
                     <div className="flex items-center gap-1">
                       <input
                         type="number"

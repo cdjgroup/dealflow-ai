@@ -14,6 +14,18 @@ vi.mock("@/lib/api-utils", () => ({
   resolveSlackChannelId: async (_channel: string, _token: string) => ({ id: "C123" }),
 }));
 
+// Mock Redis for per-action execution lock
+const lockStore = new Map<string, string>();
+const mockRedisSet = vi.fn(async (key: string, value: string, opts?: { nx?: boolean }) => {
+  if (opts?.nx && lockStore.has(key)) return null;
+  lockStore.set(key, value);
+  return "OK";
+});
+const mockRedisDel = vi.fn(async (key: string) => { lockStore.delete(key); return 1; });
+vi.mock("@/lib/redis", () => ({
+  getRedis: () => ({ set: mockRedisSet, del: mockRedisDel }),
+}));
+
 // Mock fetch for Google/Slack APIs
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -43,6 +55,7 @@ function makeAction(overrides: Partial<SuggestedAction> = {}): SuggestedAction {
 describe("executor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lockStore.clear();
   });
 
   describe("executeAction (existing — AC-12)", () => {
@@ -166,6 +179,62 @@ describe("executor", () => {
       await expect(
         executeActionWithToken(makeAction(), "bad-token")
       ).rejects.toThrow();
+    });
+  });
+
+  describe("per-action execution lock", () => {
+    it("blocks concurrent execution of the same action", async () => {
+      // Slow down execution so both calls overlap
+      mockExchangeToken.mockResolvedValue({
+        token: "google-token",
+        scope: "gmail",
+        expiresIn: 3600,
+        connection: "google-oauth2",
+        exchangedAt: "2026-04-04T00:00:00Z",
+      });
+      mockFetch.mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve({
+          ok: true,
+          json: async () => ({ id: "draft-1" }),
+        }), 50))
+      );
+
+      const action = makeAction({ id: "same-action-id" });
+      const [result1, result2] = await Promise.allSettled([
+        executeAction(action),
+        executeActionWithToken(action, "token"),
+      ]);
+
+      // Exactly one should succeed, one should fail
+      const successes = [result1, result2].filter((r) => r.status === "fulfilled");
+      const failures = [result1, result2].filter((r) => r.status === "rejected");
+      expect(successes).toHaveLength(1);
+      expect(failures).toHaveLength(1);
+      expect((failures[0] as PromiseRejectedResult).reason.message).toMatch(
+        /already being executed/
+      );
+    });
+
+    it("allows retry after a failed execution", async () => {
+      mockExchangeToken.mockResolvedValue({
+        token: "google-token",
+        scope: "gmail",
+        expiresIn: 3600,
+        connection: "google-oauth2",
+        exchangedAt: "2026-04-04T00:00:00Z",
+      });
+
+      // First call fails
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+      await expect(executeAction(makeAction({ id: "retry-action" }))).rejects.toThrow();
+
+      // Lock should be released — retry succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "draft-1" }),
+      });
+      const result = await executeAction(makeAction({ id: "retry-action" }));
+      expect(result.success).toBe(true);
     });
   });
 });

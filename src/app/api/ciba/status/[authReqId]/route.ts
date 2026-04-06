@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-guard";
 import { pollCiba } from "@/lib/ciba/poll";
-import { getSessionOwner } from "@/lib/ciba/session";
+import { getSessionOwner, getSessionByAuthReqId, updateCibaSessionStatus } from "@/lib/ciba/session";
 import { getPollingLimiter } from "@/lib/rate-limit";
 
 export async function GET(
@@ -29,6 +29,16 @@ export async function GET(
 
   try {
     const result = await pollCiba(authReqId);
+
+    // Persist terminal statuses to Redis so the execute endpoint doesn't
+    // re-poll a consumed auth_req_id (Auth0 CIBA tokens are single-use).
+    if (result.status === "approved" || result.status === "denied" || result.status === "expired") {
+      const session = await getSessionByAuthReqId(authReqId);
+      if (session) {
+        await updateCibaSessionStatus(auth.userId, session.toolName, result.status);
+      }
+    }
+
     // Never expose access tokens to the client — strip before returning
     const { accessToken: _stripped, ...safeResult } = result;
     return NextResponse.json(safeResult);

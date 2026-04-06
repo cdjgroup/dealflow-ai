@@ -446,12 +446,12 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                 {/* Connection status badge */}
                 {isOAuth && !statusLoading && (
                   isConnected ? (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-500">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       Connected
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-400">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-400">
                       <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                       Disconnected
                     </span>
@@ -459,12 +459,12 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                 )}
 
                 {!isOAuth && (
-                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                  <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
                     Local
                   </span>
                 )}
 
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {enabledCount} of {integration.capabilities.length} enabled
                 </span>
               </div>
@@ -487,7 +487,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                 {integration.scopes.map((scope) => (
                   <span
                     key={scope}
-                    className="text-[10px] text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5"
+                    className="text-xs text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5"
                     title={scope}
                   >
                     {SCOPE_LABELS[scope] || scope}
@@ -507,7 +507,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                     <div className="flex items-center justify-between px-4 py-2.5">
                       <div className="pr-3">
                         <p className="text-sm font-medium text-foreground">{label}</p>
-                        <p className="text-xs text-muted-foreground">{description}</p>
+                        <p className="text-sm text-muted-foreground">{description}</p>
                       </div>
                       <ToggleSwitch
                         checked={enabled}
@@ -524,7 +524,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                           const currentTrust = settings.toolTrust?.[toolName] ?? "ask";
                           return (
                             <div key={toolName} className="flex items-center gap-2">
-                              <span className="text-[10px] text-muted-foreground w-28 truncate">
+                              <span className="text-xs text-muted-foreground w-28 truncate">
                                 {SCOPE_LABELS[
                                   // Map tool to its primary scope for labeling
                                   toolName === "checkCalendar" ? "calendar.readonly" :
@@ -564,7 +564,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                                 if (total === 0) return null;
                                 const rate = stats.approved / total;
                                 return (
-                                  <span className="text-[10px] text-muted-foreground ml-1">
+                                  <span className="text-xs text-muted-foreground ml-1">
                                     <span aria-label={`${stats.approved} of ${total} actions approved, ${Math.round(rate * 100)}%`}>
                                       {stats.approved}/{total} approved ({Math.round(rate * 100)}%)
                                     </span>
@@ -587,7 +587,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
             {/* Behavior section — per-connection autonomy (only for action-generating integrations) */}
             {integration.id !== "crm" && isConnected && !isDisconnected && (
               <div className="px-4 py-3 border-t border-border/50">
-                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   Behavior
                 </h4>
                 <ConnectionAutonomyControls
@@ -614,10 +614,10 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
               <div className="px-4 py-2.5 border-t border-amber-500/20 bg-amber-500/5">
                 <div className="flex items-center justify-between">
                   <div className="pr-3">
-                    <p className="text-xs font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground">
                       Require approval for high-value changes
                     </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Deals over $50K and closed-won status changes need your confirmation
                     </p>
                   </div>

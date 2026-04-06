@@ -157,7 +157,7 @@ export async function POST(
     }
   }
 
-  // Mark as executing
+  // Mark as executing (executor's per-action lock prevents actual duplicate sends)
   await updateAction(auth.userId, id, { status: "executing" });
 
   const startTime = Date.now();

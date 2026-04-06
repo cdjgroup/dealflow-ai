@@ -1,7 +1,8 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
 import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
@@ -54,6 +55,51 @@ function parseInterrupt(error: Error | undefined): InterruptData | null {
   return null;
 }
 
+/**
+ * Custom replacement for SDK's lastAssistantMessageIsCompleteWithApprovalResponses.
+ *
+ * The SDK built-in helper (vercel/ai index.mjs:13338-13344) has a bug: it treats
+ * "output-available" as a valid terminal state alongside "approval-responded", so
+ * it returns true AFTER the tool already executed (output-available). This causes
+ * an infinite re-send loop: approve → execute → result arrives (output-available)
+ * → helper still true → re-send → execute again → ...
+ *
+ * Our fix: only return true when there are approval-responded parts that have NOT
+ * yet progressed to output-available or output-error (i.e., pending execution).
+ */
+function shouldSendAfterApproval({ messages }: { messages: UIMessage[] }): boolean {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "assistant") return false;
+
+  // Find the last step boundary
+  const lastStepStart = last.parts.reduce(
+    (idx, part, i) => (part.type === "step-start" ? i : idx),
+    -1
+  );
+
+  const toolParts = last.parts.slice(lastStepStart + 1).filter(
+    (p): p is typeof p & { type: string; state: string } =>
+      typeof p === "object" && p !== null && "type" in p &&
+      typeof (p as { type: unknown }).type === "string" &&
+      (p as { type: string }).type.startsWith("tool-")
+  );
+
+  if (toolParts.length === 0) return false;
+
+  // Must have at least one approval-responded that hasn't executed yet
+  const pendingApprovals = toolParts.filter(
+    (p) => p.state === "approval-responded"
+  );
+  if (pendingApprovals.length === 0) return false;
+
+  // ALL tool parts must be in a non-executing state (no "call" or "partial-call" in progress)
+  return toolParts.every(
+    (p) =>
+      p.state === "approval-responded" ||
+      p.state === "approval-requested"
+  );
+}
+
 const suggestions = [
   "Analyze my pipeline and suggest next steps",
   "Show me my deals",
@@ -78,14 +124,30 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
-    onFinish() {
-      onConversationCreated?.();
-    },
-    // Use the SDK's built-in helper — it checks only the LAST STEP of the last
-    // message, preventing old approval-responded parts from re-triggering sends.
-    // Our hand-rolled version checked ALL parts, causing infinite re-send loops.
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    // IMPORTANT: onFinish is intentionally omitted here. Per vercel/ai#10169,
+    // having onFinish on useChat breaks the needsApproval/sendAutomaticallyWhen
+    // flow, causing approved tools to loop indefinitely. We trigger
+    // onConversationCreated via a status-change effect below instead.
+    //
+    // Custom predicate replaces SDK's lastAssistantMessageIsCompleteWithApprovalResponses
+    // which has a bug: it returns true even after tool execution (output-available state),
+    // causing infinite re-send loops. Our version only fires when approvals are pending execution.
+    sendAutomaticallyWhen: shouldSendAfterApproval,
   });
+
+  // Notify parent when the first assistant response completes (replaces onFinish)
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !notifiedRef.current &&
+      status === "ready" &&
+      messages.length > 0 &&
+      messages.some((m) => m.role === "assistant")
+    ) {
+      notifiedRef.current = true;
+      onConversationCreated?.();
+    }
+  }, [status, messages, onConversationCreated]);
 
   // Load saved messages when opening an existing conversation
   useEffect(() => {

@@ -1,5 +1,19 @@
 # Features
 
+## v0.6.7 — Approval Loop Fix + Action Center Polish
+
+### Approval Flow Stability
+Fixed infinite approval retry loop for write tools (draftEmail, sendSlackMessage, createCalendarEvent). Three-layer defense: (1) SDK's built-in `lastAssistantMessageIsCompleteWithApprovalResponses` for client-side `sendAutomaticallyWhen` — scopes to last step only, preventing old approvals from re-triggering. (2) `needsApproval` wrapper checks `context.messages` for prior `tool-result` — skips second approval card if tool already executed. (3) Execute dedup wrapper (outermost layer) returns "already completed" if write tool has prior result in messages.
+
+### Action Badge Accuracy
+Badge now polls all actions and filters client-side to match server's `getPendingActionCount` logic (excludes sent/dismissed). Previously filtered to `?status=pending` only, missing approved/executing actions.
+
+### Reseed Improvements
+"Reseed Demo Data" now resets autonomyLevel to 1 (Suggest Only), clears toolTrust overrides (prevents approval loop for returning users), and clears old actions for a clean slate.
+
+### UI Label Changes
+"Autonomy Level" renamed to "Actions Behavior" with larger font. Confidence Routing shows "Overrides Actions Behavior at extremes" when enabled, making the override relationship clear.
+
 ## v0.6.6 — Per-Connection Autonomy + Permissions Consolidation
 
 ### Per-Connection Autonomy Controls
