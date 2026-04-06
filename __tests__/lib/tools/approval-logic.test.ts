@@ -89,15 +89,9 @@ describe("approval-logic", () => {
   });
 
   describe("createApprovalCheck for external action tools (S3)", () => {
-    // S3 SDK approval is disabled (returns false) due to ai@6.0.142 loop bug.
-    // However, T1 trust layer runs first — DEFAULT_TOOL_TRUST sets write tools
-    // to "ask", so T1 returns true before S3 is reached. To test S3 in isolation,
-    // override toolTrust to "always" to bypass T1.
-    it("S3 returns false when T1 bypassed (draftEmail with trust always)", async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { draftEmail: "always" },
-      });
+    // S3 SDK approval is DISABLED for all external action tools due to loop bugs.
+    // Trust levels are enforced via Action Center and capability filter instead.
+    it("does not require SDK approval for draftEmail", async () => {
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({
         to: "sarah@example.com",
@@ -107,11 +101,7 @@ describe("approval-logic", () => {
       expect(result).toBe(false);
     });
 
-    it("S3 returns false when T1 bypassed (sendSlackMessage with trust always)", async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { sendSlackMessage: "always" },
-      });
+    it("does not require SDK approval for sendSlackMessage", async () => {
       const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
       const result = await check({
         channel: "general",
@@ -120,28 +110,13 @@ describe("approval-logic", () => {
       expect(result).toBe(false);
     });
 
-    it("S3 returns false when T1 bypassed (createCalendarEvent with trust always)", async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { createCalendarEvent: "always" },
-      });
+    it("does not require SDK approval for createCalendarEvent", async () => {
       const check = createApprovalCheck(TEST_USER, "createCalendarEvent");
       const result = await check({
         title: "Meeting",
         date: "2026-04-10",
       });
       expect(result).toBe(false);
-    });
-
-    it("T1 overrides S3: write tools with default trust 'ask' require approval", async () => {
-      // DEFAULT_TOOL_TRUST sets write tools to "ask" — T1 returns true before S3
-      const check = createApprovalCheck(TEST_USER, "draftEmail");
-      const result = await check({
-        to: "sarah@example.com",
-        subject: "Follow up",
-        body: "Hello",
-      });
-      expect(result).toBe(true);
     });
   });
 
@@ -200,76 +175,28 @@ describe("approval-logic", () => {
     });
   });
 
-  // AC-5: T1 trust layer — toolTrust controls override S3/S1/U2 logic
-  describe("createApprovalCheck — T1 trust layer (AC-5)", () => {
-    it('T1 "always" overrides S3: draftEmail skips approval when trust is "always"', async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { draftEmail: "always" },
-      });
-      const check = createApprovalCheck(TEST_USER, "draftEmail");
-      const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(false);
-    });
-
-    it('T1 "always" overrides S3: sendSlackMessage skips approval when trust is "always"', async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { sendSlackMessage: "always" },
-      });
-      const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
-      const result = await check({ channel: "general", text: "Hello team" });
-      expect(result).toBe(false);
-    });
-
-    it('T1 "ask" overrides default: checkCalendar requires approval when trust is "ask"', async () => {
+  // T1 trust layer is NOT enforced via SDK needsApproval (loop bugs).
+  // "never" is enforced by capability-filter.ts (removes tool entirely).
+  // "ask" is enforced via Action Center flow (proven reliable).
+  describe("createApprovalCheck — T1 NOT enforced via SDK (loop bug)", () => {
+    it('toolTrust "ask" does NOT trigger SDK approval for read tools', async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
         toolTrust: { checkCalendar: "ask" },
       });
       const check = createApprovalCheck(TEST_USER, "checkCalendar");
       const result = await check({ date: "2026-04-02" });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it('T1 "ask" overrides default: searchEmails requires approval when trust is "ask"', async () => {
+    it('toolTrust "ask" does NOT trigger SDK approval for external action tools', async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
-        toolTrust: { searchEmails: "ask" },
-      });
-      const check = createApprovalCheck(TEST_USER, "searchEmails");
-      const result = await check({ query: "from:test@example.com" });
-      expect(result).toBe(true);
-    });
-
-    it('T1 "ask" overrides default: listDeals requires approval when trust is "ask"', async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { listDeals: "ask" },
-      });
-      const check = createApprovalCheck(TEST_USER, "listDeals");
-      const result = await check({});
-      expect(result).toBe(true);
-    });
-
-    it('T1 "never" blocks checkCalendar (returns true to trigger blocking)', async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { checkCalendar: "never" },
-      });
-      const check = createApprovalCheck(TEST_USER, "checkCalendar");
-      const result = await check({ date: "2026-04-02" });
-      expect(result).toBe(true);
-    });
-
-    it('T1 "never" blocks draftEmail (returns true to trigger blocking)', async () => {
-      mockGetUserSettings.mockResolvedValue({
-        ...DEFAULT_SETTINGS,
-        toolTrust: { draftEmail: "never" },
+        toolTrust: { draftEmail: "ask" },
       });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("empty toolTrust ({}) falls through — draftEmail does not require SDK approval (S3 disabled)", async () => {
