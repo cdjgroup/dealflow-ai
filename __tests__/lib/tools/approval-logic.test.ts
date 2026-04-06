@@ -89,32 +89,34 @@ describe("approval-logic", () => {
   });
 
   describe("createApprovalCheck for external action tools (S3)", () => {
-    it("requires approval for draftEmail", async () => {
+    // S3 SDK approval is DISABLED due to ai@6.0.142 infinite loop bug.
+    // The AI confirms with the user in chat instead.
+    it("does not require SDK approval for draftEmail (S3 disabled)", async () => {
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({
         to: "sarah@example.com",
         subject: "Follow up",
         body: "Hello",
       });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it("requires approval for sendSlackMessage", async () => {
+    it("does not require SDK approval for sendSlackMessage (S3 disabled)", async () => {
       const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
       const result = await check({
         channel: "general",
         text: "Hello team",
       });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it("requires approval for createCalendarEvent", async () => {
+    it("does not require SDK approval for createCalendarEvent (S3 disabled)", async () => {
       const check = createApprovalCheck(TEST_USER, "createCalendarEvent");
       const result = await check({
         title: "Meeting",
         date: "2026-04-10",
       });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
   });
 
@@ -245,14 +247,14 @@ describe("approval-logic", () => {
       expect(result).toBe(true);
     });
 
-    it("empty toolTrust ({}) falls through — draftEmail still requires approval (S3)", async () => {
+    it("empty toolTrust ({}) falls through — draftEmail does not require SDK approval (S3 disabled)", async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
         toolTrust: {},
       });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("empty toolTrust ({}) falls through — checkCalendar does not require approval", async () => {

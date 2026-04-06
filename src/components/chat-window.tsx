@@ -149,20 +149,14 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   };
 
   const handleApproval = useCallback(
-    async (approvalId: string, approved: boolean) => {
-      // Update the tool part state locally (no auto-send — sendAutomaticallyWhen is removed)
-      await addToolApprovalResponse({
+    (approvalId: string, approved: boolean) => {
+      addToolApprovalResponse({
         id: approvalId,
         approved,
         reason: approved ? "User approved" : "User denied",
       });
-      // Explicitly resend the conversation — same pattern as token vault interrupt retry.
-      // regenerate() sends ONE request. No sendAutomaticallyWhen means no loop.
-      if (approved) {
-        regenerate();
-      }
     },
-    [addToolApprovalResponse, regenerate]
+    [addToolApprovalResponse]
   );
 
   return (
