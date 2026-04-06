@@ -83,36 +83,31 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
               );
             }
 
-            // Approval responded — show result if available, otherwise badge
+            // Approval responded
             if (state === "approval-responded" && approval) {
-              const approved = approval.approved;
-              // If tool has output, show result card
-              if (approved && output) {
-                return (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <ToolResultCard toolName={toolName} output={output} />
-                  </motion.div>
-                );
+              // Approved: hide badge entirely — user already clicked approve,
+              // the result (or next message) confirms execution
+              if (approval.approved) {
+                // If output is available, show result card
+                if (output) {
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ToolResultCard toolName={toolName} output={output} />
+                    </motion.div>
+                  );
+                }
+                return null; // Hide — approval confirmation is implicit
               }
-              // If the message also has text content (the model's response),
-              // the approval badge is redundant — the data speaks for itself
-              const hasTextContent = message.parts?.some(
-                (p) => p.type === "text" && "text" in p && (p as { text: string }).text.trim().length > 0
-              );
-              if (approved && hasTextContent) {
-                return null; // Hide badge — result is in the text below
-              }
+              // Denied: show denial badge
               return (
                 <div key={i}>
-                  <div className={`text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 ${
-                    approved ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                  }`}>
-                    <span>{approved ? "Approved" : "Denied"}: {toolName}</span>
+                  <div className="text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 bg-red-500/10 text-red-400">
+                    <span>Denied: {toolName}</span>
                   </div>
                 </div>
               );
