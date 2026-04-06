@@ -43,31 +43,80 @@ function isToolPart(p: unknown): p is { type: string; state?: string; toolName?:
   return typeof p === "object" && p !== null && "type" in p && typeof (p as { type: unknown }).type === "string";
 }
 
-function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(messages: T[]): T[] {
-  return messages.map((msg) => {
-    if (msg.role !== "assistant" || !msg.parts) return msg;
+/**
+ * Execute approved tools server-side and patch their results into messages.
+ *
+ * The SDK's collectToolApprovals is unreliable (vercel/ai#10980) — approved
+ * tools often don't execute on resend. This function handles BOTH cases:
+ * - Denied approvals: convert to tool-result with denial message
+ * - Approved tools: call execute() and inject the result as output-available
+ *
+ * After patching, convertToModelMessages sees completed tool-results and the
+ * model receives the output directly — no reliance on collectToolApprovals.
+ */
+async function executeApprovedAndPatchDenied<T extends { role: string; parts?: unknown[] }>(
+  messages: T[],
+  tools: Record<string, Tool>
+): Promise<T[]> {
+  const result: T[] = [];
+  for (const msg of messages) {
+    if (msg.role !== "assistant" || !msg.parts) {
+      result.push(msg);
+      continue;
+    }
 
-    const newParts = msg.parts.map((part) => {
-      if (!isToolPart(part)) return part;
-      if (
-        part.type.startsWith("tool-") &&
-        part.state === "approval-responded" &&
-        part.approval?.approved === false
-      ) {
-        return {
-          ...part,
-          state: "result",
-          output: {
-            denied: true,
-            message: `User denied ${part.toolName || "this action"}. Ask the user how they'd like to proceed.`,
-          },
-        };
-      }
-      return part;
-    });
+    const newParts = await Promise.all(
+      msg.parts.map(async (part) => {
+        if (!isToolPart(part)) return part;
+        if (
+          !part.type.startsWith("tool-") ||
+          part.state !== "approval-responded"
+        ) {
+          return part;
+        }
 
-    return { ...msg, parts: newParts };
-  });
+        // Denied: return denial message
+        if (part.approval?.approved === false) {
+          return {
+            ...part,
+            state: "result",
+            output: {
+              denied: true,
+              message: `User denied ${part.toolName || "this action"}. Ask the user how they'd like to proceed.`,
+            },
+          };
+        }
+
+        // Approved: execute the tool and inject the result
+        if (part.approval?.approved === true) {
+          const toolName = part.type.replace("tool-", "");
+          const tool = tools[toolName] as { execute?: (...args: unknown[]) => Promise<unknown> } | undefined;
+          if (tool?.execute) {
+            try {
+              const input = (part as unknown as { input?: Record<string, unknown> }).input ?? {};
+              const output = await tool.execute(input);
+              return {
+                ...part,
+                state: "output-available",
+                output,
+              };
+            } catch (err) {
+              return {
+                ...part,
+                state: "output-error",
+                output: { error: String(err) },
+              };
+            }
+          }
+        }
+
+        return part;
+      })
+    );
+
+    result.push({ ...msg, parts: newParts } as T);
+  }
+  return result;
 }
 
 /**
@@ -424,7 +473,7 @@ If a tool you need is unavailable, inform the user that the capability is curren
 Some actions require user approval before they execute (drafting emails, sending Slack messages, creating calendar events, closing deals, high-value deals). When a tool call is pending approval, wait for the user's response before proceeding.
 
 IMPORTANT: Never call draftEmail, sendSlackMessage, or createCalendarEvent more than once per user request. Once a write tool succeeds, report the result. Do not retry or re-send a successful action.`,
-          messages: await convertToModelMessages(patchDeniedApprovals(messages)),
+          messages: await convertToModelMessages(await executeApprovedAndPatchDenied(messages, tools)),
           tools,
           abortSignal: abortController.signal,
           stopWhen: stepCountIs(MAX_TOOL_STEPS),
