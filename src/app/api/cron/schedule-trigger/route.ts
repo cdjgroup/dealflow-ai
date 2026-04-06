@@ -31,9 +31,10 @@ export async function POST(req: Request) {
 
   const settings = await getUserSettings(userId);
 
-  // Level 2+ actions are auto-approved; level 1 are pending
-  const targetStatus = settings.autonomyLevel >= 2 ? "approved" : "pending";
-  const allActions = await getActions(userId, { status: targetStatus });
+  // Batch execution targets approved actions at all levels. At level 1,
+  // users approve individually then batch-execute via Run Now / schedule.
+  // At level 2+, actions are auto-approved on creation.
+  const allActions = await getActions(userId, { status: "approved" });
   const notifyPriorities = settings.schedule?.notifyPriorities ?? ["high", "medium"];
   const eligible = allActions.filter(
     (a) => notifyPriorities.includes(a.priority)
