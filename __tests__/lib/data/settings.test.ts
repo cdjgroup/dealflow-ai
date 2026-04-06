@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getUserSettings, updateUserSettings } from "@/lib/data/settings";
-import { DEFAULT_SETTINGS } from "@/lib/types/settings";
+import { DEFAULT_SETTINGS, DEFAULT_TOOL_TRUST } from "@/lib/types/settings";
 import type { TrustLevel } from "@/lib/types/settings";
 
 // Mock Redis
@@ -85,9 +85,38 @@ describe("settings data layer", () => {
 
   // AC-4: toolTrust field on UserSettings
   describe("toolTrust in UserSettings (AC-4)", () => {
-    it("default settings include toolTrust as an empty object", () => {
+    it("default settings include toolTrust seeded with DEFAULT_TOOL_TRUST", () => {
       expect(DEFAULT_SETTINGS.toolTrust).toBeDefined();
-      expect(DEFAULT_SETTINGS.toolTrust).toEqual({});
+      expect(DEFAULT_SETTINGS.toolTrust).toEqual(DEFAULT_TOOL_TRUST);
+    });
+
+    it("getUserSettings merges DEFAULT_TOOL_TRUST under stored values — user overrides win", async () => {
+      // User has explicitly set checkCalendar to "ask" (step-up from default "always")
+      const stored = {
+        ...DEFAULT_SETTINGS,
+        toolTrust: { checkCalendar: "ask" as TrustLevel },
+      };
+      mockGet.mockResolvedValue(stored);
+
+      const result = await getUserSettings(TEST_USER);
+
+      // User override wins
+      expect(result.toolTrust.checkCalendar).toBe("ask");
+      // Default fills in missing keys
+      expect(result.toolTrust.draftEmail).toBe("ask");
+      expect(result.toolTrust.searchEmails).toBe("always");
+    });
+
+    it("getUserSettings fills defaults for legacy users with empty toolTrust", async () => {
+      const legacyStored = {
+        ...DEFAULT_SETTINGS,
+        toolTrust: {},
+      };
+      mockGet.mockResolvedValue(legacyStored);
+
+      const result = await getUserSettings(TEST_USER);
+
+      expect(result.toolTrust).toEqual(DEFAULT_TOOL_TRUST);
     });
 
     it("updateUserSettings merges toolTrust per-key — setting checkCalendar then draftEmail preserves both", async () => {

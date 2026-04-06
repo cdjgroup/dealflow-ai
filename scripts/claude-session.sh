@@ -174,6 +174,7 @@ if [ -d "$WORKTREE_DIR" ]; then
         # (unset GIT_DIR/GIT_WORK_TREE so git operates on the worktree, not main repo)
         (unset GIT_DIR GIT_WORK_TREE && cd "$WORKTREE_DIR" && git checkout HEAD -- .claude 2>/dev/null) || true
         # Apply targeted symlinks for gitignored files
+        mkdir -p "$WORKTREE_DIR/.claude"
         if [ -f "$FW_PROJECT_ROOT/.claude/settings.local.json" ] && \
            [ ! -e "$WORKTREE_DIR/.claude/settings.local.json" ] && \
            [ ! -L "$WORKTREE_DIR/.claude/settings.local.json" ]; then
@@ -253,6 +254,8 @@ else
     # (tracked files like hooks/, rules/, skills/, agents/, settings.json are
     # already checked out by git — DO NOT symlink the whole directory)
     if [ -d "$FW_PROJECT_ROOT/.claude" ]; then
+        # Ensure .claude/ directory exists (may be empty if no tracked files)
+        mkdir -p "$WORKTREE_DIR/.claude"
         # settings.local.json (gitignored, contains user's local hook config)
         if [ -f "$FW_PROJECT_ROOT/.claude/settings.local.json" ] && \
            [ ! -e "$WORKTREE_DIR/.claude/settings.local.json" ] && \

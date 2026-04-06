@@ -1,4 +1,5 @@
 import { getRedis } from "@/lib/redis";
+import { DEFAULT_TOOL_TRUST } from "@/lib/types/settings";
 
 export interface Deal {
   id: string;
@@ -517,12 +518,12 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
   }));
 
   // Reset settings that affect demo behavior:
-  // - toolTrust: {} — clears "ask" overrides that trigger approval loop bug
+  // - toolTrust: DEFAULT_TOOL_TRUST — restore sensible defaults (read=always, write=ask)
   // - autonomyLevel: 1 — "Suggest Only" so actions start as pending, not auto-approved
   const settingsKey = `${userId}:settings`;
   const currentSettings = await redis.get<Record<string, unknown>>(settingsKey);
   if (currentSettings) {
-    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: {}, autonomyLevel: 1 }));
+    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: { ...DEFAULT_TOOL_TRUST }, autonomyLevel: 1 }));
   }
 
   await p.exec();
