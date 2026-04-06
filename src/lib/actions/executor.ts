@@ -1,6 +1,7 @@
 import { exchangeToken, sanitizeApiError } from "@/lib/token-exchange";
 import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
 import { CONNECTION_MAP } from "@/lib/constants/tools";
+import { getRedis } from "@/lib/redis";
 import type {
   SuggestedAction,
   EmailDraft,
@@ -20,22 +21,70 @@ const CONNECTION_ERRORS: Record<string, string> = {
   slack: "Slack not connected. Connect your Slack account in Permissions.",
 };
 
+/**
+ * Per-action execution lock. Prevents duplicate sends regardless of which
+ * code path triggers execution (individual execute, cron poll, Run Now, etc.).
+ * Returns true if the lock was acquired; false if another execution is in-flight.
+ */
+async function claimActionLock(actionId: string): Promise<boolean> {
+  const redis = getRedis();
+  const result = await redis.set(
+    `action:lock:${actionId}`,
+    Date.now().toString(),
+    { ex: 300, nx: true }
+  );
+  return result === "OK";
+}
+
+async function releaseActionLock(actionId: string): Promise<void> {
+  const redis = getRedis();
+  await redis.del(`action:lock:${actionId}`);
+}
+
 export async function executeAction(
   action: SuggestedAction
 ): Promise<ExecutionResult> {
-  const connection = CONNECTION_MAP[action.type];
-  const result = await exchangeToken(connection);
-  if ("error" in result) {
-    throw new Error(CONNECTION_ERRORS[action.type]);
+  if (!await claimActionLock(action.id)) {
+    console.warn(`[executor] BLOCKED duplicate execution: action=${action.id} type=${action.type}`);
+    throw new Error("Action is already being executed");
   }
-  return executeWithToken(action, result.token);
+  console.log(`[executor] Executing action=${action.id} type=${action.type} via session token exchange`);
+
+  try {
+    const connection = CONNECTION_MAP[action.type];
+    const result = await exchangeToken(connection);
+    if ("error" in result) {
+      throw new Error(CONNECTION_ERRORS[action.type]);
+    }
+    const execResult = await executeWithToken(action, result.token);
+    console.log(`[executor] SUCCESS action=${action.id} type=${action.type}`);
+    return execResult;
+  } catch (err) {
+    // Release lock on failure so retries work
+    await releaseActionLock(action.id);
+    throw err;
+  }
 }
 
 export async function executeActionWithToken(
   action: SuggestedAction,
   token: string
 ): Promise<ExecutionResult> {
-  return executeWithToken(action, token);
+  if (!await claimActionLock(action.id)) {
+    console.warn(`[executor] BLOCKED duplicate execution: action=${action.id} type=${action.type}`);
+    throw new Error("Action is already being executed");
+  }
+  console.log(`[executor] Executing action=${action.id} type=${action.type} via provided token`);
+
+  try {
+    const execResult = await executeWithToken(action, token);
+    console.log(`[executor] SUCCESS action=${action.id} type=${action.type}`);
+    return execResult;
+  } catch (err) {
+    // Release lock on failure so retries work
+    await releaseActionLock(action.id);
+    throw err;
+  }
 }
 
 function executeWithToken(
