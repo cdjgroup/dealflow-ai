@@ -78,14 +78,26 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
-    onFinish() {
-      onConversationCreated?.();
-    },
-    // Use the SDK's built-in helper — it checks only the LAST STEP of the last
-    // message, preventing old approval-responded parts from re-triggering sends.
-    // Our hand-rolled version checked ALL parts, causing infinite re-send loops.
+    // IMPORTANT: onFinish is intentionally omitted here. Per vercel/ai#10169,
+    // having onFinish on useChat breaks the needsApproval/sendAutomaticallyWhen
+    // flow, causing approved tools to loop indefinitely. We trigger
+    // onConversationCreated via a status-change effect below instead.
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
+
+  // Notify parent when the first assistant response completes (replaces onFinish)
+  const notifiedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !notifiedRef.current &&
+      status === "ready" &&
+      messages.length > 0 &&
+      messages.some((m) => m.role === "assistant")
+    ) {
+      notifiedRef.current = true;
+      onConversationCreated?.();
+    }
+  }, [status, messages, onConversationCreated]);
 
   // Load saved messages when opening an existing conversation
   useEffect(() => {

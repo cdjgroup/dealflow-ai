@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -29,6 +30,19 @@ function formatValue(key: string, value: unknown): string {
 
 export function ApprovalCard({ toolName, args, onApprove, onReject }: Props) {
   const label = toolLabels[toolName] || toolName;
+  const [responded, setResponded] = useState(false);
+
+  const handleApprove = () => {
+    if (responded) return;
+    setResponded(true);
+    onApprove();
+  };
+
+  const handleReject = () => {
+    if (responded) return;
+    setResponded(true);
+    onReject();
+  };
 
   return (
     <motion.div
@@ -57,16 +71,18 @@ export function ApprovalCard({ toolName, args, onApprove, onReject }: Props) {
 
       <div className="flex gap-2">
         <button
-          onClick={onApprove}
+          onClick={handleApprove}
+          disabled={responded}
           aria-label={`Approve ${label}`}
-          className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Approve
+          {responded ? "Sent" : "Approve"}
         </button>
         <button
-          onClick={onReject}
+          onClick={handleReject}
+          disabled={responded}
           aria-label={`Reject ${label}`}
-          className="rounded-md border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-md border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reject
         </button>

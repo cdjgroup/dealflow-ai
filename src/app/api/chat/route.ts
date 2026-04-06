@@ -26,6 +26,7 @@ import { NextResponse } from "next/server";
 import { attachRateLimiter, RequestToolCounter } from "@/lib/rate-limiter";
 import type { RateLimitResult } from "@/lib/rate-limiter";
 import { sanitizeBindingMessage } from "@/lib/cron/batch-utils";
+import { getRedis } from "@/lib/redis";
 
 // Max tool call rounds per request — bounds cost and prevents infinite loops
 const MAX_TOOL_STEPS = 7;
@@ -335,9 +336,10 @@ export async function POST(req: Request) {
   };
   const rateLimited = attachRateLimiter(withCiba, userId, handleToolBlocked);
 
-  // Write tool dedup — prevent re-execution if the model re-proposes a write tool
-  // after it already succeeded (within the same streamText call). The SDK passes
-  // context.messages to execute, which includes tool results from prior steps.
+  // Write tool dedup — two layers:
+  // 1. In-request: toolAlreadyExecuted checks context.messages (same streamText call)
+  // 2. Cross-request: Redis SET NX lock prevents concurrent POSTs from both executing
+  //    (the sendAutomaticallyWhen SDK bug can fire multiple POSTs — vercel/ai#7717)
   const tools: Record<string, Tool> = {};
   for (const [name, t] of Object.entries(rateLimited)) {
     const origExecute = (t as { execute?: (...args: unknown[]) => unknown }).execute;
@@ -351,8 +353,16 @@ export async function POST(req: Request) {
         params: Record<string, unknown>,
         context: { messages?: unknown[] }
       ) => {
+        // Layer 1: in-request dedup
         if (context.messages && toolAlreadyExecuted(name, context.messages)) {
           return { skipped: true, message: `${name} already completed. No duplicate action taken.` };
+        }
+        // Layer 2: cross-request idempotency lock (60s TTL)
+        const redis = getRedis();
+        const lockKey = `chat:write:${userId}:${id}:${name}`;
+        const claimed = await redis.set(lockKey, "1", { ex: 60, nx: true });
+        if (claimed !== "OK") {
+          return { skipped: true, message: `${name} already sent. Duplicate request blocked.` };
         }
         return origExecute(params, context);
       },
