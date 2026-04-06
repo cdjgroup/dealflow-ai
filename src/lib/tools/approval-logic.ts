@@ -10,9 +10,12 @@ const CRM_WRITE_TOOLS = new Set([
   "logActivity",
 ]);
 
-// External action tools always require SDK approval (sends data outside the app).
-// The approval loop bug was in sendAutomaticallyWhen (checked all parts, not just
-// last step). Fixed by using SDK's built-in lastAssistantMessageIsCompleteWithApprovalResponses.
+// External action tools — SDK needsApproval is DISABLED for these.
+// The AI SDK's approval mechanism (needsApproval + sendAutomaticallyWhen/regenerate)
+// has unfixable infinite loop bugs in ai@6.0.142 (vercel/ai#7717, #9968, #10169).
+// Instead, the AI confirms with the user in chat before executing ("Does this look
+// good?"), providing the same user control without the broken SDK approval cards.
+// High-value CRM operations still use CIBA step-up auth (separate mechanism).
 const EXTERNAL_ACTION_TOOLS = new Set([
   "createCalendarEvent",
   "draftEmail",
@@ -41,9 +44,10 @@ export function createApprovalCheck(
     if (trust === "always") return false;
     if (trust === "ask" || trust === "never") return true;
 
-    // S3: External action tools always need approval
+    // S3: External action tools — SDK approval DISABLED (loop bug).
+    // The AI confirms with the user in chat instead.
     if (EXTERNAL_ACTION_TOOLS.has(toolName)) {
-      return true;
+      return false;
     }
 
     // Read-only tools never need approval (unless T1 overrode above)
