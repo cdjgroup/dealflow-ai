@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("DealFlow AI Smoke Tests", () => {
+test.describe("DealFlow Smoke Tests", () => {
   test("landing page loads with correct content", async ({ page }) => {
     await page.goto("http://localhost:3000");
-    await expect(page.locator("h1")).toContainText("DealFlow AI");
+    await expect(page.locator("h1")).toContainText("DealFlow");
     await expect(page.locator("text=Powered by Auth0 Token Vault")).toBeVisible();
     await expect(page.locator("text=Sign In to Get Started")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();

@@ -1,5 +1,5 @@
 {
-  "name": "dealflow-ai",
+  "name": "dealflow",
   "version": "0.6.2",
   "private": true,
   "scripts": {
@@ -13,7 +13,6 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",
     "@ai-sdk/react": "^3.0.144",
-    "@auth0/ai": "^6.0.0",
     "@auth0/nextjs-auth0": "^4.16.1",
     "@base-ui/react": "^1.3.0",
     "@modelcontextprotocol/sdk": "^1.26.0",

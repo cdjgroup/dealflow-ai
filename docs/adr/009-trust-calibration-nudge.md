@@ -5,7 +5,7 @@
 
 ## Context
 
-DealFlow AI tracks per-tool approve/dismiss counts (`TrustStats`) in Redis, and displays approval rates in the Permissions UI. The autonomy selector (Levels 1/2/3) is a manual user setting. These two systems were disconnected — stats were recorded but never influenced autonomy. A judge reading the code would see that "trust calibration" was write-only telemetry, not a feedback loop.
+DealFlow tracks per-tool approve/dismiss counts (`TrustStats`) in Redis, and displays approval rates in the Permissions UI. The autonomy selector (Levels 1/2/3) is a manual user setting. These two systems were disconnected — stats were recorded but never influenced autonomy. A judge reading the code would see that "trust calibration" was write-only telemetry, not a feedback loop.
 
 Three approaches were considered:
 1. **Auto-graduation** — automatically promote `toolTrust` from `ask` → `always` when thresholds are met

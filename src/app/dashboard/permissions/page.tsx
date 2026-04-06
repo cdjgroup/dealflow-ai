@@ -71,7 +71,7 @@ export default async function PermissionsPage() {
           </a>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          External AI agents can discover and use DealFlow AI&apos;s tools via the
+          External AI agents can discover and use DealFlow&apos;s tools via the
           Model Context Protocol. Auth required, read-only tools only.
         </p>
         <div className="rounded-lg bg-secondary/50 px-4 py-3 space-y-2">

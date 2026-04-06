@@ -1,6 +1,6 @@
 # What We Learned Building Security-First AI Agents with Auth0 Token Vault
 
-*Building DealFlow AI for the Authorized to Act hackathon taught us that the hardest part of agentic AI isn't the LLM — it's answering the question: "What is this agent allowed to do, and who decides?"*
+*Building DealFlow for the Authorized to Act hackathon taught us that the hardest part of agentic AI isn't the LLM — it's answering the question: "What is this agent allowed to do, and who decides?"*
 
 ## The Problem Nobody Talks About
 
@@ -10,7 +10,7 @@ In production, that's not good enough. When an AI agent can create $85,000 deals
 
 ## Our Security Layering Model
 
-DealFlow AI is a sales agent powered by Claude that manages pipeline, checks calendars, drafts emails, and sends Slack updates. Under the hood, every request passes through six security layers before a tool can execute:
+DealFlow is a sales agent powered by Claude that manages pipeline, checks calendars, drafts emails, and sends Slack updates. Under the hood, every request passes through six security layers before a tool can execute:
 
 1. **CSRF validation** — Mutation endpoints require the `X-Requested-With` header, preventing cross-origin attacks
 2. **Rate limiting** — 10 requests/minute per user via Upstash sliding window
@@ -59,7 +59,7 @@ Adding a third provider (GitHub, Salesforce, Microsoft) would be copy-paste with
 
 ## User Control as a Feature, Not an Afterthought
 
-The permissions page in DealFlow AI isn't informational — it's functional:
+The permissions page in DealFlow isn't informational — it's functional:
 
 - **Capability toggles** let users disable entire tool categories. Turn off Gmail? The agent literally cannot see email tools
 - **Approval requirements** are opt-in. Users who want a careful agent enable "Require approval for CRM writes." Users who want speed leave it off
@@ -70,7 +70,7 @@ This addresses the judging criterion directly: *"Can users understand what permi
 
 ## Why This Aligns with EU AI Act Article 14
 
-The EU AI Act's Article 14 (effective August 2026) requires that AI systems be designed for "effective oversight by natural persons during the period of use." DealFlow AI's trust spectrum maps directly to this principle:
+The EU AI Act's Article 14 (effective August 2026) requires that AI systems be designed for "effective oversight by natural persons during the period of use." DealFlow's trust spectrum maps directly to this principle:
 
 - **Understanding capabilities**: The permissions dashboard shows exactly which tools the agent has access to, with human-readable scope labels and live scope indicators during execution
 - **Monitoring operation**: The audit trail logs every tool invocation with parameters, duration, and outcome — viewable in real-time at `/dashboard/audit`
@@ -83,7 +83,7 @@ This isn't compliance theater. These are the same design decisions we'd make wit
 
 Most permission systems are static — you set a level and forget it. But user trust in an AI agent evolves with experience. After approving 20 email drafts in a row, the manual approval step starts feeling like friction rather than safety.
 
-DealFlow AI tracks per-tool approval rates (approve vs dismiss) and surfaces a nudge when the data warrants it: "You've approved 5 of 5 email drafts. Upgrade to auto-approve?" One click upgrades the tool's trust level. The key constraint: **the system suggests, never auto-escalates.** Even when the approval rate is 100%, the user must explicitly opt in.
+DealFlow tracks per-tool approval rates (approve vs dismiss) and surfaces a nudge when the data warrants it: "You've approved 5 of 5 email drafts. Upgrade to auto-approve?" One click upgrades the tool's trust level. The key constraint: **the system suggests, never auto-escalates.** Even when the approval rate is 100%, the user must explicitly opt in.
 
 This isn't ML — it's a simple threshold check (5+ decisions, >80% approval rate). But it's genuine trust calibration: the system observes behavior and recommends autonomy changes. The same approach could extend to downgrade suggestions (frequent dismissals → suggest blocking) or time-decay (unused auto-approve → suggest reverting to ask).
 
@@ -106,4 +106,4 @@ If we had more time, we'd add:
 
 ---
 
-*DealFlow AI is open source at [github.com/cdjgroup/dealflow-ai](https://github.com/cdjgroup/dealflow-ai). Built with Next.js, Claude, Auth0 Token Vault, and Upstash Redis.*
+*DealFlow is open source at [github.com/cdjgroup/dealflow-ai](https://github.com/cdjgroup/dealflow-ai). Built with Next.js, Claude, Auth0 Token Vault, and Upstash Redis.*

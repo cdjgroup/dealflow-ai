@@ -1,4 +1,4 @@
-# Demo Video Script — DealFlow AI (3 minutes)
+# Demo Video Script — DealFlow (3 minutes)
 
 ## Pre-Recording Checklist
 - [ ] Seed demo data (click "Reseed Demo Data" or POST /api/seed)
@@ -13,7 +13,7 @@
 
 **Show:** Landing page at dealflow-ai-seven.vercel.app
 
-**Say:** "DealFlow AI is an AI sales agent that manages your pipeline, checks calendars, drafts emails, and sends Slack updates. But what makes it different isn't the AI — it's the security model. Let me show you."
+**Say:** "DealFlow is an AI sales agent that manages your pipeline, checks calendars, drafts emails, and sends Slack updates. But what makes it different isn't the AI — it's the security model. Let me show you."
 
 **Action:** Click "Sign In" → Auth0 login → redirects to dashboard
 
@@ -51,7 +51,7 @@
 
 **Show:** Capability toggles, connection status, approval toggle
 
-**Say:** "This is where DealFlow AI is different. Users control exactly what the agent can do. Watch what happens when I disable Gmail."
+**Say:** "This is where DealFlow is different. Users control exactly what the agent can do. Watch what happens when I disable Gmail."
 
 **Action:** Toggle Gmail OFF → go back to chat → type "Draft an email to Marcus"
 
@@ -125,7 +125,7 @@
 
 **Say:** "Under the hood, every request passes through six security layers: CSRF protection, rate limiting, capability filtering, step-up authorization, scoped Token Vault exchange, and audit logging. Two Token Vault connections — Google and Slack — using the same RFC 8693 pattern. Built with Next.js, Claude, Auth0, and Upstash Redis."
 
-**Say:** "DealFlow AI — because AI agents should be powerful AND accountable."
+**Say:** "DealFlow — because AI agents should be powerful AND accountable."
 
 ---
 

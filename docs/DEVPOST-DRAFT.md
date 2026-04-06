@@ -1,4 +1,4 @@
-# DealFlow AI — Devpost Submission Draft
+# DealFlow — Devpost Submission Draft
 
 > **Note:** This is the detailed internal draft with screenshot checklist and extended feature details. The final submission text is in [`devpost-submission.md`](devpost-submission.md).
 
@@ -11,11 +11,11 @@
 
 AI agents that can draft emails, schedule meetings, and post Slack updates are powerful — but dangerous when they act without guardrails. Most AI agent frameworks treat authorization as an afterthought: OpenClaw (250K GitHub stars) stores credentials in local JSON files with no RBAC or audit trail. Sales teams using AI assistants lose deals when follow-ups fall through the cracks, but they also risk data breaches when the AI has unrestricted access.
 
-We built DealFlow AI to prove that an AI sales agent can be both powerful AND trustworthy — suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI **never touches credentials**. Then we took it further: we exposed the same secure, audited pipeline to external AI agents via MCP, turning one app's security model into a reusable pattern for the AI agent ecosystem.
+We built DealFlow to prove that an AI sales agent can be both powerful AND trustworthy — suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI **never touches credentials**. Then we took it further: we exposed the same secure, audited pipeline to external AI agents via MCP, turning one app's security model into a reusable pattern for the AI agent ecosystem.
 
 ## What it does
 
-DealFlow AI is an AI-powered sales assistant that manages your deal pipeline, communicates with prospects, and suggests proactive next steps — all through Auth0 Token Vault. The core innovation is a **graduated trust architecture**: four trust levels, three execution surfaces, one security pipeline. Each surface has different trust properties, and the security model adapts automatically.
+DealFlow is an AI-powered sales assistant that manages your deal pipeline, communicates with prospects, and suggests proactive next steps — all through Auth0 Token Vault. The core innovation is a **graduated trust architecture**: four trust levels, three execution surfaces, one security pipeline. Each surface has different trust properties, and the security model adapts automatically.
 
 ### Graduated Trust Architecture
 
@@ -134,7 +134,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 
 ### Potential Impact (Judging: Potential Impact)
 
-**The MCP pattern is the key insight.** DealFlow AI doesn't just secure one application — the MCP server turns Auth0 Token Vault into a security layer for the entire AI agent ecosystem. OpenClaw (the most popular AI agent framework, 250K GitHub stars) has notoriously weak authorization: credentials in local JSON files, no RBAC, no audit trail. Our MCP server gives any OpenClaw agent secure, audited access to user resources through Token Vault. The agent authenticates, discovers tools, and every call flows through the same token exchange and audit pipeline as the chat UI.
+**The MCP pattern is the key insight.** DealFlow doesn't just secure one application — the MCP server turns Auth0 Token Vault into a security layer for the entire AI agent ecosystem. OpenClaw (the most popular AI agent framework, 250K GitHub stars) has notoriously weak authorization: credentials in local JSON files, no RBAC, no audit trail. Our MCP server gives any OpenClaw agent secure, audited access to user resources through Token Vault. The agent authenticates, discovers tools, and every call flows through the same token exchange and audit pipeline as the chat UI.
 
 **Connection config for any MCP client:**
 ```json

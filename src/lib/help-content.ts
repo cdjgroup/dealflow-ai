@@ -21,7 +21,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "try-chat",
     label: "Try a chat command",
-    description: "Ask DealFlow AI about your deals or calendar",
+    description: "Ask DealFlow about your deals or calendar",
     ctaLink: "/dashboard",
   },
   {
@@ -33,7 +33,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "review-permissions",
     label: "Review permissions",
-    description: "Configure which tools DealFlow AI can use",
+    description: "Configure which tools DealFlow can use",
     ctaLink: "/dashboard/permissions",
   },
   {
@@ -66,7 +66,7 @@ export interface ResourceLink {
 
 export const RESOURCE_LINKS: { section: string; items: ResourceLink[] }[] = [
   {
-    section: "Understanding DealFlow AI",
+    section: "Understanding DealFlow",
     items: [
       {
         label: "Auth0 Token Vault Docs",

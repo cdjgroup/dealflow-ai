@@ -1,10 +1,10 @@
-# DealFlow AI — Claude Integration
+# DealFlow — Claude Integration
 
 > AI sales agent with Auth0 Token Vault — hackathon entry for "Authorized to Act"
 
 ---
 
-## Current Version: 0.6.3 — MCP Playground + Claude Code Integration
+## Current Version: 0.6.4 — Confidence Routing Overhaul + Light Mode
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -86,7 +86,7 @@ Autonomous batch execution with CIBA consent — the AI agent executes actions o
 - **Schedule**: Users opt into 8am/12pm/5pm review via checkboxes in Action Center
 - **Batch CIBA**: One Guardian push for all high/medium priority pending actions (e.g., "DealFlow: 5 actions - 3 email, 2 calendar")
 - **Time-Boxed Execution**: Approval grants a token with expiry — all actions execute within that window
-- **Priority Filter**: Only high and medium priority actions included; low priority stays for manual review
+- **Priority Filter**: User-configurable priority selector — choose which priorities (high/medium/low) are included in Guardian push (default: high + medium)
 - **Run Now**: On-demand trigger button for immediate batch execution (testing/demos)
 - **Cron Design**: Two-phase Vercel cron — hourly initiate (finds users, sends CIBA) + per-minute poll (checks approval, executes)
 - **Offline Tokens**: User's Auth0 refresh token stored encrypted (AES-256-GCM) at opt-in for cron token exchange

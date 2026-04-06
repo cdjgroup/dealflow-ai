@@ -2,55 +2,43 @@ import { getToolNamesForScopes } from "@/lib/surface-policy";
 import { getMcpClientLimiter } from "@/lib/rate-limit";
 import { checkToolRateLimit } from "@/lib/rate-limiter";
 import { getUserSettings } from "@/lib/data/settings";
-
-// Tool-to-capability category mapping (subset of capability-filter.ts — CRM write tools excluded from MCP)
-export const TOOL_CATEGORIES: Record<string, string> = {
-  checkCalendar: "calendar",
-  createCalendarEvent: "calendar",
-  searchEmails: "gmail",
-  draftEmail: "gmail",
-  listSlackChannels: "slack",
-  sendSlackMessage: "slack",
-  listDeals: "crmRead",
-  getDealDetails: "crmRead",
-  searchContacts: "crmRead",
-};
+import { TOOL_CATEGORIES } from "@/lib/tools/capability-filter";
+import type { UserSettings } from "@/lib/types/settings";
 
 export interface ToolAuthContext {
   userId: string;
   mcpClientId: string | undefined;
   clientName: string | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  settings: any;
+  settings: UserSettings;
 }
 
 export type ToolAuthResult =
   | { ok: true; ctx: ToolAuthContext }
   | { ok: false; error: string; userId?: string; mcpClientId?: string; clientName?: string };
 
-/**
- * Four-layer MCP auth orchestration.
- *
- * Layer 1 (registration) is handled at server init time.
- * This function handles Layers 2-4+ at request time:
- * - Layer 2: Scope-based filtering for Auth0 token users
- * - Layer 3: Per-client allowedTools filtering for API key users
- * - Layer 3b: Per-client rate limiting
- * - Per-tool rate limiting (circuit breaker)
- * - Capability check (user permission settings)
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function enforceToolAuth(toolName: string, extra: any): Promise<ToolAuthResult> {
-  const userId = extra?.authInfo?.clientId as string | undefined;
+export interface McpAuthInfo {
+  clientId?: string;
+  scopes?: string[];
+  extra?: {
+    mcpClientId?: string;
+    allowedTools?: string[];
+    rateLimit?: number;
+    clientName?: string;
+    parameterConstraints?: Record<string, unknown>;
+  };
+}
+
+export async function enforceToolAuth(toolName: string, extra: { authInfo?: McpAuthInfo }): Promise<ToolAuthResult> {
+  const userId = extra?.authInfo?.clientId;
   if (!userId) {
     return { ok: false, error: "Authentication required" };
   }
 
-  const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
-  const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
-  const allowedTools = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
-  const clientRateLimit = extra?.authInfo?.extra?.rateLimit as number | undefined;
-  const clientName = extra?.authInfo?.extra?.clientName as string | undefined;
+  const clientScopes = extra?.authInfo?.scopes ?? [];
+  const mcpClientId = extra?.authInfo?.extra?.mcpClientId;
+  const allowedTools = extra?.authInfo?.extra?.allowedTools;
+  const clientRateLimit = extra?.authInfo?.extra?.rateLimit;
+  const clientName = extra?.authInfo?.extra?.clientName;
   const resolvedClientId = mcpClientId && mcpClientId !== "default" ? mcpClientId : undefined;
 
   // Layer 2: Scope check for Auth0 token users (default clients)
@@ -83,7 +71,7 @@ export async function enforceToolAuth(toolName: string, extra: any): Promise<Too
         return { ok: false, error: "Rate limit exceeded", userId };
       }
     } catch (err) {
-      console.error("MCP rate limit check failed (fail-closed):", err);
+      console.error("MCP rate limit check failed (fail-closed):", err instanceof Error ? err.message : "unknown");
       return { ok: false, error: "Service temporarily unavailable", userId };
     }
   }

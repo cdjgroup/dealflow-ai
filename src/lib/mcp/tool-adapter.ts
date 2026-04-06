@@ -16,7 +16,7 @@ import { TOOL_SCOPE_CONFIG, type TokenVaultToolName } from "@/lib/tools/scope-ma
 import { buildRawEmail, resolveSlackChannelId } from "@/lib/api-utils";
 import { recordMcpCall } from "@/lib/data/mcp-analytics";
 import { getToolNamesForSurface, getToolNamesForScopes } from "@/lib/surface-policy";
-import { enforceToolAuth, type ToolAuthContext } from "@/lib/mcp/tool-auth";
+import { enforceToolAuth, type ToolAuthContext, type McpAuthInfo } from "@/lib/mcp/tool-auth";
 
 /**
  * Validates that the provided params satisfy all parameter constraints for the given tool.
@@ -174,7 +174,6 @@ const MCP_EXECUTORS: Record<string, ToolExecutor> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Strips internal _tokenMeta from any result object before returning to MCP. */
 function stripTokenMeta(value: unknown): unknown {
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
@@ -184,7 +183,6 @@ function stripTokenMeta(value: unknown): unknown {
   return value;
 }
 
-/** Write an error audit entry and return the MCP error response. */
 function auditAndErrorResponse(
   userId: string,
   toolName: string,
@@ -215,7 +213,6 @@ function auditAndErrorResponse(
   };
 }
 
-/** Write a success audit entry and record analytics. */
 function auditSuccess(
   userId: string,
   toolName: string,
@@ -340,8 +337,7 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
           description: toolEntry.description,
           inputSchema: toolEntry.schema,
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (args: unknown, extra: any) => {
+        async (args: unknown, extra: { authInfo?: McpAuthInfo }) => {
           const params = (args ?? {}) as Record<string, unknown>;
           const mcpClientIdRaw = extra?.authInfo?.extra?.mcpClientId as string | undefined;
 
@@ -501,21 +497,19 @@ export function adaptToolsForMcp(allowedToolFilter?: string[]) {
     // handler, which handles Zod → JSON Schema conversion. This avoids reimporting
     // internal SDK functions (toJsonSchemaCompat, normalizeObjectSchema).
     const allToolNames = new Set(tools.map((t) => t.name));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const originalListHandler = (server.server as any)._requestHandlers?.get("tools/list") as
-      | ((...args: unknown[]) => Promise<{ tools: Array<{ name: string; [k: string]: unknown }> }>)
-      | undefined;
+    // Access internal SDK handler map for tools/list override (per-client filtering)
+    const serverInternal = server.server as unknown as { _requestHandlers?: Map<string, (...args: unknown[]) => Promise<{ tools: Array<{ name: string; [k: string]: unknown }> }>> };
+    const originalListHandler = serverInternal._requestHandlers?.get("tools/list");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    server.server.setRequestHandler(ListToolsRequestSchema, async (_request: any, extra: any) => {
+    server.server.setRequestHandler(ListToolsRequestSchema, async (_request: unknown, extra: { authInfo?: McpAuthInfo }) => {
       // Get the full tool list from the SDK's original handler (includes JSON Schema conversion)
       const fullList = originalListHandler
         ? await originalListHandler({ method: "tools/list" })
         : { tools: [] };
 
-      const clientScopes: string[] = extra?.authInfo?.scopes ?? [];
-      const mcpClientId = extra?.authInfo?.extra?.mcpClientId as string | undefined;
-      const allowedToolsList = extra?.authInfo?.extra?.allowedTools as string[] | undefined;
+      const clientScopes = extra?.authInfo?.scopes ?? [];
+      const mcpClientId = extra?.authInfo?.extra?.mcpClientId;
+      const allowedToolsList = extra?.authInfo?.extra?.allowedTools;
 
       // Determine which tools this client can see
       let visibleTools: Set<string>;
