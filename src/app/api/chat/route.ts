@@ -70,30 +70,50 @@ function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(mes
 }
 
 /**
+ * Check if a tool has already been executed by scanning the SDK's model
+ * messages for tool-result entries with the given tool name.
+ */
+function toolAlreadyExecuted(
+  toolName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  messages: any[]
+): boolean {
+  for (const msg of messages) {
+    if (msg.role === "tool" && Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (part.type === "tool-result" && part.toolName === toolName) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Attach needsApproval to tools based on approval logic.
  * Returns a new tools record with needsApproval wired in.
  *
- * Uses an external `executedTools` set (populated by onToolCallFinish) to
- * skip re-approval for tools already executed in this request. The set must
- * live outside this function because CIBA and rate-limiter wrappers replace
- * the execute function after this runs.
+ * Checks the SDK's model-format messages (passed via context.messages) for
+ * existing tool-result entries to skip re-approval for tools that already
+ * executed in this conversation.
  */
 function attachApprovalChecks(
   tools: Record<string, Tool>,
-  userId: string,
-  executedTools: Set<string>
+  userId: string
 ): Record<string, Tool> {
   const result: Record<string, Tool> = {};
   for (const [name, t] of Object.entries(tools)) {
     const check = createApprovalCheck(userId, name);
 
-    const wrappedCheck = async (params: Record<string, unknown>) => {
-      const alreadyExecuted = executedTools.has(name);
-      console.log(`[approval-debug] needsApproval(${name}): executedTools=[${[...executedTools]}] alreadyExecuted=${alreadyExecuted}`);
-      if (alreadyExecuted) return false;
-      const result = await check(params);
-      console.log(`[approval-debug] needsApproval(${name}): check returned ${result}`);
-      return result;
+    const wrappedCheck = async (
+      params: Record<string, unknown>,
+      context: { toolCallId: string; messages: unknown[] }
+    ) => {
+      if (toolAlreadyExecuted(name, context.messages as Record<string, unknown>[])) {
+        return false;
+      }
+      return check(params);
     };
 
     result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
@@ -290,31 +310,9 @@ export async function POST(req: Request) {
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
 
-  // Pre-populate from conversation history: tools already executed in prior
-  // request cycles don't need re-approval. Also fed by onToolCallFinish for
-  // tools executed within the current request.
-  const executedTools = new Set<string>();
-  for (const msg of messages) {
-    const m = msg as { role?: string; parts?: Array<{ type?: string; toolName?: string; state?: string }> };
-    if (m.role === "assistant" && Array.isArray(m.parts)) {
-      for (const part of m.parts) {
-        if (part.type?.startsWith("tool-") && part.toolName) {
-          console.log(`[approval-debug] part: tool=${part.toolName} state=${part.state} type=${part.type}`);
-          if (
-            part.state === "result" ||
-            part.state === "output-available" ||
-            part.state === "output-error"
-          ) {
-            executedTools.add(part.toolName);
-          }
-        }
-      }
-    }
-  }
-  console.log(`[approval-debug] pre-populated executedTools:`, [...executedTools]);
-
   // Attach needsApproval checks (S1 value-based, S3 external actions, U2 user settings)
-  const withApproval = attachApprovalChecks(filtered, userId, executedTools);
+  // Uses SDK's context.messages inside needsApproval to detect prior execution.
+  const withApproval = attachApprovalChecks(filtered, userId);
 
   // Attach CIBA step-up auth for high-value actions (C1 layer — runs after inline approval)
   const withCiba = attachCibaChecks(withApproval, userId);
@@ -394,12 +392,6 @@ Some actions require user approval before they execute (drafting emails, sending
           stopWhen: stepCountIs(MAX_TOOL_STEPS),
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           experimental_onToolCallFinish(event) {
-            // Record execution so needsApproval skips re-approval in later rounds
-            console.log(`[approval-debug] onToolCallFinish: tool=${event.toolCall.toolName} success=${event.success}`);
-            if (event.success) {
-              executedTools.add(event.toolCall.toolName);
-              console.log(`[approval-debug] executedTools now: [${[...executedTools]}]`);
-            }
 
             // Console logging (existing)
             logToolExecution({
