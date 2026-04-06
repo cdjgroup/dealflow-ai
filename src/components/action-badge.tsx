@@ -11,11 +11,14 @@ export function ActionBadge({ initialCount }: { initialCount: number }) {
     let active = true;
     const poll = async () => {
       try {
-        const res = await fetch("/api/actions?status=pending", { headers });
+        const res = await fetch("/api/actions", { headers });
         if (!res.ok || !active) return;
         const data = await res.json();
         if (active && Array.isArray(data.actions)) {
-          setCount(data.actions.length);
+          const active_actions = data.actions.filter(
+            (a: { status: string }) => a.status !== "sent" && a.status !== "dismissed"
+          );
+          setCount(active_actions.length);
         }
       } catch {
         // ignore
