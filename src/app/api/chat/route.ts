@@ -71,34 +71,17 @@ function patchDeniedApprovals<T extends { role: string; parts?: unknown[] }>(mes
 }
 
 /**
- * Check if a tool already has a result OR an approval response in the SDK's
- * model-format messages. Used to prevent re-approval loops: after the user
- * approves a tool, the SDK should execute it via collectToolApprovals. But
- * if that path fails, the model re-proposes the tool and needsApproval fires
- * again. This check breaks the loop by detecting prior approval/execution.
+ * Check if a tool already has a result in the SDK's model-format messages.
+ * Used to prevent re-approval and re-execution within the same streamText call.
  */
-function toolAlreadyHandled(
+function toolAlreadyExecuted(
   toolName: string,
   messages: unknown[]
 ): boolean {
-  for (const msg of messages as Array<{
-    role?: string;
-    content?: Array<{
-      type?: string;
-      toolName?: string;
-      toolCallId?: string;
-      approved?: boolean;
-      approvalId?: string;
-    }>;
-  }>) {
+  for (const msg of messages as Array<{ role?: string; content?: Array<{ type?: string; toolName?: string }> }>) {
     if (msg.role === "tool" && Array.isArray(msg.content)) {
       for (const part of msg.content) {
-        // Tool already executed — skip approval
         if (part.type === "tool-result" && part.toolName === toolName) {
-          return true;
-        }
-        // Tool already approved or denied — skip re-approval
-        if (part.type === "tool-approval-response") {
           return true;
         }
       }
@@ -114,9 +97,9 @@ const WRITE_TOOLS = new Set(["draftEmail", "sendSlackMessage", "createCalendarEv
  * Attach needsApproval to tools based on approval logic.
  * Returns a new tools record with needsApproval wired in.
  *
- * ALL tools get a context-aware wrapper that checks if the tool was already
- * executed or approved in the message history. This prevents approval loops
- * when the SDK's collectToolApprovals doesn't pick up the approval.
+ * For write tools: if the tool already has a result in context.messages
+ * (from an earlier step in the same streamText call), returns false to
+ * skip a second approval card.
  */
 function attachApprovalChecks(
   tools: Record<string, Tool>,
@@ -126,16 +109,20 @@ function attachApprovalChecks(
   for (const [name, t] of Object.entries(tools)) {
     const check = createApprovalCheck(userId, name);
 
-    const wrappedCheck = async (
-      params: Record<string, unknown>,
-      context?: { messages?: unknown[] }
-    ) => {
-      if (context?.messages && toolAlreadyHandled(name, context.messages)) {
-        return false;
-      }
-      return check(params);
-    };
-    result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
+    if (WRITE_TOOLS.has(name)) {
+      const wrappedCheck = async (
+        params: Record<string, unknown>,
+        context?: { messages?: unknown[] }
+      ) => {
+        if (context?.messages && toolAlreadyExecuted(name, context.messages)) {
+          return false;
+        }
+        return check(params);
+      };
+      result[name] = { ...t, needsApproval: wrappedCheck } as Tool;
+    } else {
+      result[name] = { ...t, needsApproval: check } as Tool;
+    }
   }
   return result;
 }
@@ -350,7 +337,7 @@ export async function POST(req: Request) {
   const rateLimited = attachRateLimiter(withCiba, userId, handleToolBlocked);
 
   // Write tool dedup — two layers:
-  // 1. In-request: toolAlreadyHandled checks context.messages (same streamText call)
+  // 1. In-request: toolAlreadyExecuted checks context.messages (same streamText call)
   // 2. Cross-request: Redis SET NX lock prevents concurrent POSTs from both executing
   //    (the sendAutomaticallyWhen SDK bug can fire multiple POSTs — vercel/ai#7717)
   const tools: Record<string, Tool> = {};
@@ -367,7 +354,7 @@ export async function POST(req: Request) {
         context: { messages?: unknown[] }
       ) => {
         // Layer 1: in-request dedup
-        if (context.messages && toolAlreadyHandled(name, context.messages)) {
+        if (context.messages && toolAlreadyExecuted(name, context.messages)) {
           return { skipped: true, message: `${name} already completed. No duplicate action taken.` };
         }
         // Layer 2: cross-request idempotency lock (60s TTL)
