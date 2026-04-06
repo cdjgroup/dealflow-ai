@@ -13,7 +13,7 @@ export default async function McpPage() {
   const settings = user ? await getUserSettings(user.sub) : null;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">MCP</h1>
         <p className="text-sm text-muted-foreground mt-1">

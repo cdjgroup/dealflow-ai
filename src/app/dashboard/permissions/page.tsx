@@ -22,13 +22,13 @@ export default async function PermissionsPage() {
   ]);
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
           Permissions & Connections
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Control what the AI agent can access. Disabled tools are hidden from the agent entirely.
+          Manage what the AI agent can access and how it behaves for each connection.
         </p>
       </div>
 
