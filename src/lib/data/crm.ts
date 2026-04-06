@@ -1,5 +1,4 @@
 import { getRedis } from "@/lib/redis";
-import type { SuggestedAction } from "@/lib/types/actions";
 
 export interface Deal {
   id: string;
@@ -477,71 +476,6 @@ export interface SeedResult {
   deals: number;
   contacts: number;
   activities: number;
-  actions: number;
-}
-
-// Seed actions — mix of email, calendar, and Slack to demonstrate Action Center
-// userId is injected at seed time since actions are per-user
-function buildSeedActions(userId: string): SuggestedAction[] {
-  const now = new Date().toISOString();
-  return [
-    {
-      id: "sa1",
-      userId,
-      type: "slack",
-      status: "pending",
-      priority: "high",
-      dealId: "d2",
-      dealName: "Vantage API Integration",
-      contactName: "Marcus Johnson",
-      justification: "Vantage deal ($42K) is in negotiation — legal review meeting was March 28. Post a team update to keep everyone aligned on next steps.",
-      draft: { channel: "#sales-team", message: "🤝 Deal Update: Vantage API Integration ($42K)\n\nWe're in negotiation with Vantage Partners. Legal teams are reviewing contract terms after the Mar 28 meeting. Marcus (CTO) confirmed SSO integration as a key requirement.\n\nNext step: Follow up on legal review progress this week." },
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: "sa2",
-      userId,
-      type: "email",
-      status: "pending",
-      priority: "high",
-      dealId: "d1",
-      dealName: "Meridian Platform Migration",
-      contactName: "Sarah Chen",
-      justification: "Meridian deal ($85K) is in proposal stage — last activity was April 4. Sarah hasn't responded to two follow-ups. A concise check-in may re-engage.",
-      draft: { to: "sarah.chen@meridian.io", subject: "Quick check-in: Meridian Platform Migration", body: "Hi Sarah,\n\nI wanted to touch base on the platform migration proposal. I know your team has a lot going on — happy to adjust the timeline or scope if that helps move things forward.\n\nWould a 15-minute call this week work to discuss next steps?\n\nBest regards" },
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: "sa3",
-      userId,
-      type: "slack",
-      status: "pending",
-      priority: "medium",
-      dealId: "d7",
-      dealName: "Axon Health Portal Redesign",
-      contactName: "Rachel Torres",
-      justification: "Axon Health deal ($95K) is in negotiation — contract review in progress. Share status update with the team.",
-      draft: { channel: "#deal-flow", message: "📊 Pipeline Update: Axon Health Portal Redesign ($95K)\n\nStatus: Negotiation — Rachel Torres (CIO) is reviewing the revised SOW. Security compliance docs were shared last week.\n\nThis is our second-largest active deal. Let me know if anyone has contacts at Axon Health." },
-      createdAt: now,
-      updatedAt: now,
-    },
-    {
-      id: "sa4",
-      userId,
-      type: "calendar",
-      status: "pending",
-      priority: "medium",
-      dealId: "d6",
-      dealName: "Nova Finance Data Pipeline",
-      contactName: "David Kim",
-      justification: "Nova Finance deal ($65K) is in proposal stage — schedule a technical deep-dive to address David's architecture questions.",
-      draft: { title: "Nova Finance — Data Pipeline Technical Review", date: "2026-04-09", time: "14:00", duration: 45, attendees: ["dkim@novafinance.com"], notes: "Agenda: pipeline architecture, data security requirements, integration timeline" },
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
 }
 
 export async function seedDemoData(userId: string): Promise<SeedResult> {
@@ -564,19 +498,14 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     p.sadd(activityIndexKey(userId, activity.dealId), activity.id);
   }
 
-  // Clear old actions and seed new ones
-  const actionIndexKey = `${userId}:_idx:actions`;
-  const oldActionIds = await redis.smembers(actionIndexKey);
+  // Clear old actions on reseed (start fresh — AI generates actions via analyzePipeline)
+  const actionIdxKey = `${userId}:_idx:actions`;
+  const oldActionIds = await redis.smembers(actionIdxKey);
   if (oldActionIds.length > 0) {
     for (const id of oldActionIds) {
       p.del(`${userId}:action:${id}`);
     }
-    p.del(actionIndexKey);
-  }
-  const seedActions = buildSeedActions(userId);
-  for (const action of seedActions) {
-    p.set(`${userId}:action:${action.id}`, JSON.stringify(action));
-    p.sadd(actionIndexKey, action.id);
+    p.del(actionIdxKey);
   }
 
   // Seed trust stats: 4 email approvals, 0 dismissals — one more approval
@@ -602,6 +531,5 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     deals: SEED_DEALS.length,
     contacts: SEED_CONTACTS.length,
     activities: SEED_ACTIVITIES.length,
-    actions: seedActions.length,
   };
 }
