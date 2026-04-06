@@ -88,23 +88,45 @@ describe("approval-logic", () => {
     });
   });
 
-  describe("createApprovalCheck for external action tools (S3)", () => {
-    it("always requires approval for draftEmail", async () => {
+  describe("createApprovalCheck for external action tools (S3 disabled)", () => {
+    // S3 SDK-level approval disabled due to AI SDK bug (duplicate tool_use IDs
+    // from approval-responded → sendAutomaticallyWhen cycle). External action
+    // tools now use conversational confirmation instead.
+    it("does not require SDK approval for draftEmail (conversational confirmation)", async () => {
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({
         to: "sarah@example.com",
         subject: "Follow up",
         body: "Hello",
       });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it("always requires approval for sendSlackMessage", async () => {
+    it("does not require SDK approval for sendSlackMessage (conversational confirmation)", async () => {
       const check = createApprovalCheck(TEST_USER, "sendSlackMessage");
       const result = await check({
         channel: "general",
         text: "Hello team",
       });
+      expect(result).toBe(false);
+    });
+
+    it("does not require SDK approval for createCalendarEvent (conversational confirmation)", async () => {
+      const check = createApprovalCheck(TEST_USER, "createCalendarEvent");
+      const result = await check({
+        title: "Meeting",
+        date: "2026-04-10",
+      });
+      expect(result).toBe(false);
+    });
+
+    it("T1 override still works: draftEmail requires approval when trust is 'ask'", async () => {
+      mockGetUserSettings.mockResolvedValue({
+        ...DEFAULT_SETTINGS,
+        toolTrust: { draftEmail: "ask" },
+      });
+      const check = createApprovalCheck(TEST_USER, "draftEmail");
+      const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
       expect(result).toBe(true);
     });
   });
@@ -236,14 +258,14 @@ describe("approval-logic", () => {
       expect(result).toBe(true);
     });
 
-    it("empty toolTrust ({}) falls through — draftEmail still requires approval (S3)", async () => {
+    it("empty toolTrust ({}) falls through — draftEmail does NOT require approval (S3 disabled)", async () => {
       mockGetUserSettings.mockResolvedValue({
         ...DEFAULT_SETTINGS,
         toolTrust: {},
       });
       const check = createApprovalCheck(TEST_USER, "draftEmail");
       const result = await check({ to: "a@example.com", subject: "Hi", body: "Hello" });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it("empty toolTrust ({}) falls through — checkCalendar does not require approval", async () => {
