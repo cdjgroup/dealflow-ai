@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { UIMessage } from "ai";
 import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
@@ -55,48 +54,6 @@ function parseInterrupt(error: Error | undefined): InterruptData | null {
   return null;
 }
 
-/**
- * One-shot gate for sendAutomaticallyWhen.
- *
- * The SDK checks sendAutomaticallyWhen in THREE places:
- * 1. addToolApprovalResponse (line 13032) — after user clicks Approve
- * 2. addToolOutput (line 13062) — after a tool result is added
- * 3. makeRequest finally block (line 13271) — after EVERY completed request
- *
- * Call site #3 creates an infinite loop: request completes → predicate returns
- * true (old approval-responded parts still in messages) → fires another request
- * → completes → checks again → ...
- *
- * Fix: a module-level flag that allows exactly ONE auto-send per approval click.
- * handleApproval resets it to false (armed), the predicate fires once and sets
- * it to true (disarmed), blocking all subsequent checks until the next approval.
- */
-let approvalSendFired = true; // Start disarmed — only arm on explicit approval click
-
-function shouldSendAfterApproval({ messages }: { messages: UIMessage[] }): boolean {
-  // One-shot gate: if we already fired for this approval, refuse
-  if (approvalSendFired) return false;
-
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== "assistant") return false;
-
-  const hasPendingApproval = last.parts.some(
-    (p) =>
-      typeof p === "object" && p !== null &&
-      "type" in p && "state" in p &&
-      typeof (p as { type: unknown }).type === "string" &&
-      (p as { type: string }).type.startsWith("tool-") &&
-      (p as { state: unknown }).state === "approval-responded"
-  );
-
-  if (hasPendingApproval) {
-    approvalSendFired = true; // Disarm — only one send per approval
-    return true;
-  }
-
-  return false;
-}
-
 const suggestions = [
   "Analyze my pipeline and suggest next steps",
   "Show me my deals",
@@ -121,15 +78,11 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
-    // IMPORTANT: onFinish is intentionally omitted here. Per vercel/ai#10169,
-    // having onFinish on useChat breaks the needsApproval/sendAutomaticallyWhen
-    // flow, causing approved tools to loop indefinitely. We trigger
-    // onConversationCreated via a status-change effect below instead.
-    //
-    // Custom predicate replaces SDK's lastAssistantMessageIsCompleteWithApprovalResponses
-    // which has a bug: it returns true even after tool execution (output-available state),
-    // causing infinite re-send loops. Our version only fires when approvals are pending execution.
-    sendAutomaticallyWhen: shouldSendAfterApproval,
+    // sendAutomaticallyWhen is intentionally OMITTED. The SDK's auto-send mechanism
+    // has an unfixable loop: it checks the predicate in makeRequest's finally block
+    // (line 13271) after EVERY completed request, creating infinite recursion.
+    // Instead, we use regenerate() in handleApproval — the same pattern used for
+    // token vault interrupts and CIBA flows.
   });
 
   // Notify parent when the first assistant response completes (replaces onFinish)
@@ -196,16 +149,20 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   };
 
   const handleApproval = useCallback(
-    (approvalId: string, approved: boolean) => {
-      // Arm the one-shot gate — allows exactly one auto-send
-      approvalSendFired = false;
-      addToolApprovalResponse({
+    async (approvalId: string, approved: boolean) => {
+      // Update the tool part state locally (no auto-send — sendAutomaticallyWhen is removed)
+      await addToolApprovalResponse({
         id: approvalId,
         approved,
         reason: approved ? "User approved" : "User denied",
       });
+      // Explicitly resend the conversation — same pattern as token vault interrupt retry.
+      // regenerate() sends ONE request. No sendAutomaticallyWhen means no loop.
+      if (approved) {
+        regenerate();
+      }
     },
-    [addToolApprovalResponse]
+    [addToolApprovalResponse, regenerate]
   );
 
   return (
