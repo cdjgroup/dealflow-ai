@@ -506,6 +506,15 @@ export async function seedDemoData(userId: string): Promise<SeedResult> {
     slack: { approved: 0, dismissed: 0 },
   }));
 
+  // Reset toolTrust to defaults — clears any "ask" overrides that can trigger
+  // the SDK approval loop bug (vercel/ai#9968). Reads current settings and
+  // overwrites toolTrust with empty object while preserving other settings.
+  const settingsKey = `${userId}:settings`;
+  const currentSettings = await redis.get<Record<string, unknown>>(settingsKey);
+  if (currentSettings) {
+    p.set(settingsKey, JSON.stringify({ ...currentSettings, toolTrust: {} }));
+  }
+
   await p.exec();
 
   return {
