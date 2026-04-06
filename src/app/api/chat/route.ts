@@ -298,9 +298,20 @@ export async function POST(req: Request) {
   };
   const filtered = filterToolsByCapabilities(allTools, settings);
 
-  // Track tools that have executed in this request — fed by onToolCallFinish,
-  // consumed by needsApproval to prevent approval retry loops
+  // Pre-populate from conversation history: tools already executed in prior
+  // request cycles don't need re-approval. Also fed by onToolCallFinish for
+  // tools executed within the current request.
   const executedTools = new Set<string>();
+  for (const msg of messages) {
+    const m = msg as { role?: string; parts?: Array<{ type?: string; toolName?: string; state?: string }> };
+    if (m.role === "assistant" && Array.isArray(m.parts)) {
+      for (const part of m.parts) {
+        if (part.type?.startsWith("tool-") && part.state === "result" && part.toolName) {
+          executedTools.add(part.toolName);
+        }
+      }
+    }
+  }
 
   // Attach needsApproval checks (S1 value-based, S3 external actions, U2 user settings)
   const withApproval = attachApprovalChecks(filtered, userId, executedTools);
