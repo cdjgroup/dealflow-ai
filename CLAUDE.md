@@ -29,7 +29,7 @@
 **Auth Flow:**
 1. User logs in via Auth0 Universal Login (Google social connection)
 2. Auth0 issues session with refresh token (MRRT for My Account API)
-3. AI tools call Auth0 `/oauth/token` directly (RFC 8693 federated connection access token exchange)
+3. AI tools call Auth0 `/oauth/token` directly (Auth0's federated connection grant, extends RFC 8693 patterns)
 4. Auth0 Token Vault returns short-lived Google access tokens
 5. Tools call Google Calendar / Gmail APIs with those tokens
 

@@ -1,5 +1,5 @@
 // Auth0 AI Token Vault configuration
-// We use direct token exchange (RFC 8693) instead of the @auth0/ai-vercel
+// We use direct token exchange (Auth0's federated connection grant, inspired by RFC 8693) instead of the @auth0/ai-vercel
 // SDK wrapper for better error observability. The SDK swallows federated
 // connection errors (see github.com/auth0/auth0-ai-js/issues/175), returning
 // a misleading "Authorization required" interrupt instead of the actual Auth0

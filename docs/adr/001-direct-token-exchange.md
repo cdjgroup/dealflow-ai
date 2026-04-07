@@ -15,7 +15,7 @@ This error-swallowing behavior made Token Vault debugging nearly impossible duri
 
 ## Decision
 
-Call Auth0's `/oauth/token` endpoint directly using the RFC 8693 federated connection access token exchange grant type, via a shared `exchangeToken()` utility (`src/lib/token-exchange.ts`).
+Call Auth0's `/oauth/token` endpoint directly using Auth0's federated connection access token exchange grant type (a custom grant inspired by RFC 8693), via a shared `exchangeToken()` utility (`src/lib/token-exchange.ts`).
 
 The utility:
 1. Gets the Auth0 refresh token from the session
@@ -37,7 +37,7 @@ The utility:
 - We lose the SDK's built-in interrupt flow for consent popups (replaced with explicit ConnectGoogle button)
 
 ### Neutral
-- The Auth0 token exchange API is stable (RFC 8693) — unlikely to change
+- The Auth0 token exchange API is stable (Auth0's custom grant extends RFC 8693 patterns) — unlikely to change
 - The error-swallowing issue (#175) may be fixed in a future SDK release, at which point migration back to the wrapper would be viable
 
 ## Standards Alignment
