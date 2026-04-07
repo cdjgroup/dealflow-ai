@@ -4,7 +4,7 @@ AI-powered sales agent with graduated trust architecture: four trust levels, thr
 
 Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
-> **Demo Video:** [Watch the 3-minute walkthrough](TODO_YOUTUBE_LINK) | **Live:** [dealflow-ai-seven.vercel.app](https://dealflow-ai-seven.vercel.app)
+> **Demo Video:** [Watch the 3-minute walkthrough](https://youtu.be/rkJHs7UgTCY) | **Live:** [dealflow-ai-seven.vercel.app](https://dealflow-ai-seven.vercel.app)
 
 ## What Makes This Different
 
