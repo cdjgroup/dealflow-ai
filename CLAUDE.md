@@ -145,3 +145,4 @@ Key: `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, `
 - **Deadline:** 2026-04-06 5:00 PM PT (submitted)
 - **Judging:** Security Model, User Control, Technical Execution, Design, Potential Impact, Insight Value
 - **Winners announced:** ~April 29, 2026
+- **Winners announced:** ~April 29, 2026
