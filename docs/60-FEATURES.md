@@ -1,5 +1,16 @@
 # Features
 
+## v0.6.8 — Trust Filter Fix + Approval Reliability
+
+### System Prompt Trust Alignment
+System prompt now derives available-tool descriptions from the trust-filtered tool set instead of raw capability toggles. When a user sets a tool to "Never allow", the LLM immediately knows the capability is unavailable instead of spending turns trying to find a missing tool. Covers all categories: CRM (all 7 tools), Calendar, Gmail, Slack, delegation, and pipeline analysis.
+
+### Server-Side Approved Tool Execution
+Workaround for vercel/ai#10980: the SDK's `collectToolApprovals` unreliably executes approved tools on resend. `executeApprovedAndPatchDenied` now runs server-side — it processes all `approval-responded` parts in messages, executes approved tools directly, and injects results as `output-available` state. The model receives completed tool results without depending on client-side SDK behavior.
+
+### Universal Approval Dedup
+All tools (not just write tools) now get the context-aware `needsApproval` wrapper. If a tool already has a result in `context.messages`, the wrapper returns `false` to prevent re-approval cards when the model re-proposes an already-executed tool.
+
 ## v0.6.7 — Approval Loop Fix + Action Center Polish
 
 ### Approval Flow Stability

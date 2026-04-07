@@ -100,7 +100,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 |-------|------|-----|
 | **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
 | **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
-| **Step-up approval** | Confirm high-value deals (>$50K), terminal stages | CIBA Guardian push (AI SDK `needsApproval` disabled due to [unfixed recursive loop](https://github.com/vercel/ai/issues/10169); AI confirms in chat for standard write actions) |
+| **Step-up approval** | Confirm high-value deals (>$50K), terminal stages, all external actions | AI SDK `needsApproval` with server-side execution workaround ([vercel/ai#10980](https://github.com/vercel/ai/issues/10980)); CIBA Guardian push for high-value CRM ops |
 | **CIBA batch consent** | One Guardian push approves all high/medium priority actions on schedule | Direct HTTP to Auth0 `/bc-authorize` + polling, time-boxed execution |
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |

@@ -140,6 +140,29 @@ Design highlights:
 
 ## Features
 
+### v0.6.8 — Trust Filter Fix + Approval Reliability
+- System prompt now derives tool descriptions from the trust-filtered set — "Never allow" tools no longer confuse the LLM
+- `executeApprovedAndPatchDenied` workaround for vercel/ai#10980: server-side execution of approved tools, bypassing unreliable `collectToolApprovals`
+- All tools get context-aware approval wrapper preventing infinite re-approval loops
+
+### v0.6.7 — Approval Loop Fix + Action Center Polish
+- Fixed infinite approval retry loop for write tools (three-layer defense)
+- Batch trigger targets approved actions at all autonomy levels
+- Reseed resets autonomyLevel and clears toolTrust overrides
+
+### v0.6.6 — Per-Connection Autonomy + Permissions Consolidation
+- Per-connection autonomy levels and confidence thresholds (Google vs Slack)
+- Permissions page is now the single control surface for access and behavior
+
+### v0.6.4 — Confidence Routing Overhaul + Light Mode
+- Stripe Radar-inspired confidence routing visualization
+- Confidence routing toggle (enable/disable entirely)
+- Light mode WCAG AA contrast fixes across MCP and Action components
+
+### v0.6.3 — MCP Playground
+- Interactive agent simulation: connect API key, discover tools, execute with CIBA consent
+- Claude Code `.mcp.json` integration
+
 ### v0.6.2 — Confidence Routing + Intent Constraints
 - AI confidence scores (0.0–1.0) drive action routing: auto-approve above 85%, force manual review below 50%
 - Per-client MCP parameter constraints with regex validation
