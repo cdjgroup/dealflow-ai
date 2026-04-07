@@ -96,16 +96,24 @@ Auth0, Token Vault, CIBA, Next.js, React, TypeScript, Vercel AI SDK, Claude, Ups
 
 Auth0 Token Vault solves credential management. But when your AI agent operates across three different surfaces — chat, action queue, and MCP for external agents — you need more than tokens. You need consent that adapts.
 
-**The gap we found:** Auth0 documents Token Vault and CIBA as separate features. We searched docs, SDKs, example repos, and Discord. Nobody had combined them — specifically, CIBA as an authorization gate *before* Token Vault token exchange in a batch model.
+**The gap we found:** Auth0 documents Token Vault and CIBA as separate features. We looked through docs, SDKs, example repos, and Discord but couldn't find anyone combining them — specifically, using CIBA as an authorization gate *before* Token Vault token exchange in a batch model. Maybe someone has and we missed it, but we couldn't find a reference.
 
-**So we built it.** A cron job gathers pending AI-suggested actions, sends one Guardian push — "DealFlow: 5 actions - 3 email, 2 calendar" — and on phone approval, exchanges tokens through Token Vault within the CIBA token's time-boxed window. One tap, batch execution, automatic expiry. This fills the gap between "always ask" and "never ask."
+**So we tried it.** The idea was straightforward: a cron job gathers pending AI-suggested actions, sends one Guardian push — "DealFlow: 5 actions - 3 email, 2 calendar, 1 slack" — and on phone approval, exchanges tokens through Token Vault within the CIBA token's time-boxed window. One tap, batch execution, automatic expiry. Our attempt at filling the gap between "always ask" and "never ask."
+
+Getting there was less straightforward. CIBA's `/bc-authorize` endpoint expects `application/x-www-form-urlencoded` (not JSON like the Token Vault exchange endpoint), the `binding_message` field has a strict 64-character limit with a narrow character allowlist — no `@` signs, so email addresses in approval messages get rejected at runtime. The `login_hint` is a JSON string passed as a form field, so you're double-encoding. None of this was obvious from the docs; we found it by reading the `auth0` SDK source and hitting errors.
+
+The bigger architectural realization: the CIBA access token you get back is scoped to `openid` only — it's proof of consent, not an API token. You still need the user's stored refresh token exchanged through Token Vault to actually call Gmail or Google Calendar. So the pattern is really "CIBA for consent, Token Vault for execution," and the CIBA token's expiry becomes a natural time-box for the whole batch.
+
+This also turned out to be the key to making MCP write operations work. MCP is stateless request-response — there's no approval UI. Our initial assumption was that MCP had to be read-only. But CIBA doesn't need a UI at all; it sends consent to a separate device. So now an external AI agent can request a write action through MCP, the user's phone buzzes with what's about to happen, and one tap either approves or blocks it. Same Token Vault pipeline underneath, same audit trail.
 
 **What broke along the way:**
 - The `@auth0/ai-vercel` SDK silently swallows token exchange errors — failed exchanges return "Authorization required" instead of the real Auth0 error. We filed [#175](https://github.com/auth0/auth0-ai-js/issues/175). Fix: call `/oauth/token` directly via RFC 8693.
 - Deleting a tokenset doesn't revoke access — Auth0 silently re-provisions on the next exchange. Fix: application-level Redis flags.
 - Token Vault ignores the `scope` parameter on federated exchanges. Fix: application-layer scope awareness per tool.
+- Vercel serverless functions can't poll for 5 minutes waiting for phone approval. Fix: two-phase cron — one job initiates CIBA, a separate per-minute job polls for approval and executes.
+- Guardian only processes one CIBA push per user at a time. Per-action pushes don't scale. Fix: batch all pending actions into a single push.
 
-These aren't complaints — they're findings that save the next developer a day of debugging. All 31 insights documented with root cause and fix in our repo.
+None of these are complaints — they're the kind of findings we wish we'd had on day one, and hopefully they save the next developer some debugging time. All 31 insights documented with root cause and fix in our repo.
 
 ---
 

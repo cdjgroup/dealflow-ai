@@ -4,7 +4,7 @@
 
 ---
 
-## Current Version: 0.6.7 — Approval Loop Fix + Action Center Polish
+## Current Version: 0.6.8 — Trust Filter Fix + Approval Reliability
 ## Status: READY FOR DEPLOY
 ## Live URL: https://dealflow-ai-seven.vercel.app
 
@@ -18,7 +18,7 @@
 | Build | `npm run build` |
 | Run tests | `npm test` |
 | E2E tests | `npx playwright test` |
-| Deploy | `vercel --prod` |
+| Deploy | Push to `main` (Vercel GitHub integration auto-deploys) |
 
 ---
 
@@ -122,7 +122,7 @@ AI agent suggests next steps based on CRM deal context. Actions are queued at `/
 ## Security & User Control (v0.2.0)
 
 - **Capability Toggles:** Per-tool ON/OFF at `/dashboard/permissions` (stored in Redis)
-- **Step-Up Auth:** CIBA Guardian push for deals >$50K and closed-won stage changes (AI SDK `needsApproval` disabled for write tools due to [unfixed recursive loop](https://github.com/vercel/ai/issues/10169); AI confirms in chat instead)
+- **Step-Up Auth:** AI SDK `needsApproval` for deals >$50K, closed-won stage changes, and all external action tools (email, Slack, calendar). Workaround for [vercel/ai#10980](https://github.com/vercel/ai/issues/10980): `executeApprovedAndPatchDenied` server-side execution of approved tools, bypassing unreliable `collectToolApprovals`
 - **Audit Trail:** Every tool call logged to Redis + viewable at `/dashboard/audit`
 - **CSRF:** All mutation endpoints require `X-Requested-With: XMLHttpRequest`
 - **Scope Indicator:** Live display of active OAuth scopes during tool execution
@@ -142,5 +142,7 @@ Key: `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET`, `
 ## Hackathon
 
 - **Contest:** Authorized to Act: Auth0 for AI Agents (authorizedtoact.devpost.com)
-- **Deadline:** 2026-04-06 5:00 PM PT
+- **Deadline:** 2026-04-06 5:00 PM PT (submitted)
 - **Judging:** Security Model, User Control, Technical Execution, Design, Potential Impact, Insight Value
+- **Winners announced:** ~April 29, 2026
+- **Winners announced:** ~April 29, 2026
