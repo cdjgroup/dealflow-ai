@@ -70,8 +70,8 @@ AI confidence scores (0.0–1.0) now drive the action approval flow. High-confid
 ### Per-Client MCP Parameter Constraints
 Per-client regex-based parameter constraints add semantic intent verification to MCP tool calls. Each MCP client can restrict what parameter values are allowed — e.g., restrict `searchEmails` to only `from:.*@acme\.com` queries. Constraints are validated at creation time (invalid regex rejected), enforced fail-closed at runtime (Layer 3.5 between client allowlist and CIBA gate), and bounded (max 5 per tool, 10 tools per client). A collapsible constraint editor in the MCP client create form lets users configure constraints visually.
 
-### EU AI Act Article 14 Alignment
-DealFlow's trust spectrum — from Suggest Only to Full Autonomous, with confidence-based routing and CIBA device consent — aligns with EU AI Act Article 14 (Human Oversight, effective August 2026). The blog post, Devpost submission, and insights docs now explicitly connect the architecture to upcoming regulation.
+### Human Oversight Design Principles
+DealFlow's trust spectrum — from Suggest Only to Full Autonomous, with confidence-based routing and CIBA device consent — follows the principle of human oversight proportional to action sensitivity. This is the same design principle that EU AI Act Article 14 codifies for high-risk AI systems (effective August 2026), applied voluntarily here as a best practice for a business tool. Note: a sales CRM tool would not be classified as high-risk under the EU AI Act's Annex III categories.
 
 ## v0.6.0 — Per-Client MCP Policy + CIBA-Gated Write Tools
 
@@ -108,7 +108,7 @@ Two-layer protection against runaway AI tool loops:
 - **Layer B (nuclear):** 15 tool calls max per request. AbortController kills stream with amber error message.
 
 ### External Agent Write Operations
-External AI agents (Claude Desktop, Cursor, OpenClaw) can now execute write operations via the MCP endpoint at `/api/mcp`. Three write tools are exposed, all gated by CIBA device consent:
+External AI agents (Claude Desktop, Cursor, and other MCP-compatible agents) can now execute write operations via the MCP endpoint at `/api/mcp`. Three write tools are exposed, all gated by CIBA device consent:
 - **draftEmail** — create Gmail drafts (user reviews in Gmail before sending)
 - **createCalendarEvent** — schedule meetings with attendees
 - **sendSlackMessage** — post messages to Slack channels
@@ -261,7 +261,7 @@ Per-tool trust levels ("always" / "ask each time" / "never") that override the d
 Audit table expanded rows display token exchange metadata (provider, scope, TTL). Makes the invisible security model visible for judges.
 
 ### MCP Server for External AI Agents
-Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
+Model Context Protocol endpoint at `/api/mcp` using Streamable HTTP transport. External agents (Claude Desktop, Cursor, and other MCP-compatible agents) can discover and invoke DealFlow's tools through standard MCP protocol. Bearer token auth validates against Auth0 `/userinfo`. Read tools execute directly; write tools require CIBA device consent (v0.6.0). All MCP calls logged to audit trail.
 
 ### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens stored in Redis with automatic TTL expiry. The user must consent before a delegation proceeds. The delegation specifies which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities. Demonstrates agent-to-agent trust: scoped, time-bound, consented, auditable.

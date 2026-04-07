@@ -17,7 +17,7 @@ Most AI agents get blanket access to your data. DealFlow implements a graduated 
 | **MCP + CIBA** | High | Phone push notification | External agent acts, user consents on device |
 | **MCP (read)** | Autonomous | None needed | Read-only queries, no data modified |
 
-Key innovations:
+Design highlights:
 1. **CIBA Batch Scheduling** — One Guardian push approves all pending actions on a schedule, time-boxed to token lifetime
 2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review (configurable)
 3. **Trust Calibration** — System observes approval patterns and suggests upgrading tools to auto-approve (never auto-escalates)
@@ -143,7 +143,7 @@ Key innovations:
 ### v0.6.2 — Confidence Routing + Intent Constraints
 - AI confidence scores (0.0–1.0) drive action routing: auto-approve above 85%, force manual review below 50%
 - Per-client MCP parameter constraints with regex validation
-- EU AI Act Article 14 alignment documentation
+- Human oversight design principles documented (graduated oversight proportional to action sensitivity)
 
 ### v0.6.0 — Per-Client MCP Policy + CIBA Write Tools
 - Named MCP clients with API keys, trust tiers, and tool allowlists
@@ -181,7 +181,7 @@ Per-tool trust levels that give users granular control:
 Audit table entries include token exchange metadata (provider, scope, TTL) for every Token Vault tool call. Expanded rows show the full exchange details.
 
 #### MCP Server for External AI Agents
-`/api/mcp` endpoint exposing read and write tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Write tools (email, calendar, Slack) require CIBA device consent via Guardian push. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and OpenClaw.
+`/api/mcp` endpoint exposing read and write tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Write tools (email, calendar, Slack) require CIBA device consent via Guardian push. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and other MCP-compatible agents.
 
 #### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens (stored in Redis with TTL). The user must approve the delegation, specifying which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities.
@@ -395,7 +395,7 @@ src/
 ## Testing
 
 ```bash
-npm test              # 676 tests across 64 files
+npm test              # 718 tests across 68 files
 npm run build         # TypeScript + Next.js production build
 npx playwright test   # E2E smoke tests
 ```

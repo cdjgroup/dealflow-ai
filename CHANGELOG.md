@@ -72,7 +72,7 @@ All notable changes to this project will be documented in this file.
 - Layer 3.5 enforcement in MCP tool handler: parameter constraints validated between client allowlist and CIBA gate, fail-closed on invalid regex
 - Confidence threshold sliders in schedule panel UI with three-band visualization
 - Parameter constraint editor in MCP client create form (collapsible, tool+param+regex+description)
-- EU AI Act Article 14 references in blog post, Devpost submission, and insights docs (025, 026)
+- Human oversight design principles documentation, noting alignment with EU AI Act Article 14 concepts (applied voluntarily, not required for this tool category)
 - Regex validation at MCP client creation time (defense-in-depth with runtime fail-closed)
 - Constraints bounded: max 5 per tool, max 10 tools per client
 
@@ -143,7 +143,7 @@ All notable changes to this project will be documented in this file.
 - HTTP response status validated for API calls (prevents silent error masking)
 
 ### Documentation
-- Added "Graduated Trust Architecture" section to Devpost with IETF draft-klrc-aiagent-auth-01 and EU AI Act Article 14 references
+- Added "Graduated Trust Architecture" section to Devpost with references to IETF draft-klrc-aiagent-auth-01 (individual draft) and EU AI Act Article 14 design principles
 - Added "Standards Alignment" sections to ADRs 001, 003, 004, 006, 007
 - Added OpenFGA/WIMSE acknowledgment to Devpost "What's next"
 

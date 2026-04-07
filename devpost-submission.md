@@ -48,7 +48,7 @@ And it's not static. The system watches your approval patterns — if you've app
 
 Next.js 16 (App Router), Auth0 Token Vault, Claude Sonnet 4.6 via Vercel AI SDK v6, Upstash Redis, Model Context Protocol. Direct RFC 8693 token exchange and CIBA via HTTP — the `@auth0/ai-vercel` SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)), Auth0 endpoints called directly for full observability.
 
-Built in 6 days (March 31 – April 6, 2026). 250+ commits, 310+ tests, 9 ADRs, 27 documented insights.
+Built in 7 days (March 31 – April 6, 2026). 380+ commits, 700+ tests, 11 ADRs, 31 documented insights.
 
 ## Challenges encountered
 
@@ -60,12 +60,12 @@ Built in 6 days (March 31 – April 6, 2026). 250+ commits, 310+ tests, 9 ADRs, 
 ## Accomplishments we're proud of
 
 - **Graduated trust architecture**: Four trust levels, three surfaces, one Token Vault pipeline — security adapts to the surface's trust properties
-- **IETF draft alignment**: DealFlow's three surfaces implement the three delegation patterns from`draft-klrc-aiagent-auth-01` (March 2026). Further, it implements 7 of 9 AIMS layers substantively, with the two gaps (SPIFFE workload identity and hardware attestation) being infrastructure-level concerns that the framework itself acknowledges are deployment-specific. Our strongest alignment is at Layer 6 (Authorization), implementing all delegation scenarios: RFC 8693 token exchange, CIBA human-in-the-loop, step-up auth, and surface-aware trust graduation. This is the layer the framework spends the most time on, and it's where our implementation is most complete.
+- **IETF draft alignment**: DealFlow's three surfaces loosely map to the delegation patterns described in individual Internet-Draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), and agent-to-agent (MCP). Our strongest area is authorization — RFC 8693 token exchange, CIBA human-in-the-loop, step-up auth, and surface-aware trust graduation. Note: this is an individual draft, not adopted IETF consensus.
 - **CIBA batch scheduling**: One Guardian push approves all actions, time-boxed execution within the CIBA token's lifetime
 - **Trust calibration**: System observes approval patterns and recommends autonomy upgrades and user decides, never auto-escalating on its own
 - **Confidence routing**: AI scores suggestions where users can elect to have high confidence auto-approve and/or low confidence forced reviews regardless of autonomy setting
 - **Per-client MCP policies**: Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
-- **27 documented insights**: SDK bugs, Token Vault behaviors, CIBA patterns, and IETF alignment findings that benefit the Auth0 community
+- **31 documented insights**: SDK bugs, Token Vault behaviors, CIBA patterns, and findings that benefit the Auth0 community
 
 
 ## What was learned
@@ -82,7 +82,7 @@ Token Vault is a powerful primitive, but "Authorized to Act" requires more than 
 
 - Incremental authorization (request OAuth scopes only when needed)
 - Multi-user workspaces with team-level policies
-- Published OpenClaw integration example
+- Published reference integration examples for external MCP agents
 
 ## Built with
 
@@ -124,11 +124,11 @@ And it's not static. The system watches your approval patterns — if you've app
 
 **Trust calibration closes the loop.** The Action Center records every approval, edit, and dismissal per tool type. After 5+ decisions at >80% approval rate, the system suggests upgrading that tool to auto-approve. But it never auto-escalates — even the system's recommendation requires explicit user consent. The AI's own confidence scores add another dimension: actions above 85% confidence auto-approve, actions below 50% force manual review regardless of the user's autonomy setting. The result is a trust model that adapts to both user behavior and AI uncertainty.
 
-**Mapping to emerging standards.** Our three-surface model independently arrived at the same architecture proposed in IETF `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI engineers): user-delegated authorization (Chat), pre-authorized agent action (Action Center), and agent-to-agent access (MCP). The graduated trust spectrum also aligns with EU AI Act Article 14 (Human Oversight, effective August 2026), which requires human oversight proportional to action sensitivity — exactly what our confidence-based routing provides.
+**Mapping to emerging standards.** Our three-surface model is consistent with the delegation patterns described in the individual IETF draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated authorization (Chat), pre-authorized agent action (Action Center), and agent-to-agent access (MCP). The graduated trust spectrum also follows the same design principles that EU AI Act Article 14 (Human Oversight, effective August 2026) codifies for high-risk AI systems — human oversight proportional to action sensitivity. We apply these principles voluntarily as a best practice; a sales CRM tool would not be classified as high-risk under the Act's Annex III categories.
 
 **The pattern is reusable.** Any application with Auth0 Token Vault can expose tools via MCP. Our per-client policy system gives each external agent its own API key, trust tier, tool allowlist, and parameter constraints. The Security Model adapts per client: a trusted IDE gets full access, a CI pipeline gets read-only CRM, a research bot gets email search constrained to specific domains. Adding a new agent doesn't require new security code — just a new client with the right policy.
 
-**What was found along the way.** 27 insights were captured during development, including:
+**What was found along the way.** 31 insights were captured during development, including:
 - The `@auth0/ai-vercel` SDK silently swallows token exchange errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175))
 - Token Vault tokenset deletion doesn't prevent re-provisioning
 - Token Vault doesn't accept a `scope` parameter on federated exchanges
@@ -141,7 +141,7 @@ All documented with technical details, root cause, and fix in our `docs/70-INSIG
 
 ---
 
-*DealFlow: 250+ commits, 310+ tests, 9 ADRs, 27 insights. Built in 6 days.*
+*DealFlow: 380+ commits, 700+ tests, 11 ADRs, 31 insights. Built in 7 days.*
 *Live: https://dealflow-ai-seven.vercel.app | Code: https://github.com/cdjgroup/dealflow-ai*
 
 ---

@@ -1,0 +1,247 @@
+# DealFlow — Devpost Submission Draft
+
+> **Note:** This is the detailed internal draft with screenshot checklist and extended feature details. The final submission text is in [`devpost-submission.md`](devpost-submission.md).
+
+> **Hackathon**: Authorized to Act: Auth0 for AI Agents
+> **Deadline**: April 6, 2026 5:00 PM PT
+
+---
+
+## Inspiration
+
+AI agents that can draft emails, schedule meetings, and post Slack updates are powerful — but dangerous when they act without guardrails. Most AI agent frameworks treat authorization as an afterthought, and many popular frameworks are still evolving their security models. Sales teams using AI assistants lose deals when follow-ups fall through the cracks, but they also risk data breaches when the AI has unrestricted access.
+
+We built DealFlow to prove that an AI sales agent can be both powerful AND trustworthy — suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI **never touches credentials**. Then we took it further: we exposed the same secure, audited pipeline to external AI agents via MCP, turning one app's security model into a reusable pattern for the AI agent ecosystem.
+
+## What it does
+
+DealFlow is an AI-powered sales assistant that manages your deal pipeline, communicates with prospects, and suggests proactive next steps — all through Auth0 Token Vault. The core innovation is a **graduated trust architecture**: four trust levels, three execution surfaces, one security pipeline. Each surface has different trust properties, and the security model adapts automatically.
+
+### Graduated Trust Architecture
+
+| Surface | Trust Level | Consent Mechanism | Why |
+|---------|------------|-------------------|-----|
+| **Action Center** | Low | In-app review + inline editing | User sees every suggestion, edits drafts, approves individually |
+| **Chat UI** | Medium | Real-time direction + step-up auth | User is present, AI pauses for sensitive actions |
+| **MCP + CIBA** | High | Guardian push notification | External agent triggers action, user consents on phone |
+| **MCP (read)** | Autonomous | None needed | Read-only queries, no user data modified |
+
+This loosely maps to the delegation patterns described in the individual IETF draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), and agent-to-agent (MCP). The graduated oversight approach also follows the same design principles that EU AI Act Article 14 codifies for high-risk AI systems — human oversight proportional to action sensitivity — applied here voluntarily as a best practice.
+
+### Three Surfaces, One Security Pipeline
+
+**1. Chat Interface** — Ask the AI about your pipeline, check your calendar, schedule meetings, draft emails, or post Slack updates. Every external API call flows through Token Vault's RFC 8693 token exchange.
+
+**2. Action Center with Scheduled Execution** — The AI analyzes your pipeline and generates suggested next steps (follow-up emails, demo meetings, team updates). Each suggestion includes the AI's reasoning — not a black box. Users configure scheduled review times (8am, 12pm, 5pm) or trigger on-demand batch execution with "Run Now." At the scheduled time, a single CIBA Guardian push notification requests approval for all high/medium priority pending actions — the binding message describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar"). One phone approval, and all actions execute within the CIBA token's expiry window. Low-priority actions stay queued for manual review. The action list syncs in real-time after execution. A "Reseed Demo Data" button resets the action queue for repeatable demos.
+
+**3. MCP Server for External AI Agents** — Any MCP-compatible agent (Claude Desktop, Cursor, and others) can discover and invoke DealFlow's tools through the `/api/mcp` endpoint. Same Token Vault pipeline, same audit trail, same capability controls. External agents get Auth0-grade security through a standard protocol — a reusable pattern for the AI agent ecosystem.
+
+### Unified Security Model
+
+The same capability toggles, trust levels, and connection controls govern all three surfaces. Disable Gmail in Permissions → the chat AI can't draft emails, the Action Center can't approve email actions, and MCP agents can't invoke the draftEmail tool. One control, consistent everywhere.
+
+## How we built it
+
+- **Next.js 16** (App Router) on Vercel
+- **Auth0 Token Vault** for OAuth token management (Google, Slack)
+- **Claude Sonnet 4.6** via Vercel AI SDK v6
+- **Upstash Redis** for CRM data, conversations, audit trail, and action queue
+- **RFC 8693** federated connection access token exchange (direct — see Challenges)
+- **Model Context Protocol** for external agent interop
+
+**Built in 7 days** (March 31 – April 6, 2026), 380+ commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in a week. Full git history is publicly verifiable — every commit is timestamped.
+
+### Architecture
+
+```
+                    ┌─────────────────┐
+                    │   Auth0 Login    │
+                    │  (Session + RT)  │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+        ┌─────┴─────┐ ┌─────┴─────┐ ┌──────┴─────┐
+        │  Chat UI   │ │  Action   │ │    MCP     │
+        │ (AI SDK)   │ │  Center   │ │  Server    │
+        └─────┬─────┘ └─────┬─────┘ └──────┬─────┘
+              │              │              │
+              └──────────────┼──────────────┘
+                             │
+                    ┌────────┴────────┐
+                    │ exchangeToken() │
+                    │   (RFC 8693)    │
+                    └────────┬────────┘
+                             │
+                    ┌────────┴────────┐
+                    │  Auth0 Token    │
+                    │     Vault       │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+        ┌─────┴─────┐ ┌─────┴─────┐ ┌──────┴─────┐
+        │   Gmail    │ │  Google   │ │   Slack    │
+        │   API      │ │ Calendar  │ │   API      │
+        └───────────┘ └───────────┘ └────────────┘
+                             │
+                    ┌────────┴────────┐
+                    │   Audit Trail   │
+                    │   (Redis)       │
+                    └─────────────────┘
+```
+
+The same `exchangeToken()` function works from all three entry points — proving Token Vault is composable across surfaces, not coupled to any single UI pattern.
+
+## Key Features
+
+### Security Model (Judging: Security Model, User Control)
+| Layer | What | How |
+|-------|------|-----|
+| **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
+| **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
+| **Step-up approval** | Confirm high-value deals (>$50K), terminal stages | CIBA Guardian push (AI SDK `needsApproval` disabled due to [unfixed recursive loop](https://github.com/vercel/ai/issues/10169); AI confirms in chat for standard write actions) |
+| **CIBA batch consent** | One Guardian push approves all high/medium priority actions on schedule | Direct HTTP to Auth0 `/bc-authorize` + polling, time-boxed execution |
+| **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
+| **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
+| **Scope awareness** | Tools self-declare minimum scopes | UI shows voluntary least-privilege |
+| **Trust calibration** | Per-tool approval stats → upgrade nudge | After 5+ decisions at >80% approval, suggests auto-approve |
+
+### User Control (Judging: User Control, Design)
+| Feature | User Value |
+|---------|-----------|
+| **Action Center** | AI suggestions queued for review — never auto-executed |
+| **Inline editing** | Modify email/calendar/Slack drafts before approving |
+| **AI justifications** | Every suggestion explains WHY — informed consent, not rubber-stamping |
+| **Batch approve** | Approve multiple actions at once for efficiency |
+| **Status feedback** | Pending → Approved → Executing → Completed/Failed in real-time |
+| **Trust enforcement** | Same controls apply across chat, Action Center, and MCP |
+| **Trust calibration** | System observes approval patterns and suggests upgrading tools to auto-approve — user decides, never auto-escalates |
+
+### Technical Innovation (Judging: Technical Execution)
+| Feature | Why it matters |
+|---------|---------------|
+| **Batch CIBA with scheduled execution** | Configurable review times (8am/12pm/5pm) + "Run Now" — one Guardian push approves a batch of actions, time-boxed to token lifetime |
+| **Priority-filtered execution** | High/medium priority actions execute automatically; low priority stays for manual review |
+| **MCP Server** | External AI agents get Auth0-grade security without framework changes |
+| **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
+| **IETF draft alignment** | Three surfaces loosely map to the delegation patterns in individual draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), agent-to-agent (MCP) |
+| **Surface Policy Registry** | Declarative per-surface tool filtering with layered enforcement — conceptually similar to permit.io's tool authorization approach, implemented without external dependencies |
+| **Calendar event creation** | AI schedules meetings via Token Vault — always requires approval, short-lived token |
+| **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
+| **Direct RFC 8693 exchange** | SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — direct calls give full error observability + richer token metadata |
+| **CIBA via direct HTTP** | Device-level consent using Auth0 Guardian push — same direct HTTP pattern as Token Vault (ADR 004) |
+
+### Potential Impact (Judging: Potential Impact)
+
+**The MCP pattern is the key insight.** DealFlow doesn't just secure one application — the MCP server turns Auth0 Token Vault into a security layer that any MCP-compatible agent can use. Any external agent that connects gets Auth0-grade security through a standard protocol. The agent authenticates, discovers tools, and every call flows through the same token exchange and audit pipeline as the chat UI.
+
+**Connection config for any MCP client:**
+```json
+{
+  "mcpServers": {
+    "dealflow": {
+      "url": "https://dealflow-ai-seven.vercel.app/api/mcp",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer <auth0-access-token>"
+      }
+    }
+  }
+}
+```
+
+This pattern is reusable: any application with Auth0 Token Vault can expose its tools via MCP, giving the growing ecosystem of AI agents (Claude Desktop, Cursor, custom agents) a standard way to act on behalf of users — securely, with consent, and with a full audit trail.
+
+### Insight Value (Judging: Insight Value)
+
+We documented 31 non-obvious discoveries during development, including:
+
+1. **@auth0/ai-vercel SDK swallows token exchange errors** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — failed exchanges return "Authorization required" instead of the real error. Fix: call Auth0's token exchange endpoint directly for full error observability.
+2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
+3. **Token Vault tokenset deletion doesn't revoke access** — tokensets are a cache layer. Application-level enforcement is required.
+4. **Auth0 Token Vault does NOT support scope narrowing** — the `scope` parameter is ignored on federated exchanges. Scope narrowing must be application-layer.
+5. **MCP endpoints need the same security layers as chat** — every new entry point must replicate capability filtering, approval checks, and audit attribution.
+6. **CIBA + Token Vault composition is novel** — Auth0 documents them as separate pillars; no official guide, SDK example, or project combines CIBA approval as a gate before Token Vault exchange in a batch model.
+7. **Three-surface model loosely maps to IETF `draft-klrc-aiagent-auth-01`** — our Chat/Action Center/MCP surfaces align with the delegation patterns (user-delegated, pre-authorized, agent-to-agent) described in this individual Internet-Draft.
+
+Full insights with technical details: `docs/70-INSIGHTS.md`
+
+## Challenges we ran into
+
+1. **@auth0/ai-vercel SDK error swallowing** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)): The SDK's `TokenVaultAuthorizerBase` silently returns `undefined` when token exchange fails, then `validateToken()` throws a misleading "Authorization required" interrupt. The real error (wrong credentials, misconfigured connection, expired refresh token) is swallowed. We called Auth0's `/oauth/token` endpoint directly using RFC 8693 — which surfaces actual error messages and yields richer token metadata (scope, TTL, connection) that powers the lifecycle visualization.
+
+2. **Token Vault tokenset deletion is non-revocable**: Deleting a tokenset via the Management API doesn't prevent re-provisioning. Auth0 silently creates a new tokenset on the next exchange. We implemented application-level disconnect via Redis flags checked at three integration points: `exchangeToken()`, `/api/token-status`, and the permissions UI.
+
+3. **OAuth scope configuration**: Google Calendar event creation requires upgrading from `calendar.readonly` to `calendar.events` — configured in Auth0 Dashboard, not code. Auth0 Token Vault does NOT accept a `scope` parameter on federated exchanges, so scopes must be configured at the connection level. Users must re-authorize after scope changes. We built a `createCalendarEvent` tool that uses the write scope while `checkCalendar` stays read-only — demonstrating least-privilege per tool.
+
+4. **Three surfaces, one pipeline**: Ensuring capability toggles, trust levels, and audit logging work identically across chat (AI SDK streaming), Action Center (REST API), and MCP (external agents) required careful design. The key was making `exchangeToken()` context-agnostic — it reads the Auth0 session cookie, which is present in any browser-initiated request.
+
+## Accomplishments we're proud of
+
+- **Three-surface security**: Chat, Action Center, and MCP all enforce the same capability/trust/audit pipeline — no gaps between surfaces
+- **AI-generated justifications**: Every suggested action explains WHY, making human-in-the-loop meaningful rather than ceremonial
+- **MCP as ecosystem security**: Turned one app's Token Vault integration into a reusable pattern for external AI agents
+- **CIBA batch consent with scheduled execution**: One Guardian push approves all high/medium priority actions — time-boxed execution within the CIBA token's lifetime
+- **Trust calibration**: System observes per-tool approval patterns and recommends autonomy upgrades — genuine feedback loop, not just telemetry
+- **718 tests passing across 68 files**: Comprehensive coverage across data layer, API routes, components, approval logic, CIBA module, trust calibration, confidence routing, MCP adapters, parameter constraints, and capability filtering
+- **IETF draft alignment**: Three surfaces loosely map to the delegation patterns from individual draft `draft-klrc-aiagent-auth-01` (March 2026)
+- **31 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, and trust calibration that benefit the Auth0 community
+- **Architecture Decision Records**: 11 ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, MCP policy, trust calibration, and more
+
+## What we learned
+
+Auth0 Token Vault is a powerful primitive, but "Authorized to Act" requires more than token management. Real user control means:
+
+1. **The user sees WHAT and WHY** — AI justifications, not black-box actions
+2. **The user can edit, approve, or block** — at per-tool, per-action, and per-agent levels
+3. **Controls are consistent** — same rules regardless of how the AI acts (chat, queue, MCP)
+4. **Everything is auditable** — token metadata, parameters, duration, success/failure
+5. **The pattern is reusable** — MCP turns app-level security into ecosystem-level security
+6. **Trust should be earned, not assumed** — The system tracks per-tool approval rates and suggests upgrading to auto-approve when the user's behavior warrants it. But it never auto-escalates — even the system's own recommendations require explicit consent
+
+## What's next
+
+- **Expanded scheduling options**: Additional schedule frequencies and per-action-type scheduling policies
+- **Incremental authorization**: Request additional OAuth scopes only when needed
+- **Multi-user workspaces**: Team-level permissions and delegation policies
+- **Reference integration examples**: Published examples showing external agents using DealFlow tools via MCP with full Token Vault security
+
+## Built with
+
+Auth0, Token Vault, Next.js, React, TypeScript, Vercel AI SDK, Claude, Upstash Redis, Tailwind CSS, Framer Motion, Vercel, Model Context Protocol
+
+---
+
+## Testing Instructions (for judges)
+
+A demo Google account is provided so judges can test the full Auth0 Token Vault integration:
+
+- **Email:** Demouser.ai.a
+- **Password:** Claudec0deisthebest
+
+Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions.
+
+---
+
+## Screenshots needed
+
+1. **Chat with AI tool execution** — calendar check or email draft flowing through Token Vault
+2. **Action Center with scheduled execution** — schedule settings, priorities, "Run Now" button, real-time sync
+3. **Inline editing** — expanded email card with editable To/Subject/Body fields
+4. **Execution result** — card showing "Completed" green badge after Token Vault execution
+5. **Trust blocking** — error message when Gmail is disabled and user tries to approve
+6. **Permissions page** — integration cards with connection status, toggles, trust levels
+7. **MCP Explorer** — LIVE badge, tool list, connection config snippets
+8. **Audit log** — entries showing tool calls with duration, status, and token metadata
+9. **Confidence routing** — action cards showing confidence scores with auto-approve/manual-review routing
+10. **MCP parameter constraints** — client config showing regex constraints on tool parameters
+
+## Video demo
+
+Record a 3-minute walkthrough following `docs/DEMO-SCRIPT.md`. Lead with Action Center (wow in 30 sec), climax with CIBA phone approval:
+1. Action Center: AI justifications, inline edit, execute via Token Vault (0:00–0:30)
+2. Chat: multi-step tool orchestration — one prompt, four Token Vault exchanges (0:30–1:10)
+3. CIBA: "Run Now" → pick up phone → Guardian approval → batch execution (1:10–1:55)
+4. Security: disable-and-block + confidence routing + MCP per-client policies + audit (1:55–2:40)
+5. Closing: graduated trust thesis + stats (2:40–3:00)

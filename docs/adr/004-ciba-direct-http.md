@@ -44,4 +44,4 @@ Integrate via the existing interrupt pattern: JSON error thrown from tool execut
 
 ## Standards Alignment
 
-CIBA device-level consent for high-value operations satisfies the human oversight requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), ensuring that humans can intervene in and override AI-initiated actions that exceed value or risk thresholds.
+CIBA device-level consent for high-value operations follows the human oversight design principle described in [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), ensuring that humans can intervene in and override AI-initiated actions that exceed value or risk thresholds. Note: Article 14 applies to high-risk AI systems as classified in Annex III; this pattern is applied here voluntarily as a best practice.
