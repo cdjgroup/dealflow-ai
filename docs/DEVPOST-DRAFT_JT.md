@@ -9,7 +9,7 @@
 
 ## Inspiration
 
-AI agents that can draft emails, schedule meetings, and post Slack updates are powerful — but dangerous when they act without guardrails. Most AI agent frameworks treat authorization as an afterthought: OpenClaw (250K GitHub stars) stores credentials in local JSON files with no RBAC or audit trail. Sales teams using AI assistants lose deals when follow-ups fall through the cracks, but they also risk data breaches when the AI has unrestricted access.
+AI agents that can draft emails, schedule meetings, and post Slack updates are powerful — but dangerous when they act without guardrails. Most AI agent frameworks treat authorization as an afterthought, and many popular frameworks are still evolving their security models. Sales teams using AI assistants lose deals when follow-ups fall through the cracks, but they also risk data breaches when the AI has unrestricted access.
 
 We built DealFlow to prove that an AI sales agent can be both powerful AND trustworthy — suggesting actions with clear justification, letting users review and edit before anything executes, and using Auth0 Token Vault so the AI **never touches credentials**. Then we took it further: we exposed the same secure, audited pipeline to external AI agents via MCP, turning one app's security model into a reusable pattern for the AI agent ecosystem.
 
@@ -26,7 +26,7 @@ DealFlow is an AI-powered sales assistant that manages your deal pipeline, commu
 | **MCP + CIBA** | High | Guardian push notification | External agent triggers action, user consents on phone |
 | **MCP (read)** | Autonomous | None needed | Read-only queries, no user data modified |
 
-This maps to the three delegation patterns in IETF `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), and agent-to-agent (MCP). It also aligns with EU AI Act Article 14's requirement for human oversight proportional to action sensitivity.
+This loosely maps to the delegation patterns described in the individual IETF draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), and agent-to-agent (MCP). The graduated oversight approach also follows the same design principles that EU AI Act Article 14 codifies for high-risk AI systems — human oversight proportional to action sensitivity — applied here voluntarily as a best practice.
 
 ### Three Surfaces, One Security Pipeline
 
@@ -34,7 +34,7 @@ This maps to the three delegation patterns in IETF `draft-klrc-aiagent-auth-01` 
 
 **2. Action Center with Scheduled Execution** — The AI analyzes your pipeline and generates suggested next steps (follow-up emails, demo meetings, team updates). Each suggestion includes the AI's reasoning — not a black box. Users configure scheduled review times (8am, 12pm, 5pm) or trigger on-demand batch execution with "Run Now." At the scheduled time, a single CIBA Guardian push notification requests approval for all high/medium priority pending actions — the binding message describes the batch (e.g., "DealFlow: 5 actions - 3 email, 2 calendar"). One phone approval, and all actions execute within the CIBA token's expiry window. Low-priority actions stay queued for manual review. The action list syncs in real-time after execution. A "Reseed Demo Data" button resets the action queue for repeatable demos.
 
-**3. MCP Server for External AI Agents** — Any MCP-compatible agent (OpenClaw, Claude Desktop, Cursor) can discover and invoke DealFlow's tools through the `/api/mcp` endpoint. Same Token Vault pipeline, same audit trail, same capability controls. OpenClaw's notoriously weak auth model gets Auth0-grade security without any framework changes. This isn't just one app's security — it's a reusable pattern for the entire AI agent ecosystem.
+**3. MCP Server for External AI Agents** — Any MCP-compatible agent (Claude Desktop, Cursor, and others) can discover and invoke DealFlow's tools through the `/api/mcp` endpoint. Same Token Vault pipeline, same audit trail, same capability controls. External agents get Auth0-grade security through a standard protocol — a reusable pattern for the AI agent ecosystem.
 
 ### Unified Security Model
 
@@ -49,7 +49,7 @@ The same capability toggles, trust levels, and connection controls govern all th
 - **RFC 8693** federated connection access token exchange (direct — see Challenges)
 - **Model Context Protocol** for external agent interop
 
-**Built in 5 days** (March 31 – April 5, 2026), 250+ commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in under a week. Full git history is publicly verifiable — every commit is timestamped.
+**Built in 7 days** (March 31 – April 6, 2026), 380+ commits. Started with `create-next-app` and shipped a full AI sales agent with layered auth, scheduled batch CIBA consent, Action Center, and MCP server in a week. Full git history is publicly verifiable — every commit is timestamped.
 
 ### Architecture
 
@@ -100,7 +100,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 |-------|------|-----|
 | **Capability toggles** | Enable/disable CRM, Calendar, Gmail, Slack | Per-user Redis settings |
 | **Trust levels** | "always" / "ask each time" / "never" per tool | "never" hides tool from AI entirely |
-| **Step-up approval** | Confirm high-value deals (>$50K), external actions | AI SDK `needsApproval` with async logic |
+| **Step-up approval** | Confirm high-value deals (>$50K), terminal stages | CIBA Guardian push (AI SDK `needsApproval` disabled due to [unfixed recursive loop](https://github.com/vercel/ai/issues/10169); AI confirms in chat for standard write actions) |
 | **CIBA batch consent** | One Guardian push approves all high/medium priority actions on schedule | Direct HTTP to Auth0 `/bc-authorize` + polling, time-boxed execution |
 | **One-click disconnect** | Revoke OAuth access instantly | Redis flag + Token Vault cleanup |
 | **Audit trail** | Every tool call logged | Parameters, duration, token metadata, success/failure |
@@ -125,8 +125,8 @@ The same `exchangeToken()` function works from all three entry points — provin
 | **Priority-filtered execution** | High/medium priority actions execute automatically; low priority stays for manual review |
 | **MCP Server** | External AI agents get Auth0-grade security without framework changes |
 | **Cross-agent delegation** | Scoped, time-limited delegation tokens for agent-to-agent trust |
-| **IETF draft alignment** | Three surfaces map to the three delegation patterns in `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI's Nick Steele): user-delegated (Chat), pre-authorized (Action Center), agent-to-agent (MCP) |
-| **Surface Policy Registry** | Declarative per-surface tool whitelists with layered enforcement — independently implements the same tool authorization pattern permit.io recommends, without the dependency |
+| **IETF draft alignment** | Three surfaces loosely map to the delegation patterns in individual draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated (Chat), pre-authorized (Action Center), agent-to-agent (MCP) |
+| **Surface Policy Registry** | Declarative per-surface tool filtering with layered enforcement — conceptually similar to permit.io's tool authorization approach, implemented without external dependencies |
 | **Calendar event creation** | AI schedules meetings via Token Vault — always requires approval, short-lived token |
 | **Pipeline analysis tool** | AI reads deal context and generates prioritized suggestions with justification |
 | **Direct RFC 8693 exchange** | SDK swallows errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — direct calls give full error observability + richer token metadata |
@@ -134,7 +134,7 @@ The same `exchangeToken()` function works from all three entry points — provin
 
 ### Potential Impact (Judging: Potential Impact)
 
-**The MCP pattern is the key insight.** DealFlow doesn't just secure one application — the MCP server turns Auth0 Token Vault into a security layer for the entire AI agent ecosystem. OpenClaw (the most popular AI agent framework, 250K GitHub stars) has notoriously weak authorization: credentials in local JSON files, no RBAC, no audit trail. Our MCP server gives any OpenClaw agent secure, audited access to user resources through Token Vault. The agent authenticates, discovers tools, and every call flows through the same token exchange and audit pipeline as the chat UI.
+**The MCP pattern is the key insight.** DealFlow doesn't just secure one application — the MCP server turns Auth0 Token Vault into a security layer that any MCP-compatible agent can use. Any external agent that connects gets Auth0-grade security through a standard protocol. The agent authenticates, discovers tools, and every call flows through the same token exchange and audit pipeline as the chat UI.
 
 **Connection config for any MCP client:**
 ```json
@@ -151,11 +151,11 @@ The same `exchangeToken()` function works from all three entry points — provin
 }
 ```
 
-This pattern is reusable: any application with Auth0 Token Vault can expose its tools via MCP, giving the growing ecosystem of AI agents (OpenClaw, Claude Desktop, Cursor, custom agents) a standard way to act on behalf of users — securely, with consent, and with a full audit trail.
+This pattern is reusable: any application with Auth0 Token Vault can expose its tools via MCP, giving the growing ecosystem of AI agents (Claude Desktop, Cursor, custom agents) a standard way to act on behalf of users — securely, with consent, and with a full audit trail.
 
 ### Insight Value (Judging: Insight Value)
 
-We documented 27 non-obvious discoveries during development, including:
+We documented 31 non-obvious discoveries during development, including:
 
 1. **@auth0/ai-vercel SDK swallows token exchange errors** ([#175](https://github.com/auth0/auth0-ai-js/issues/175)) — failed exchanges return "Authorization required" instead of the real error. Fix: call Auth0's token exchange endpoint directly for full error observability.
 2. **Google login ≠ Token Vault Connected Accounts** — separate OAuth flows with different scopes and refresh token behavior.
@@ -163,7 +163,7 @@ We documented 27 non-obvious discoveries during development, including:
 4. **Auth0 Token Vault does NOT support scope narrowing** — the `scope` parameter is ignored on federated exchanges. Scope narrowing must be application-layer.
 5. **MCP endpoints need the same security layers as chat** — every new entry point must replicate capability filtering, approval checks, and audit attribution.
 6. **CIBA + Token Vault composition is novel** — Auth0 documents them as separate pillars; no official guide, SDK example, or project combines CIBA approval as a gate before Token Vault exchange in a batch model.
-7. **Three-surface model maps to IETF `draft-klrc-aiagent-auth-01`** — our Chat/Action Center/MCP surfaces implement the three delegation patterns (user-delegated, pre-authorized, agent-to-agent) that the IETF is still drafting.
+7. **Three-surface model loosely maps to IETF `draft-klrc-aiagent-auth-01`** — our Chat/Action Center/MCP surfaces align with the delegation patterns (user-delegated, pre-authorized, agent-to-agent) described in this individual Internet-Draft.
 
 Full insights with technical details: `docs/70-INSIGHTS.md`
 
@@ -184,10 +184,10 @@ Full insights with technical details: `docs/70-INSIGHTS.md`
 - **MCP as ecosystem security**: Turned one app's Token Vault integration into a reusable pattern for external AI agents
 - **CIBA batch consent with scheduled execution**: One Guardian push approves all high/medium priority actions — time-boxed execution within the CIBA token's lifetime
 - **Trust calibration**: System observes per-tool approval patterns and recommends autonomy upgrades — genuine feedback loop, not just telemetry
-- **676 tests passing across 64 files**: Comprehensive coverage across data layer, API routes, components, approval logic, CIBA module, trust calibration, confidence routing, MCP adapters, parameter constraints, and capability filtering
-- **IETF draft alignment**: Three surfaces implement the three delegation patterns from `draft-klrc-aiagent-auth-01` (March 2026, co-authored by OpenAI's Nick Steele) — real code for what the IETF is still drafting
-- **27 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, trust calibration, and IETF alignment that benefit the Auth0 community
-- **Architecture Decision Records**: Nine ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, MCP policy, and trust calibration
+- **718 tests passing across 68 files**: Comprehensive coverage across data layer, API routes, components, approval logic, CIBA module, trust calibration, confidence routing, MCP adapters, parameter constraints, and capability filtering
+- **IETF draft alignment**: Three surfaces loosely map to the delegation patterns from individual draft `draft-klrc-aiagent-auth-01` (March 2026)
+- **31 insights documented**: Non-obvious discoveries about Token Vault, SDK compatibility, CIBA, OAuth patterns, and trust calibration that benefit the Auth0 community
+- **Architecture Decision Records**: 11 ADRs documenting the rationale behind direct token exchange, action center execution, scope narrowing, CIBA, circuit breaking, MCP write tools, MCP policy, trust calibration, and more
 
 ## What we learned
 
@@ -205,11 +205,22 @@ Auth0 Token Vault is a powerful primitive, but "Authorized to Act" requires more
 - **Expanded scheduling options**: Additional schedule frequencies and per-action-type scheduling policies
 - **Incremental authorization**: Request additional OAuth scopes only when needed
 - **Multi-user workspaces**: Team-level permissions and delegation policies
-- **OpenClaw reference integration**: Published example showing OpenClaw agents using DealFlow tools via MCP with full Token Vault security
+- **Reference integration examples**: Published examples showing external agents using DealFlow tools via MCP with full Token Vault security
 
 ## Built with
 
 Auth0, Token Vault, Next.js, React, TypeScript, Vercel AI SDK, Claude, Upstash Redis, Tailwind CSS, Framer Motion, Vercel, Model Context Protocol
+
+---
+
+## Testing Instructions (for judges)
+
+A demo Google account is provided so judges can test the full Auth0 Token Vault integration:
+
+- **Email:** Demouser.ai.a
+- **Password:** Claudec0deisthebest
+
+Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. Click "Reseed Demo Data" on the dashboard to reset CRM data and action suggestions.
 
 ---
 

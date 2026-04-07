@@ -46,4 +46,4 @@ Route refactored from `streamText.toUIMessageStreamResponse()` to `createUIMessa
 
 ## Standards Alignment
 
-Two-layer rate limiting addresses the controllability requirement of [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), providing real-time mechanisms to interrupt and halt AI agent execution when behavior exceeds expected operational boundaries.
+Two-layer rate limiting follows the controllability design principle described in [EU AI Act Article 14](https://artificialintelligenceact.eu/article/14/), providing real-time mechanisms to interrupt and halt AI agent execution when behavior exceeds expected operational boundaries. Note: Article 14 applies to high-risk AI systems as classified in Annex III; this pattern is applied here voluntarily as a best practice.

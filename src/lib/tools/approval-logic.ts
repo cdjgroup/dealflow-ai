@@ -11,8 +11,6 @@ const CRM_WRITE_TOOLS = new Set([
 ]);
 
 // External action tools always require SDK approval (sends data outside the app).
-// The approval loop bug was in sendAutomaticallyWhen (checked all parts, not just
-// last step). Fixed by using SDK's built-in lastAssistantMessageIsCompleteWithApprovalResponses.
 const EXTERNAL_ACTION_TOOLS = new Set([
   "createCalendarEvent",
   "draftEmail",

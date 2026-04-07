@@ -26,10 +26,26 @@ vi.mock("next/link", () => ({
 }));
 
 describe("LandingAnimations", () => {
-  it("renders existing hero content (AC-5)", () => {
+  it("renders hero headline and CTA", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("DealFlow")).toBeInTheDocument();
+    expect(screen.getByText("Your rules.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /try the demo/i })).toBeInTheDocument();
+  });
+
+  it("renders trust spectrum with all four tiers", () => {
+    render(<LandingAnimations />);
+    expect(screen.getByText("Read")).toBeInTheDocument();
+    expect(screen.getByText("Chat")).toBeInTheDocument();
+    expect(screen.getByText("Action Center")).toBeInTheDocument();
+    expect(screen.getByText("CIBA + Guardian")).toBeInTheDocument();
+  });
+
+  it("renders metrics row", () => {
+    render(<LandingAnimations />);
+    expect(screen.getByText("15")).toBeInTheDocument();
+    expect(screen.getByText("AI Tools")).toBeInTheDocument();
+    expect(screen.getByText("Consent Tiers")).toBeInTheDocument();
+    expect(screen.getByText("Stored Credentials")).toBeInTheDocument();
   });
 
   it("renders What Makes This Different section", () => {
@@ -38,36 +54,18 @@ describe("LandingAnimations", () => {
     expect(screen.getByText("CIBA Device Consent")).toBeInTheDocument();
     expect(screen.getByText("MCP Tool Server")).toBeInTheDocument();
     expect(screen.getByText("Scheduled Actions")).toBeInTheDocument();
-    expect(screen.getByText("Trust Spectrum")).toBeInTheDocument();
+    expect(screen.getByText("Direct Token Exchange")).toBeInTheDocument();
   });
 
-  it("renders all 6 feature cards (AC-5)", () => {
+  it("renders tech stack strip", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("Calendar")).toBeInTheDocument();
-    expect(screen.getByText("Email")).toBeInTheDocument();
-    expect(screen.getByText("Slack")).toBeInTheDocument();
-    expect(screen.getByText("Pipeline")).toBeInTheDocument();
-    expect(screen.getByText("Security")).toBeInTheDocument();
-    expect(screen.getByText("Control")).toBeInTheDocument();
+    expect(screen.getByText("Auth0")).toBeInTheDocument();
+    expect(screen.getByText("Claude")).toBeInTheDocument();
+    expect(screen.getByText("Vercel")).toBeInTheDocument();
   });
 
-  it("renders How It Works section (AC-3)", () => {
+  it("renders demo credentials for judges", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("How It Works")).toBeInTheDocument();
-    // 4 steps should be present
-    expect(screen.getByText(/requests a token/i)).toBeInTheDocument();
-    expect(screen.getByText(/consent popup/i)).toBeInTheDocument();
-    expect(screen.getByText(/stores the OAuth tokens/i)).toBeInTheDocument();
-    expect(screen.getByText(/require your\s+approval/i)).toBeInTheDocument();
-  });
-
-  it("renders security highlights section (AC-4)", () => {
-    render(<LandingAnimations />);
-    expect(screen.getByText(/built for security/i)).toBeInTheDocument();
-  });
-
-  it("preserves architecture diagram (AC-5)", () => {
-    render(<LandingAnimations />);
-    expect(screen.getByText(/how token vault works/i)).toBeInTheDocument();
+    expect(screen.getByText("judge@dealflow-demo.com")).toBeInTheDocument();
   });
 });

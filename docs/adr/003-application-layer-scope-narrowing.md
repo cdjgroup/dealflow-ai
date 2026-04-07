@@ -39,4 +39,4 @@ Implement scope narrowing at the application layer instead of the Auth0 token ex
 
 ## Standards Alignment
 
-Application-layer scope narrowing implements the least-privilege delegation principle from [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/), where agents should request only the minimum scopes required for the immediate operation even when broader grants are available.
+Application-layer scope narrowing follows the least-privilege delegation principle described in the individual IETF draft [draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/), where agents should request only the minimum scopes required for the immediate operation even when broader grants are available.

@@ -482,20 +482,6 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
             </div>
 
             {/* Scope summary for OAuth integrations */}
-            {isOAuth && isConnected && integration.scopes && (
-              <div className="px-4 py-1.5 bg-muted/10 border-t border-border/50 flex flex-wrap gap-1.5">
-                {integration.scopes.map((scope) => (
-                  <span
-                    key={scope}
-                    className="text-xs text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5"
-                    title={scope}
-                  >
-                    {SCOPE_LABELS[scope] || scope}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Capability toggles */}
             <div className="divide-y divide-border/50">
               {integration.capabilities.map(({ key, label, description, toolNames }) => {
@@ -519,12 +505,12 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
 
                     {/* Per-tool trust levels (only for Token Vault tools) */}
                     {enabled && toolNames && toolNames.length > 0 && !grayed && (
-                      <div className="px-4 pb-2.5 space-y-1.5">
+                      <div className="px-4 pb-2.5 space-y-2">
                         {toolNames.map((toolName) => {
-                          const currentTrust = settings.toolTrust?.[toolName] ?? "ask";
+                          const currentTrust = settings.toolTrust?.[toolName] ?? "always";
                           return (
-                            <div key={toolName} className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground w-28 truncate">
+                            <div key={toolName} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-xs text-muted-foreground min-w-[8rem]">
                                 {SCOPE_LABELS[
                                   // Map tool to its primary scope for labeling
                                   toolName === "checkCalendar" ? "calendar.readonly" :
@@ -544,7 +530,7 @@ export function IntegrationPermissions({ initialSettings, disabledConnections, t
                                       onClick={() => handleTrustChange(toolName, value)}
                                       disabled={isPending}
                                       aria-pressed={isActive}
-                                      className={`px-2 py-0.5 text-[10px] rounded transition-all ${
+                                      className={`px-2.5 py-0.5 text-[11px] rounded transition-all whitespace-nowrap ${
                                         isActive
                                           ? `${color} text-white`
                                           : "bg-muted/50 text-muted-foreground hover:text-foreground"

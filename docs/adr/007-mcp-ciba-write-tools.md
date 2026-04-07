@@ -43,4 +43,4 @@ Additionally, the existing MCP read tools called `exchangeToken()` internally, w
 
 ## Standards Alignment
 
-The MCP trust spectrum (Action Center → Chat → MCP+CIBA → MCP read) maps to the three delegation patterns in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/): pre-authorized execution (Action Center review, MCP read-only), interactive delegation (Chat step-up, MCP+CIBA push consent), and autonomous operation within pre-configured trust boundaries.
+The MCP trust spectrum (Action Center → Chat → MCP+CIBA → MCP read) loosely maps to the delegation patterns described in the individual IETF draft [draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/): pre-authorized execution (Action Center review, MCP read-only), interactive delegation (Chat step-up, MCP+CIBA push consent), and autonomous operation within pre-configured trust boundaries.

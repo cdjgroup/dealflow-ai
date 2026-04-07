@@ -42,4 +42,4 @@ The utility:
 
 ## Standards Alignment
 
-This decision aligns with the delegation transparency principle in [IETF draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/), which recommends that AI agent frameworks maintain full observability of token exchange flows rather than abstracting away authorization errors behind opaque interrupts.
+This decision follows the delegation transparency principle described in the individual IETF draft [draft-klrc-aiagent-auth-01](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth-01/), which recommends that AI agent frameworks maintain full observability of token exchange flows rather than abstracting away authorization errors behind opaque interrupts.

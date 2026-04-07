@@ -18,6 +18,54 @@ interface Props {
 export function ChatMessage({ message, index = 0, onApproval }: Props) {
   const isUser = message.role === "user";
 
+  // Collapse "approval-only" assistant messages into a minimal status line.
+  // These are the initial messages where the model proposed a tool, the user
+  // approved, and the result appears in the NEXT message. Without this, the
+  // message shows duplicate text ("Let me check your calendar for tomorrow!").
+  if (!isUser && message.parts) {
+    const hasApprovedTool = message.parts.some(
+      (p) =>
+        p.type.startsWith("tool-") &&
+        "state" in p && p.state === "approval-responded" &&
+        "approval" in p && (p.approval as { approved?: boolean })?.approved === true
+    );
+    const hasToolOutput = message.parts.some(
+      (p) =>
+        p.type.startsWith("tool-") &&
+        "state" in p &&
+        ((p as { state: string }).state === "output-available" || (p as { state: string }).state === "result")
+    );
+    // Only collapse if the message is short (just intro text like "Let me
+    // check your calendar!"). The second message has the actual data/response
+    // text — don't collapse that.
+    const totalText = message.parts
+      .filter((p) => p.type === "text" && "text" in p)
+      .map((p) => (p as { text: string }).text)
+      .join("")
+      .trim();
+    if (hasApprovedTool && !hasToolOutput && totalText.length < 100) {
+      // Render as a minimal status line instead of a full bubble
+      const toolPart = message.parts.find((p) => p.type.startsWith("tool-"));
+      const toolName = toolPart
+        ? ("toolName" in toolPart ? String(toolPart.toolName) : toolPart.type.replace(/^tool-/, ""))
+        : "tool";
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex justify-start mb-2"
+        >
+          <div className="flex items-center gap-2 text-xs text-emerald-400 pl-9">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>Approved {toolName}</span>
+          </div>
+        </motion.div>
+      );
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -83,15 +131,31 @@ export function ChatMessage({ message, index = 0, onApproval }: Props) {
               );
             }
 
-            // Approval responded (user already approved/denied)
+            // Approval responded
             if (state === "approval-responded" && approval) {
-              const approved = approval.approved;
+              // Approved: hide badge entirely — user already clicked approve,
+              // the result (or next message) confirms execution
+              if (approval.approved) {
+                // If output is available, show result card
+                if (output) {
+                  return (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ToolResultCard toolName={toolName} output={output} />
+                    </motion.div>
+                  );
+                }
+                return null; // Hide — approval confirmation is implicit
+              }
+              // Denied: show denial badge
               return (
                 <div key={i}>
-                  <div className={`text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 ${
-                    approved ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                  }`}>
-                    <span>{approved ? "Approved" : "Denied"}: {toolName}</span>
+                  <div className="text-xs rounded px-2 py-1 my-1 flex items-center gap-1.5 bg-red-500/10 text-red-400">
+                    <span>Denied: {toolName}</span>
                   </div>
                 </div>
               );

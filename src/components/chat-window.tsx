@@ -1,8 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import type { UIMessage } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { useRef, useEffect, useState, useMemo, useCallback, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { ChatMessage } from "./chat-message";
@@ -55,48 +54,6 @@ function parseInterrupt(error: Error | undefined): InterruptData | null {
   return null;
 }
 
-/**
- * One-shot gate for sendAutomaticallyWhen.
- *
- * The SDK checks sendAutomaticallyWhen in THREE places:
- * 1. addToolApprovalResponse (line 13032) — after user clicks Approve
- * 2. addToolOutput (line 13062) — after a tool result is added
- * 3. makeRequest finally block (line 13271) — after EVERY completed request
- *
- * Call site #3 creates an infinite loop: request completes → predicate returns
- * true (old approval-responded parts still in messages) → fires another request
- * → completes → checks again → ...
- *
- * Fix: a module-level flag that allows exactly ONE auto-send per approval click.
- * handleApproval resets it to false (armed), the predicate fires once and sets
- * it to true (disarmed), blocking all subsequent checks until the next approval.
- */
-let approvalSendFired = true; // Start disarmed — only arm on explicit approval click
-
-function shouldSendAfterApproval({ messages }: { messages: UIMessage[] }): boolean {
-  // One-shot gate: if we already fired for this approval, refuse
-  if (approvalSendFired) return false;
-
-  const last = messages[messages.length - 1];
-  if (!last || last.role !== "assistant") return false;
-
-  const hasPendingApproval = last.parts.some(
-    (p) =>
-      typeof p === "object" && p !== null &&
-      "type" in p && "state" in p &&
-      typeof (p as { type: unknown }).type === "string" &&
-      (p as { type: string }).type.startsWith("tool-") &&
-      (p as { state: unknown }).state === "approval-responded"
-  );
-
-  if (hasPendingApproval) {
-    approvalSendFired = true; // Disarm — only one send per approval
-    return true;
-  }
-
-  return false;
-}
-
 const suggestions = [
   "Analyze my pipeline and suggest next steps",
   "Show me my deals",
@@ -121,15 +78,14 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
   const { messages, sendMessage, setMessages, status, error, regenerate, addToolApprovalResponse } = useChat({
     transport,
     id: conversationId,
-    // IMPORTANT: onFinish is intentionally omitted here. Per vercel/ai#10169,
-    // having onFinish on useChat breaks the needsApproval/sendAutomaticallyWhen
-    // flow, causing approved tools to loop indefinitely. We trigger
-    // onConversationCreated via a status-change effect below instead.
+    // IMPORTANT: onFinish is intentionally omitted. Per vercel/ai#10169,
+    // having onFinish breaks the needsApproval/sendAutomaticallyWhen flow.
+    // We trigger onConversationCreated via a status-change effect instead.
     //
-    // Custom predicate replaces SDK's lastAssistantMessageIsCompleteWithApprovalResponses
-    // which has a bug: it returns true even after tool execution (output-available state),
-    // causing infinite re-send loops. Our version only fires when approvals are pending execution.
-    sendAutomaticallyWhen: shouldSendAfterApproval,
+    // Use SDK's built-in predicate — it checks step-start boundaries to avoid
+    // the infinite loop bug (old approval-responded parts in earlier steps
+    // don't re-trigger). No custom one-shot gate needed.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
   // Notify parent when the first assistant response completes (replaces onFinish)
@@ -197,13 +153,14 @@ export function ChatWindow({ conversationId, isExisting, onConversationCreated }
 
   const handleApproval = useCallback(
     (approvalId: string, approved: boolean) => {
-      // Arm the one-shot gate — allows exactly one auto-send
-      approvalSendFired = false;
       addToolApprovalResponse({
         id: approvalId,
         approved,
         reason: approved ? "User approved" : "User denied",
       });
+      // SDK's built-in lastAssistantMessageIsCompleteWithApprovalResponses
+      // fires automatically after state update, sending ALL messages
+      // (with approval-responded state preserved) to the server.
     },
     [addToolApprovalResponse]
   );

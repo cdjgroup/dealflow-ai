@@ -1,8 +1,6 @@
-![DealFlow AI — AI Sales Agent with Auth0 Token Vault](docs/images/hero.png)
-
 # DealFlow
 
-AI-powered sales agent with **graduated trust architecture** — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
+AI-powered sales agent with graduated trust architecture: four trust levels, three execution surfaces, one Auth0 Token Vault pipeline. The AI suggests actions with justification, users review and edit before execution, and every action is auditable across Chat, Action Center, and MCP.
 
 Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.devpost.com/) hackathon.
 
@@ -10,7 +8,7 @@ Built for the [Authorized to Act: Auth0 for AI Agents](https://authorizedtoact.d
 
 ## What Makes This Different
 
-Most AI agents get blanket access to your data. DealFlow implements a **graduated trust spectrum** where security adapts to each surface's trust properties:
+Most AI agents get blanket access to your data. DealFlow implements a graduated trust spectrum where security adapts to each surface's trust properties:
 
 | Surface | Trust Level | Consent | What Happens |
 |---------|------------|---------|--------------|
@@ -19,9 +17,9 @@ Most AI agents get blanket access to your data. DealFlow implements a **graduate
 | **MCP + CIBA** | High | Phone push notification | External agent acts, user consents on device |
 | **MCP (read)** | Autonomous | None needed | Read-only queries, no data modified |
 
-Key innovations:
+Design highlights:
 1. **CIBA Batch Scheduling** — One Guardian push approves all pending actions on a schedule, time-boxed to token lifetime
-2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review
+2. **Confidence Routing** — AI scores suggestions 0-1; high confidence auto-approves, low confidence forces review (configurable)
 3. **Trust Calibration** — System observes approval patterns and suggests upgrading tools to auto-approve (never auto-escalates)
 4. **Per-Client MCP Policies** — Each external agent gets its own API key, trust tier, tool allowlist, and parameter constraints
 5. **Reasoning-Aware Audit** — Every entry logs which policy layer decided, not just what happened
@@ -145,7 +143,7 @@ Key innovations:
 ### v0.6.2 — Confidence Routing + Intent Constraints
 - AI confidence scores (0.0–1.0) drive action routing: auto-approve above 85%, force manual review below 50%
 - Per-client MCP parameter constraints with regex validation
-- EU AI Act Article 14 alignment documentation
+- Human oversight design principles documented (graduated oversight proportional to action sensitivity)
 
 ### v0.6.0 — Per-Client MCP Policy + CIBA Write Tools
 - Named MCP clients with API keys, trust tiers, and tool allowlists
@@ -168,7 +166,7 @@ Key innovations:
 - Inline editing of email/calendar/Slack drafts before approval
 - Execution via Token Vault with real-time status transitions
 
-### v0.3.0 — Boundary-Pushing Auth
+### v0.3.0 — Auth
 
 #### Dynamic Scope Narrowing
 Token exchange captures the full granted scope from Auth0, while each tool declares its minimum required scope. The UI shows "Using calendar.readonly of 3 granted scopes" — voluntary least-privilege at the application layer.
@@ -183,7 +181,7 @@ Per-tool trust levels that give users granular control:
 Audit table entries include token exchange metadata (provider, scope, TTL) for every Token Vault tool call. Expanded rows show the full exchange details.
 
 #### MCP Server for External AI Agents
-`/api/mcp` endpoint exposing read and write tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Write tools (email, calendar, Slack) require CIBA device consent via Guardian push. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and OpenClaw.
+`/api/mcp` endpoint exposing read and write tools via Model Context Protocol (Streamable HTTP). External agents authenticate with Auth0 bearer tokens. Write tools (email, calendar, Slack) require CIBA device consent via Guardian push. Compatible with Claude API MCP Connector, Claude Desktop, Cursor, and other MCP-compatible agents.
 
 #### Cross-Agent Delegation
 The `delegateResearch` tool creates scoped, time-limited delegation tokens (stored in Redis with TTL). The user must approve the delegation, specifying which tools are authorized and for how long (1-30 minutes). Tool names are validated against the known set and cross-checked against user capabilities.
@@ -397,7 +395,7 @@ src/
 ## Testing
 
 ```bash
-npm test              # 676 tests across 64 files
+npm test              # 718 tests across 68 files
 npm run build         # TypeScript + Next.js production build
 npx playwright test   # E2E smoke tests
 ```
