@@ -42,7 +42,7 @@ describe("LandingAnimations", () => {
 
   it("renders metrics row", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("16")).toBeInTheDocument();
+    expect(screen.getByText("15")).toBeInTheDocument();
     expect(screen.getByText("AI Tools")).toBeInTheDocument();
     expect(screen.getByText("Consent Tiers")).toBeInTheDocument();
     expect(screen.getByText("Stored Credentials")).toBeInTheDocument();

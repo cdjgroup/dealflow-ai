@@ -42,9 +42,9 @@ const trustTiers = [
 ];
 
 const metrics = [
-  { number: "16", label: "AI Tools" },
+  { number: "15", label: "AI Tools" },
   { number: "4", label: "Consent Tiers" },
-  { number: "3", label: "OAuth Providers" },
+  { number: "2", label: "OAuth Providers" },
   { number: "0", label: "Stored Credentials" },
 ];
 
