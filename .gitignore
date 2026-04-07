@@ -59,5 +59,8 @@ yarn-error.log*
 next-env.d.ts
 .fw-sync-cache/
 
+# internal dev tooling
+scripts/generate_dashboard.py
+
 # worktrees
 test-results/

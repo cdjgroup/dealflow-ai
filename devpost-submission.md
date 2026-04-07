@@ -121,7 +121,7 @@ None of these are complaints — they're the kind of findings we wish we'd had o
 
 A demo Google account is provided so you can test the full Auth0 Token Vault integration without using your own credentials:
 
-- **Email:** Demouser.ai.a
-- **Password:** Claudec0deisthebest
+- **Email:** [REDACTED — demo account disabled post-hackathon]
+- **Password:** [REDACTED]
 
 Log in at https://dealflow-ai-seven.vercel.app using "Continue with Google" with these credentials. The account has pre-seeded calendar events and emails for the demo flow. Click "Reseed Demo Data" on the chat page (bottom right) to reset CRM data and action suggestions at any time (Note: Use "Clear All" on Actions page first). Also note the MCP Playground on the MCP page where, after creating an MCP client, you can verify with tests.
