@@ -416,26 +416,31 @@ export async function POST(req: Request) {
     } as Tool;
   }
 
-  // Build dynamic system prompt based on available tools
+  // Build dynamic system prompt based on actually available tools (after trust filtering).
+  // Wrapper layers (approval, CIBA, rate-limit, dedup) preserve keys, so filtered is authoritative.
+  const toolNames = new Set(Object.keys(filtered));
   const availableTools: string[] = [];
-  if (settings.capabilities.crmRead || settings.capabilities.crmWrite)
+  const CRM_TOOLS = ["listDeals", "getDealDetails", "searchContacts", "createDeal", "updateDeal", "createContact", "logActivity"];
+  if (CRM_TOOLS.some((t) => toolNames.has(t)))
     availableTools.push("A CRM with deals, contacts, and activity history");
-  if (settings.capabilities.calendar)
+  if (toolNames.has("checkCalendar") || toolNames.has("createCalendarEvent"))
     availableTools.push("Google Calendar to check availability and create events");
-  if (settings.capabilities.gmail)
+  if (toolNames.has("draftEmail") || toolNames.has("searchEmails"))
     availableTools.push(
       "Gmail to draft follow-up emails and search correspondence"
     );
-  if (settings.capabilities.slack)
+  if (toolNames.has("listSlackChannels") || toolNames.has("sendSlackMessage"))
     availableTools.push(
       "Slack to send messages and list channels for team communication"
     );
-  availableTools.push(
-    "Delegation: create scoped, time-limited research delegations that authorize specific tools for multi-step investigations"
-  );
-  availableTools.push(
-    "Pipeline Analysis: analyze deals and generate suggested next actions (emails, meetings, Slack messages) in the Action Center for user review"
-  );
+  if (toolNames.has("delegateResearch"))
+    availableTools.push(
+      "Delegation: create scoped, time-limited research delegations that authorize specific tools for multi-step investigations"
+    );
+  if (toolNames.has("analyzePipeline"))
+    availableTools.push(
+      "Pipeline Analysis: analyze deals and generate suggested next actions (emails, meetings, Slack messages) in the Action Center for user review"
+    );
 
   try {
     const abortController = new AbortController();
