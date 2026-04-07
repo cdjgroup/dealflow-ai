@@ -64,8 +64,8 @@ describe("LandingAnimations", () => {
     expect(screen.getByText("Vercel")).toBeInTheDocument();
   });
 
-  it("renders demo credentials for judges", () => {
+  it("does not expose demo credentials", () => {
     render(<LandingAnimations />);
-    expect(screen.getByText("judge@dealflow-demo.com")).toBeInTheDocument();
+    expect(screen.queryByText("judge@dealflow-demo.com")).not.toBeInTheDocument();
   });
 });

@@ -136,16 +136,6 @@ export function LandingAnimations() {
             />
           </svg>
         </Link>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Demo account:{" "}
-          <code className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[11px] font-mono">
-            judge@dealflow-demo.com
-          </code>{" "}
-          /{" "}
-          <code className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[11px] font-mono">
-            DealFlow2026!
-          </code>
-        </p>
       </FadeIn>
 
       {/* Trust Spectrum */}
