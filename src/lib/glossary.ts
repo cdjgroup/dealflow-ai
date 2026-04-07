@@ -1,6 +1,6 @@
 export const GLOSSARY: Record<string, string> = {
   "token-vault":
-    "Auth0's secure credential store that holds OAuth refresh tokens. The AI agent never sees these — it only receives short-lived access tokens via RFC 8693 exchange.",
+    "Auth0's secure credential store that holds OAuth refresh tokens. The AI agent never sees these — it only receives short-lived access tokens via Auth0 Token Vault exchange (extends RFC 8693 patterns).",
   "step-up-auth":
     "A security mechanism that prompts for explicit user approval before high-risk actions, such as creating deals over $50K or changing deal stages to closed-won.",
   "capability-toggles":
@@ -12,7 +12,7 @@ export const GLOSSARY: Record<string, string> = {
   "short-lived-token":
     "An access token that expires quickly (typically minutes). The AI agent receives these via token exchange — if compromised, exposure is limited by the short lifetime.",
   "rfc-8693":
-    "The OAuth 2.0 Token Exchange standard. DealFlow uses this to exchange a user's refresh token for a short-lived access token scoped to a specific API (Google Calendar, Gmail, Slack).",
+    "The OAuth 2.0 Token Exchange standard (RFC 8693). Auth0 Token Vault uses a custom grant type inspired by this standard — the exchange follows RFC 8693 patterns but uses Auth0's own federated connection grant type, not the standard grant_type.",
   "needs-approval":
     "A tool flag that triggers user confirmation before execution. Used for external actions (email, Slack) and high-value CRM operations.",
   ciba: "Client Initiated Backchannel Authentication — Auth0 Guardian sends a push notification to your phone for device-level consent. Used for high-value chat actions (deals >$50K) and batch scheduled execution.",

@@ -27,7 +27,7 @@ Additionally, the existing MCP read tools called `exchangeToken()` internally, w
 ## Consequences
 
 ### Positive
-- MCP becomes a first-class execution surface with the same security guarantees as chat
+- MCP becomes a first-class execution surface with comparable trust controls adapted for MCP's external-client risk surface
 - Complete trust spectrum: Action Center (low) → Chat (medium) → MCP+CIBA (high) → MCP read (autonomous)
 - CIBA as a gate before Token Vault token exchange is novel in the public record — Auth0 documents them as separate pillars, no official guide or SDK example combines them
 - MCP Token Vault tools now work for true external clients (stored refresh tokens, no session cookies needed)

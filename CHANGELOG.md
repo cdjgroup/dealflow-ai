@@ -265,7 +265,7 @@ All notable changes to this project will be documented in this file.
 ## [0.3.0] - 2026-04-03
 
 ### Added
-- Dynamic scope narrowing: enriched token exchange with scope/expiresIn/connection metadata, TOOL_SCOPE_CONFIG as single source of truth, buildTokenMeta helper
+- Application-layer least-privilege signaling: enriched token exchange with scope/expiresIn/connection metadata, TOOL_SCOPE_CONFIG as single source of truth, buildTokenMeta helper
 - Per-tool trust levels (always/ask/never) with T1 priority layer in approval logic
 - "never" trust hard-blocks tools at registration (LLM never sees them)
 - Token lifecycle animation in chat showing 6-stage pipeline during Token Vault tool execution
@@ -329,7 +329,7 @@ All notable changes to this project will be documented in this file.
 - Shared token exchange utility (`src/lib/token-exchange.ts`)
 
 ### Removed
-- `@auth0/ai-vercel` dependency (unused since direct RFC 8693 exchange)
+- `@auth0/ai-vercel` dependency (unused since direct Auth0 Token Vault exchange)
 - Duplicated `getGoogleToken()` / `getSlackToken()` functions (consolidated into shared module)
 
 ### Changed
@@ -342,7 +342,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Auth0 authentication with Universal Login (Google social connection)
 - AI chat agent powered by Claude Sonnet 4.6 via Vercel AI SDK v6
-- Token Vault integration for Google Calendar and Gmail (direct RFC 8693 exchange)
+- Token Vault integration for Google Calendar and Gmail (direct Auth0 Token Vault exchange, extends RFC 8693 patterns)
 - CRM data layer in Upstash Redis (deals, contacts, activities)
 - 8 AI tools: checkCalendar, draftEmail, searchEmails, listDeals, getDealDetails, searchContacts, createDeal, logActivity
 - Custom UpstashStore implementing @auth0/ai Store interface

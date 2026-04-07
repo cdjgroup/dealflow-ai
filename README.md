@@ -63,7 +63,7 @@ Key innovations:
   │  Guardrails:  T1 trust levels (always/ask/never per tool)              │
   │               needsApproval (>$50K deals, external actions, delegation)│
   │               Capability filter (disabled/"never" tools hidden)        │
-  │               Scope narrowing (tools use minimum required scope)       │
+  │               Least-privilege (tools declare minimum required scope)    │
   │               Prompt injection defense (tool results = DATA only)      │
   └──────┬──────────────┬──────────────┬───────────────────────────────────┘
          │              │              │
@@ -72,7 +72,7 @@ Key innovations:
   │ Token Vault │ │ Token Vault│ │                 │
   │ (Google)    │ │ (Slack)    │ │  CRM Data       │
   │             │ │            │ │  Settings       │
-  │ RFC 8693    │ │ RFC 8693   │ │  Audit Log      │
+  │ Federated   │ │ Federated  │ │  Audit Log      │
   │ Token       │ │ Token      │ │  Conversations  │
   │ Exchange    │ │ Exchange   │ │  Delegation Tkns│
   └──────┬──────┘ └─────┬──────┘ └─────────────────┘
@@ -115,7 +115,7 @@ Key innovations:
                       └────────┬─────────┘
                                │
                       ┌────────▼─────────┐
-                      │ Token Vault      │  RFC 8693 exchange
+                      │ Token Vault      │  Federated token exchange
                       │ + Scope Metadata │  scope, TTL, connection tracked
                       └────────┬─────────┘
                                │
@@ -191,7 +191,7 @@ Key innovations:
 
 ### v0.3.0 — Auth
 
-#### Dynamic Scope Narrowing
+#### Application-Layer Least-Privilege Signaling
 Token exchange captures the full granted scope from Auth0, while each tool declares its minimum required scope. The UI shows "Using calendar.readonly of 3 granted scopes" — voluntary least-privilege at the application layer.
 
 #### Consent-Aware Tool Selection
@@ -219,7 +219,7 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens (stor
 - Conversation management: new chat, history sidebar, auto-save to Redis
 
 #### Security
-- Auth0 Token Vault with RFC 8693 token exchange (Google + Slack)
+- Auth0 Token Vault with federated token exchange (Google + Slack, extends RFC 8693 patterns)
 - Step-up authorization via `needsApproval` for high-value operations
 - Per-tool capability toggles (users control what the agent can do)
 - Audit trail logging every agent action with sanitized inputs
@@ -406,7 +406,7 @@ src/
       auth.ts          # Dual auth: API key + Auth0 bearer token
       tool-auth.ts     # Per-client tool filtering + parameter constraints
     delegation.ts      # Redis-backed delegation token store
-    token-exchange.ts  # Auth0 RFC 8693 exchange (+ scope metadata)
+    token-exchange.ts  # Auth0 Token Vault exchange (+ scope metadata)
     types/
       settings.ts      # UserSettings + TrustLevel + ConfidenceThresholds
       audit.ts         # AuditEntry + TokenMeta

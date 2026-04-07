@@ -262,7 +262,7 @@ Tool icons, Token Vault tool set, and write tool set extracted to `src/lib/const
 
 ## v0.3.0 — Boundary-Pushing Auth
 
-### Dynamic Scope Narrowing
+### Application-Layer Least-Privilege Signaling
 Application-layer scope awareness for Token Vault tools. Each tool declares its minimum required scope via `TOOL_SCOPE_CONFIG`. The token exchange captures the full granted scope from Auth0, and the UI shows which subset the tool actually uses ("Using calendar.readonly of 3 granted scopes"). This demonstrates defense-in-depth: the agent voluntarily restricts itself beyond what the token enforces.
 
 ### Consent-Aware Tool Selection
@@ -325,7 +325,7 @@ Live OAuth connection status on permissions page:
 - Green/red colored cards with scope badges
 - Auto-refresh every 30 seconds
 - Manual refresh button
-- Token type info ("short-lived access token via RFC 8693 exchange")
+- Token type info ("short-lived access token via Token Vault exchange")
 
 ### Activity Timeline
 Visual timeline on permissions page showing recent agent actions:
@@ -346,7 +346,7 @@ Two tools for Slack communication via Token Vault:
 Claude Sonnet 4.6 with multi-step tool calling via Vercel AI SDK v6.
 
 ### Auth0 Token Vault
-Secure Google Calendar and Gmail access via RFC 8693 federated token exchange.
+Secure Google Calendar and Gmail access via Auth0's federated token exchange (extends RFC 8693 patterns).
 
 ### CRM
 Deals, contacts, and activity history stored in Upstash Redis.

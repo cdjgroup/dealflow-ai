@@ -4,7 +4,7 @@ Non-obvious design decisions and discoveries.
 
 ## 001 — @auth0/ai-vercel SDK swallows token exchange errors (2026-04-02)
 
-The `@auth0/ai-vercel` SDK's `TokenVaultAuthorizerBase` silently swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175), still open). When the token exchange HTTP call fails, the SDK returns `undefined` instead of throwing — then `validateToken()` throws a misleading `TokenVaultInterrupt` saying "Authorization required" when the real issue may be misconfigured credentials, wrong connection name, or expired refresh token. This made initial Token Vault setup extremely difficult to debug. Fix: call Auth0's `/oauth/token` endpoint directly using RFC 8693 federated connection access token exchange, which surfaces actual error messages. **Note:** The SDK added AI SDK v6 compatibility in v5.0.0 (Jan 29, 2026) — the version mismatch we initially hit is resolved, but error swallowing remains the primary reason for direct exchange.
+The `@auth0/ai-vercel` SDK's `TokenVaultAuthorizerBase` silently swallows federated connection errors ([auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175), still open). When the token exchange HTTP call fails, the SDK returns `undefined` instead of throwing — then `validateToken()` throws a misleading `TokenVaultInterrupt` saying "Authorization required" when the real issue may be misconfigured credentials, wrong connection name, or expired refresh token. This made initial Token Vault setup extremely difficult to debug. Fix: call Auth0's `/oauth/token` endpoint directly using Auth0's federated connection access token exchange grant (extends RFC 8693 patterns), which surfaces actual error messages. **Note:** The SDK added AI SDK v6 compatibility in v5.0.0 (Jan 29, 2026) — the version mismatch we initially hit is resolved, but error swallowing remains the primary reason for direct exchange.
 
 ## 002 — Google login ≠ Token Vault Connected Accounts (2026-04-02)
 
@@ -18,9 +18,9 @@ The `tool()` function in AI SDK v6 accepts `needsApproval` as either a boolean o
 
 Multiple breaking changes from AI SDK v5 to v6: `parameters` → `inputSchema`, `maxSteps` → `stopWhen: stepCountIs(n)`, `maxTokens` → `maxOutputTokens`, `useChat` no longer has `input`/`handleInputChange`/`handleSubmit` (use `sendMessage` + `status`), `api` option replaced by `transport: new DefaultChatTransport({api})`, and `messages` from client are `UIMessage[]` that need `convertToModelMessages()` before passing to `streamText`.
 
-## 005 — Auth0 Token Vault does NOT support scope narrowing (2026-04-03)
+## 005 — Auth0 Token Vault does NOT support per-request scope restriction (2026-04-03)
 
-Auth0's federated connection access token exchange (`urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token`) does NOT accept a `scope` parameter. Confirmed by Auth0 docs and `@auth0/ai` SDK source code. The response includes `scope` and `expires_in` fields, but you cannot request narrower scopes at exchange time — the full consented scope set is always returned. The `@auth0/ai` SDK uses scopes only for post-exchange validation (throws `TokenVaultInterrupt` if required scopes are missing), never sends them in the exchange request. For scope narrowing, implement it at the application layer: tools self-declare minimum required scopes and the UI shows which subset is actually used.
+Auth0's federated connection access token exchange (`urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token`) does NOT accept a `scope` parameter. Confirmed by Auth0 docs and `@auth0/ai` SDK source code. The response includes `scope` and `expires_in` fields, but you cannot request narrower scopes at exchange time — the full consented scope set is always returned. The `@auth0/ai` SDK uses scopes only for post-exchange validation (throws `TokenVaultInterrupt` if required scopes are missing), never sends them in the exchange request. For least-privilege signaling, implement it at the application layer: tools self-declare minimum required scopes and the UI shows which subset is actually used.
 
 ## 006 — MCP server needs same security layers as chat route (2026-04-03)
 
@@ -38,7 +38,7 @@ Redis lists (`LRANGE`) do not support field-level filtering — there's no `WHER
 
 The AI SDK's `needsApproval` flow (v0.2.0) interrupts the user mid-conversation with approval cards. This works for single actions, but doesn't scale to "the AI analyzed your pipeline and recommends 5 next steps." A dedicated Action Center page where suggestions are queued, reviewed, and batch-approved is a fundamentally better UX for the hackathon theme: the user sees ALL suggested actions in context, can compare priorities, edit drafts, and approve selectively. This demonstrates that "Authorized to Act" means more than per-tool confirmation — it means giving users a complete picture of what the AI wants to do and letting them curate it.
 
-The Token Vault integration is reusable outside the AI SDK streaming context. The `exchangeToken()` function works in any Next.js API route handler because it reads the Auth0 session cookie (present in all browser-initiated requests). This means action execution from a dedicated page uses the exact same OAuth flow as the chat tools — no separate auth mechanism needed. RFC 8693 token exchange is context-agnostic by design.
+The Token Vault integration is reusable outside the AI SDK streaming context. The `exchangeToken()` function works in any Next.js API route handler because it reads the Auth0 session cookie (present in all browser-initiated requests). This means action execution from a dedicated page uses the exact same OAuth flow as the chat tools — no separate auth mechanism needed. Auth0's Token Vault exchange (which extends RFC 8693 patterns) is context-agnostic by design.
 
 ## 010 — Google and Slack have opposite branding rules for third-party UIs (2026-04-03)
 
@@ -48,7 +48,7 @@ Similarly, OAuth scopes should follow each provider's own consent screen pattern
 
 ## 011 — Auth0 CIBA endpoints require form-urlencoded, not JSON (2026-04-04)
 
-Auth0's backchannel endpoints (`/bc-authorize` and `/oauth/token` for CIBA grant) require `Content-Type: application/x-www-form-urlencoded` with `URLSearchParams` body encoding. This differs from the Token Vault exchange endpoint (`/oauth/token` for RFC 8693 grant) which accepts `application/json`. Verified by reading the `auth0` SDK v4.37 source (`node_modules/auth0/dist/esm/auth/backchannel.js`). The `login_hint` parameter is a JSON string (`{"format":"iss_sub","iss":"https://domain/","sub":"auth0|id"}`) passed as a form field value — double encoding is required. Additionally, `binding_message` is limited to 64 characters per the CIBA spec, and `requested_expiry` acts as a routing switch: <=300s routes to Guardian push, >300s routes to email.
+Auth0's backchannel endpoints (`/bc-authorize` and `/oauth/token` for CIBA grant) require `Content-Type: application/x-www-form-urlencoded` with `URLSearchParams` body encoding. This differs from the Token Vault exchange endpoint (`/oauth/token` for Auth0's federated connection grant) which accepts `application/json`. Verified by reading the `auth0` SDK v4.37 source (`node_modules/auth0/dist/esm/auth/backchannel.js`). The `login_hint` parameter is a JSON string (`{"format":"iss_sub","iss":"https://domain/","sub":"auth0|id"}`) passed as a form field value — double encoding is required. Additionally, `binding_message` is limited to 64 characters per the CIBA spec, and `requested_expiry` acts as a routing switch: <=300s routes to Guardian push, >300s routes to email.
 
 ## 012 — CIBA interrupt reuses TokenVaultInterrupt pattern exactly (2026-04-04)
 
