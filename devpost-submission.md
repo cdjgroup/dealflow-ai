@@ -90,59 +90,22 @@ Auth0, Token Vault, CIBA, Next.js, React, TypeScript, Vercel AI SDK, Claude, Ups
 
 ---
 
-## Bonus Blog Post
+## 📝 Bonus Blog Post: What We Learned Composing CIBA + Token Vault for Batch Agent Consent
 
-### Graduated Trust: What "Authorized to Act" Really Means for AI Agents
+> *Auth0 Token Vault discoveries from building a multi-surface AI sales agent.*
 
-Token Vault handles the hard problem of credential management. But Token Vault answers "how does an AI agent get my credentials?" The harder question is: **"How do I control what happens with those credentials across a growing ecosystem of AI interfaces?"**
+Auth0 Token Vault solves credential management. But when your AI agent operates across three different surfaces — chat, action queue, and MCP for external agents — you need more than tokens. You need consent that adapts.
 
-DealFlow didn't approach this as a yes or no but as a trust spectrum called **graduated trust**. Graduated trust is the idea that not every AI action deserves the same level of scrutiny — and not every action deserves the same level of freedom either. Think about how trust works with a new employee. Day one, you don't hand them the company credit card and say "go for it." But you also don't make them get approval to send a calendar invite. You calibrate low-risk stuff to flow freely, high-stakes stuff gets a checkpoint, and over time as they prove themselves, the checkpoints relax. DealFlow does the same thing with an AI sales agent, but structurally baked into the architecture.
+**The gap we found:** Auth0 documents Token Vault and CIBA as separate features. We searched docs, SDKs, example repos, and Discord. Nobody had combined them — specifically, CIBA as an authorization gate *before* Token Vault token exchange in a batch model.
 
-Four levels, from most autonomous to most controlled:
+**So we built it.** A cron job gathers pending AI-suggested actions, sends one Guardian push — "DealFlow: 5 actions - 3 email, 2 calendar" — and on phone approval, exchanges tokens through Token Vault within the CIBA token's time-boxed window. One tap, batch execution, automatic expiry. This fills the gap between "always ask" and "never ask."
 
-  **1. Autonomous read (MCP external agents)** — Checking a calendar, listing deals, searching contacts. No human in the loop. The data flows and nobody needs to tap anything. This is the equivalent of letting the new hire look at the shared drive.
+**What broke along the way:**
+- The `@auth0/ai-vercel` SDK silently swallows token exchange errors — failed exchanges return "Authorization required" instead of the real Auth0 error. We filed [#175](https://github.com/auth0/auth0-ai-js/issues/175). Fix: call `/oauth/token` directly via RFC 8693.
+- Deleting a tokenset doesn't revoke access — Auth0 silently re-provisions on the next exchange. Fix: application-level Redis flags.
+- Token Vault ignores the `scope` parameter on federated exchanges. Fix: application-layer scope awareness per tool.
 
-  **2. High trust with device consent (MCP write + CIBA)** — An external AI agent wants to draft an email or book a meeting through your system. That's a real action in the real world with your name on it. So before it happens, your phone buzzes with a Guardian push notification describing exactly what's about to happen. One tap to approve and the action executes within a time-boxed window. You didn't have to be at your computer but, you did have to consciously say yes.
-  
-  **3. Collaborative with guardrails (Chat UI)** — You're in the conversation, directing the agent in real time. It can chain tools together ie. pull deal details, check your calendar, draft a follow-up email etd. If it tries to create a deal over $50K or close one as won, the system hits a speed bump. Step-up approval right in the chat, and for the really sensitive stuff, CIBA sends it to your phone too.
-  
-  **4. Maximum control (Action Center)** — The AI proposes actions based on what it sees in your pipeline: "you should email this prospect", "book a follow-up
-   with that account", but it doesn't do anything. You see the draft, you can edit it word by word, and only when you explicitly hit approve does it execute through Token Vault. This is the "I want to see everything before it goes out" mode.
-
-  The key insight: all four levels use the same Auth0 Token Vault pipeline underneath. It's not four different auth systems. It's one pipeline with consent gates that open or close based on how much trust the context warrants. The security adapts to the situation rather than forcing one-size-fits-all.
-
-And it's not static. The system watches your approval patterns — if you've approved 5+ similar actions at high confidence, it nudges you: "hey, want to auto-approve these?" It never auto-escalates its own permissions, but it does suggest relaxing yours. Trust grows over time, just like it does with people.
-
-- **Action Center (low trust)**: The AI suggests actions with confidence scores and justification. The user reviews every suggestion, edits drafts inline, and approves individually. Nothing executes without explicit consent.
-- **Chat (medium trust)**: The user directs the AI in real-time. The AI confirms with the user before executing write actions (Slack, email, calendar). High-value operations (>$50K deals, terminal stages) trigger CIBA Guardian push for device-level consent.
-- **MCP with CIBA (high trust)**: External agents can execute write operations, but every write triggers a Guardian push notification to the user's phone. The user approves on their device without opening the app.
-- **MCP read-only (autonomous)**: Read queries execute without consent. No data is modified.
-
-**The key insight: security is a property of the tool, not the interface.** Each tool in DealFlow declares its own requirements — which OAuth scopes it needs, whether it requires approval, what its risk level is. When we added the MCP endpoint, we didn't write new security code. The MCP surface declared its trust properties (no interactive approval UI), and tools that require approval filtered themselves out — until we added CIBA as a consent mechanism, which re-enabled write tools with device-level gating.
-
-**CIBA + Token Vault: a combination nobody documented.** Auth0 publishes Token Vault and CIBA as separate features. We couldn't find any official guide, SDK example, or community project that combines them — CIBA as an authorization gate before Token Vault token exchange, in a batch execution model. Our scheduled execution flow works like this: a Vercel cron job finds users who opted into a review time, sends a single CIBA Guardian push describing the batch ("DealFlow: 5 actions - 3 email, 2 calendar"), and on approval, exchanges stored refresh tokens through Token Vault to execute each action within the CIBA token's time-boxed window. This pattern enables autonomous agent action with device-level human consent — the missing piece between "always ask" and "never ask."
-
-**Trust calibration closes the loop.** The Action Center records every approval, edit, and dismissal per tool type. After 5+ decisions at >80% approval rate, the system suggests upgrading that tool to auto-approve. But it never auto-escalates — even the system's recommendation requires explicit user consent. The AI's own confidence scores add another dimension: actions above 85% confidence auto-approve, actions below 50% force manual review regardless of the user's autonomy setting. The result is a trust model that adapts to both user behavior and AI uncertainty.
-
-**Mapping to emerging standards.** Our three-surface model is consistent with the delegation patterns described in the individual IETF draft `draft-klrc-aiagent-auth-01` (March 2026): user-delegated authorization (Chat), pre-authorized agent action (Action Center), and agent-to-agent access (MCP). The graduated trust spectrum also follows the same design principles that EU AI Act Article 14 (Human Oversight, effective August 2026) codifies for high-risk AI systems — human oversight proportional to action sensitivity. We apply these principles voluntarily as a best practice; a sales CRM tool would not be classified as high-risk under the Act's Annex III categories.
-
-**The pattern is reusable.** Any application with Auth0 Token Vault can expose tools via MCP. Our per-client policy system gives each external agent its own API key, trust tier, tool allowlist, and parameter constraints. The Security Model adapts per client: a trusted IDE gets full access, a CI pipeline gets read-only CRM, a research bot gets email search constrained to specific domains. Adding a new agent doesn't require new security code — just a new client with the right policy.
-
-**What was found along the way.** 31 insights were captured during development, including:
-- The `@auth0/ai-vercel` SDK silently swallows token exchange errors ([#175](https://github.com/auth0/auth0-ai-js/issues/175))
-- Token Vault tokenset deletion doesn't prevent re-provisioning
-- Token Vault doesn't accept a `scope` parameter on federated exchanges
-- CIBA binding messages have strict character restrictions that aren't documented clearly
-- MCP endpoints need every security layer the primary endpoint has: capability filtering, approval checks, audit attribution
-
-All documented with technical details, root cause, and fix in our `docs/70-INSIGHTS.md`.
-
-**The bottom line.** "Authorized to Act" isn't a single mechanism. It's a spectrum  from full human review to autonomous read access, with CIBA device consent and confidence-based routing in between. Auth0 Token Vault provides the credential management. The application provides the trust model. Together, they make AI agents that are both powerful and trustworthy.
-
----
-
-*DealFlow: 380+ commits, 700+ tests, 11 ADRs, 31 insights. Built in 7 days.*
-*Live: https://dealflow-ai-seven.vercel.app | Code: https://github.com/cdjgroup/dealflow-ai*
+These aren't complaints — they're findings that save the next developer a day of debugging. All 31 insights documented with root cause and fix in our repo.
 
 ---
 
