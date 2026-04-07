@@ -1,9 +1,5 @@
 # DealFlow — Demo Script
 
-> 3-minute max. Every second counts. Lead with wow, not setup.
->
-> **Thesis (say this or a variant within 30 seconds):**
-> "DealFlow implements graduated trust for AI agents — four trust levels, three execution surfaces, one Auth0 Token Vault pipeline."
 
 ## Demo Account
 
@@ -28,35 +24,41 @@
 
 ## Act 1: Action Center — The 30-Second Wow (0:00–0:30)
 
-> Open on Action Center, already populated with AI suggestions. Do NOT start with chat.
 
-**Show the Action Center screen** — 5 AI-suggested actions with justification text, priority badges, and confidence scores visible.
+**Show the Action Center screen** 
 
-> "Most AI agents act first and apologize later. DealFlow suggests first and lets you decide."
+> "DealFlow suggests first and lets you decide.(point) It provides justification for the suggested action and its priority along with a confidence %."
 
-Point at a card:
-> "The AI analyzed my sales pipeline and generated five next steps. Each one explains why — 'Acme deal inactive 7 days, $150K in qualified stage, follow-up keeps momentum.' Every draft is editable. Nothing executes until I say so."
+**Click Edit** on an email action
 
-**Click Edit** on an email action → change the subject line → Save.
-> "I can refine the AI's draft before it goes anywhere. This is informed consent, not rubber-stamping."
+> "I can refine the AI's draft before it goes anywhere."
 
-**Click Approve → Execute** on the edited email action.
-Watch: Approved (blue) → Executing (pulse) → Completed (green).
-> "That email draft just landed in Gmail through Auth0 Token Vault. The AI never touched my credentials."
+**Click Approve → Execute** 
+
+> (status changes) "That email draft just landed in Gmail through Auth0 Token Vault. The AI never touched my credentials."
+
+**Verify on gmail tab** 
+
+
 
 ---
 
 ## Act 2: Chat — Multi-Step Orchestration (0:30–1:10)
 
-> Switch to Chat. Show the AI is genuinely capable, not just a Token Vault wrapper.
+> Switch to Chat.
 
-Type: **"I need to follow up with Sarah Chen about the Acme deal — check what we last discussed, find a time that works, and draft an email"**
+Type **"I need to follow up with Sarah Chen about the Acme deal — check what we last discussed, find a time that works, and draft an email"**
 
-AI chains: `getDealDetails` → `searchEmails` → `checkCalendar` → `draftEmail` (4 tools, one prompt).
-> "One prompt, four tools. The agent pulled deal context, searched email history, checked calendar availability, and composed a follow-up. Each external API call went through Token Vault — short-lived tokens, automatically exchanged."
+
+> "One prompt, four tools. The agent pulled deal context, searched email history, checked calendar availability, and composed a follow-up. Each external API call went through Token Vault's short automatically exchanged, short-lived tokens."
 
 Approval card appears for draftEmail → **approve it**.
-> "The agent planned the whole chain autonomously but paused before the sensitive action. That's graduated authorization — the AI earns trust through transparency."
+
+> "The agent planned the whole chain autonomously but paused before the sensitive action. That's graduated authorization, the AI earns trust through transparency."
+
+> "It can be taken away as well
+
+**adjust permisssions and ask again** 
 
 ---
 
