@@ -142,7 +142,8 @@ describe("GET /api/cron/schedule-poll", () => {
     expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
       "auth0|user1",
       ["act1", "act2", "act3"],
-      "pending"
+      "pending",
+      expect.stringContaining("Declined on your phone")
     );
     expect(mockRemoveScheduledCibaSession).toHaveBeenCalled();
   });
@@ -165,7 +166,8 @@ describe("GET /api/cron/schedule-poll", () => {
     expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
       "auth0|user1",
       ["act1", "act2", "act3"],
-      "pending"
+      "pending",
+      expect.stringContaining("Scheduled approval window closed")
     );
 
     vi.useRealTimers();
@@ -184,7 +186,8 @@ describe("GET /api/cron/schedule-poll", () => {
     expect(mockBatchUpdateStatus).toHaveBeenCalledWith(
       "auth0|user1",
       ["act1", "act2", "act3"],
-      "failed"
+      "failed",
+      expect.stringContaining("Scheduled-execution refresh token not available")
     );
   });
 
