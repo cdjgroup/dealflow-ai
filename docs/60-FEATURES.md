@@ -346,7 +346,7 @@ Two tools for Slack communication via Token Vault:
 Claude Sonnet 4.6 with multi-step tool calling via Vercel AI SDK v6.
 
 ### Auth0 Token Vault
-Secure Google Calendar and Gmail access via Auth0's federated token exchange (extends RFC 8693 patterns).
+Secure Google Calendar and Gmail access via Auth0's federated token exchange. The grant reuses RFC 8693 parameter conventions (`subject_token`, `subject_token_type: urn:ietf:params:oauth:token-type:refresh_token`) but uses Auth0's own `grant_type` URN (`urn:auth0:params:oauth:grant-type:token-exchange:federated-connection-access-token`), not the standard `urn:ietf:params:oauth:grant-type:token-exchange`.
 
 ### CRM
 Deals, contacts, and activity history stored in Upstash Redis.

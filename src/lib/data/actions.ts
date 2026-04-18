@@ -115,17 +115,22 @@ export async function updateAction(
 export async function batchUpdateStatus(
   userId: string,
   actionIds: string[],
-  status: ActionStatus
+  status: ActionStatus,
+  errorMessage?: string
 ): Promise<SuggestedAction[]> {
   const results: SuggestedAction[] = [];
   for (const id of actionIds) {
     const existing = await getAction(userId, id);
     if (!existing) continue;
-    if (existing.status === status) {
+    if (existing.status === status && existing.errorMessage === errorMessage) {
       results.push(existing);
       continue;
     }
-    const updated = await updateAction(userId, id, { status });
+    const updated = await updateAction(
+      userId,
+      id,
+      errorMessage !== undefined ? { status, errorMessage } : { status }
+    );
     if (updated) results.push(updated);
   }
   return results;

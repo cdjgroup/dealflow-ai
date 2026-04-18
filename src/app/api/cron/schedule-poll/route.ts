@@ -81,7 +81,8 @@ export async function GET(req: Request) {
           await batchUpdateStatus(
             session.userId,
             session.actionIds,
-            "failed"
+            "failed",
+            "Scheduled-execution refresh token not available. Opt into a review window again on the Action Center to re-store it."
           );
           await removeScheduledCibaSession(session.userId, session.batchId);
           results.push({ ...pick, status: "error-no-token" });
@@ -150,10 +151,17 @@ export async function GET(req: Request) {
         pollResult.status === "expired" ||
         pollResult.status === "error"
       ) {
+        const reason =
+          pollResult.status === "denied"
+            ? "Declined on your phone via Guardian push. These actions are back in Pending for manual review."
+            : pollResult.status === "expired"
+              ? "Guardian push expired without a response. Open the Action Center and run the batch again."
+              : "Auth0 returned an error while polling for Guardian approval. Try Run Now again, or disconnect/reconnect your account if this persists.";
         await batchUpdateStatus(
           session.userId,
           session.actionIds,
-          "pending"
+          "pending",
+          reason
         );
         await removeScheduledCibaSession(session.userId, session.batchId);
         results.push({ ...pick, status: pollResult.status });
@@ -163,7 +171,8 @@ export async function GET(req: Request) {
           await batchUpdateStatus(
             session.userId,
             session.actionIds,
-            "pending"
+            "pending",
+            "Scheduled approval window closed before Guardian push was answered. Actions are back in Pending."
           );
           await removeScheduledCibaSession(session.userId, session.batchId);
           results.push({ ...pick, status: "expired-by-time" });

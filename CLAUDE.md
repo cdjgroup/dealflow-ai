@@ -29,7 +29,7 @@
 **Auth Flow:**
 1. User logs in via Auth0 Universal Login (Google social connection)
 2. Auth0 issues session with refresh token (MRRT for My Account API)
-3. AI tools call Auth0 `/oauth/token` directly (Auth0's federated connection grant, extends RFC 8693 patterns)
+3. AI tools call Auth0 `/oauth/token` directly (Auth0's federated connection grant — reuses RFC 8693 parameter conventions but uses an Auth0-proprietary `grant_type` URN, not the standard `urn:ietf:params:oauth:grant-type:token-exchange`)
 4. Auth0 Token Vault returns short-lived Google access tokens
 5. Tools call Google Calendar / Gmail APIs with those tokens
 
@@ -40,7 +40,7 @@
 - Google connection: Must use YOUR OWN Google OAuth credentials (not Auth0 dev keys)
 - My Account API: Activated with Connected Accounts scopes (create, read, delete)
 - MRRT: Enabled for My Account API
-- Refresh Token Rotation: Disabled
+- Refresh Token Rotation: Disabled *(DealFlow-specific: our scheduled-batch cron stores the user's refresh token encrypted at rest (`src/lib/crypto.ts`) and re-uses it across the 8am/12pm/5pm windows; rotation invalidates the stored ciphertext. Not an Auth0-documented requirement of Token Vault itself — see Auth0's [Token Vault configuration docs](https://auth0.com/docs/secure/tokens/token-vault/configure-token-vault).)*
 - Grant Types: Authorization Code, Refresh Token, Token Vault
 
 ---

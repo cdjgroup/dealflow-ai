@@ -219,11 +219,12 @@ The `delegateResearch` tool creates scoped, time-limited delegation tokens (stor
 - Conversation management: new chat, history sidebar, auto-save to Redis
 
 #### Security
-- Auth0 Token Vault with federated token exchange (Google + Slack, extends RFC 8693 patterns)
+- Auth0 Token Vault with federated token exchange (Google + Slack) — the grant reuses RFC 8693 parameter conventions (`subject_token`, `subject_token_type`) but uses an Auth0-proprietary `grant_type` URN, not the standard `urn:ietf:params:oauth:grant-type:token-exchange`
 - Step-up authorization via `needsApproval` for high-value operations
 - Per-tool capability toggles (users control what the agent can do)
 - Audit trail logging every agent action with sanitized inputs
-- CSRF protection, rate limiting, Zod input validation
+- CSRF defense layered on Auth0's SameSite session cookies: authenticated-session check + `X-Requested-With: XMLHttpRequest` to force CORS preflight on cross-origin JSON requests
+- Rate limiting (two-layer: per-tool + per-request circuit breaker) and Zod input validation
 - Prompt injection defense (tool results treated as data, not instructions)
 - Disconnect/reconnect via Redis-backed revocation
 

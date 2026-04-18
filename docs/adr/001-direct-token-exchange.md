@@ -37,7 +37,7 @@ The utility:
 - We lose the SDK's built-in interrupt flow for consent popups (replaced with explicit ConnectGoogle button)
 
 ### Neutral
-- The Auth0 token exchange API is stable (Auth0's custom grant extends RFC 8693 patterns) — unlikely to change
+- The Auth0 token exchange API is stable (Auth0's custom grant reuses RFC 8693 parameter conventions but uses an Auth0-proprietary `grant_type` URN) — unlikely to change
 - The error-swallowing issue (#175) may be fixed in a future SDK release, at which point migration back to the wrapper would be viable
 
 ## Standards Alignment

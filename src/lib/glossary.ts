@@ -1,6 +1,6 @@
 export const GLOSSARY: Record<string, string> = {
   "token-vault":
-    "Auth0's secure credential store that holds OAuth refresh tokens. The AI agent never sees these — it only receives short-lived access tokens via Auth0 Token Vault exchange (extends RFC 8693 patterns).",
+    "Auth0's secure credential store that holds OAuth refresh tokens. The AI agent never sees these — it only receives short-lived access tokens via Auth0 Token Vault exchange (an Auth0-proprietary grant that reuses RFC 8693 parameter conventions but uses Auth0's own grant_type URN, not the standard token-exchange URN).",
   "step-up-auth":
     "A security mechanism that prompts for explicit user approval before high-risk actions, such as creating deals over $50K or changing deal stages to closed-won.",
   "capability-toggles":
