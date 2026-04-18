@@ -1,4 +1,35 @@
-# Release Notes — v0.6.7
+# Release Notes — v0.6.8
+
+## DealFlow AI: Trust Filter Fix + Approval Reliability
+
+Aligned the system prompt with the trust-filtered tool set so "Never allow" takes effect instantly, made approved-tool execution server-side to work around the unfixed vercel/ai#10980 SDK bug, and extended the context-aware `needsApproval` wrapper to every tool (not just writes).
+
+### What's new
+
+- **System prompt trust alignment**: The system prompt now derives available-tool descriptions from the trust-filtered tool set instead of raw capability toggles. When a user sets a tool to "Never allow", the LLM immediately knows the capability is unavailable instead of wasting turns probing for it. Covers all CRM tools, Calendar, Gmail, Slack, delegation, and pipeline analysis.
+- **Server-side approved tool execution**: Workaround for the still-open [vercel/ai#10980](https://github.com/vercel/ai/issues/10980) (PR [#12914](https://github.com/vercel/ai/pull/12914) open not merged). `executeApprovedAndPatchDenied` now runs server-side — it processes all `approval-responded` parts in messages, executes approved tools directly, and injects results as `output-available`. The model sees completed tool results without depending on client-side SDK behavior.
+- **Universal approval dedup**: All tools (not just write tools) get the context-aware `needsApproval` wrapper. If a tool already has a result in `context.messages`, the wrapper returns `false` to prevent re-approval cards when the model re-proposes an already-executed tool.
+
+### Architecture
+
+- `buildSystemPrompt` now consumes the same `filterTools()` output the streamText call uses, so the two never drift.
+- `executeApprovedAndPatchDenied` runs before `streamText` (three-layer defense with `attachApprovalChecks` + server-side dedup) — mirrors the structural fix in vercel/ai#12914.
+- `needsApproval` wrapper reads `context.messages` looking for prior `tool-result` entries matching the current `toolCallId`.
+
+### Known upstream issues acknowledged this release
+
+- [vercel/ai#10980](https://github.com/vercel/ai/issues/10980) — OPEN. The server-side execute workaround is our current mitigation.
+- [vercel/ai#12914](https://github.com/vercel/ai/pull/12914) — fix PR, OPEN not merged.
+- [auth0-ai-js#175](https://github.com/auth0/auth0-ai-js/issues/175) — OPEN. Motivates direct Auth0 `/oauth/token` exchange (ADR 001).
+
+### Deployment
+
+- Live at: https://dealflow-ai-seven.vercel.app
+- Repo: https://github.com/cdjgroup/dealflow-ai
+
+---
+
+# Release Notes — v0.6.7 (Previous)
 
 ## DealFlow AI: Approval Loop Fix + Action Center Polish
 

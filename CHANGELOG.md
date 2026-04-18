@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.8] - 2026-04-17
+
+### Fixed
+- System prompt/trust-filter drift: system prompt now derives available-tool descriptions from the trust-filtered tool set instead of raw capability toggles — "Never allow" takes effect immediately without wasted LLM turns.
+- Approved-tool execution reliability: `executeApprovedAndPatchDenied` runs server-side to work around the still-open [vercel/ai#10980](https://github.com/vercel/ai/issues/10980) (fix PR [#12914](https://github.com/vercel/ai/pull/12914) open, not merged). Approved tools execute server-side and results inject as `output-available`; no dependency on client-side SDK behavior.
+
+### Changed
+- Context-aware `needsApproval` wrapper extended from write tools to all tools: if a prior `tool-result` exists for the `toolCallId` in `context.messages`, `needsApproval` returns `false` to suppress re-approval cards when the model re-proposes an already-executed tool.
+
 ## [0.6.7] - 2026-04-05
 
 ### Fixed
@@ -342,7 +351,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Auth0 authentication with Universal Login (Google social connection)
 - AI chat agent powered by Claude Sonnet 4.6 via Vercel AI SDK v6
-- Token Vault integration for Google Calendar and Gmail (direct Auth0 Token Vault exchange, extends RFC 8693 patterns)
+- Token Vault integration for Google Calendar and Gmail (direct Auth0 Token Vault exchange — reuses RFC 8693 parameter conventions with an Auth0-proprietary grant_type URN)
 - CRM data layer in Upstash Redis (deals, contacts, activities)
 - 8 AI tools: checkCalendar, draftEmail, searchEmails, listDeals, getDealDetails, searchContacts, createDeal, logActivity
 - Custom UpstashStore implementing @auth0/ai Store interface

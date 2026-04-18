@@ -27,9 +27,11 @@ export function getPollingLimiter(): Ratelimit {
   return create("poll", 30, "1 m");
 }
 
-// 5 req/min — sensitive operations (CIBA initiate, connection changes)
+// 15 req/min — sensitive operations (CIBA initiate, connection changes).
+// Raised from 5/min to absorb demo-nerve retries without losing the
+// circuit-breaker property; the per-tool write limiters remain tighter.
 export function getSensitiveLimiter(): Ratelimit {
-  return create("sensitive", 5, "1 m");
+  return create("sensitive", 15, "1 m");
 }
 
 // Per-tool rate limiters — requests/window configurable per tool
