@@ -25,6 +25,7 @@ function createMockPipeline() {
   return {
     set: vi.fn((...args: unknown[]) => { calls.push({ method: "set", args }); }),
     sadd: vi.fn((...args: unknown[]) => { calls.push({ method: "sadd", args }); }),
+    del: vi.fn((...args: unknown[]) => { calls.push({ method: "del", args }); }),
     exec: vi.fn(async () => calls.map(() => "OK")),
     _calls: calls,
   };
