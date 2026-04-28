@@ -64,3 +64,4 @@ scripts/generate_dashboard.py
 
 # worktrees
 test-results/
+/private/
