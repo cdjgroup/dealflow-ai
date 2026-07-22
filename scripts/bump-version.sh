@@ -24,7 +24,7 @@ cd "$FW_PROJECT_ROOT"
 fw_setup_git_env
 
 # Read config
-PROJECT_NAME=$(fw_get_nested "project.name" "project")
+_PROJECT_NAME=$(fw_get_nested "project.name" "project")
 PRIMARY_SOURCE=$(fw_get_nested "versioning.primary_source" "package.json")
 PRIMARY_PATTERN=$(fw_get_nested "versioning.primary_pattern" '"version"')
 
@@ -96,7 +96,7 @@ echo -e "\n${FW_YELLOW}Updating version strings...${FW_NC}"
 
 # Parse locations from YAML and update each one
 LOCATION_COUNT=0
-MISMATCHES=()
+_MISMATCHES=()
 
 # Read the versioning.locations block from config
 # We'll extract file and sed pattern for each location entry
@@ -134,35 +134,10 @@ done
 echo -e "\n${FW_YELLOW}Changes:${FW_NC}"
 git diff || true
 
-# Verification: check all locations now match the target version
+# Verification: use the same fail-closed checker as CI and PyPI publishing.
 echo -e "\n${FW_YELLOW}Verification:${FW_NC}"
-
-ALL_MATCH=true
-awk '
-/^  locations:/ { in_locations = 1; next }
-in_locations && /^  [^ ]/ { exit }
-in_locations && /^    - file:/ {
-    file = $NF
-    gsub(/"/, "", file)
-}
-in_locations && /display:/ {
-    display = $0
-    sub(/.*display: */, "", display)
-    gsub(/"/, "", display)
-    print file "|" display
-}
-' "$FW_CONFIG" | while IFS='|' read -r loc_file loc_display; do
-    if [ -z "$loc_file" ]; then continue; fi
-    if [ ! -f "$loc_file" ]; then
-        echo "  $loc_display: (file not found)"
-        continue
-    fi
-    FILE_VER=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$loc_file" | head -1)
-    echo "  $loc_display: $FILE_VER"
-    if [ "$FILE_VER" != "$VERSION" ]; then
-        echo -e "  ${FW_RED}MISMATCH in $loc_display: expected $VERSION, got $FILE_VER${FW_NC}" >&2
-        ALL_MATCH=false
-    fi
-done
+python3 "$SCRIPT_DIR/check_version_integrity.py" \
+    --root "$FW_PROJECT_ROOT" \
+    --expected "$VERSION"
 
 echo -e "\n${FW_GREEN}Version bump to $VERSION complete${FW_NC}"

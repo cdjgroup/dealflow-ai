@@ -1,19 +1,26 @@
 #!/bin/bash
-# claude-session.sh - Automated worktree-isolated Claude Code session
+# codex-session.sh - Automated worktree-isolated Codex CLI session
 #
-# This script automatically:
+# Codex sibling of claude-session.sh — same worktree-isolation workflow,
+# same session-lock protection (checkout-guard.py, blocks concurrent
+# Codex-or-Claude sessions sharing a worktree), different launch target.
+# NOTE: Codex has no project-level hook config — checkout-guard.py only
+# fires if the operator has pasted + /hooks-trusted the PreToolUse block
+# (printed by `shipteam init --host codex`) into their OWN user-level
+# $CODEX_HOME/config.toml. This script cannot wire that up for them; see
+# docs/adr/035-codex-host-safety-gate-port.md. This script automatically:
 # 1. Creates an isolated git worktree for the session
 # 2. Bootstraps dependencies (Python venv, npm install)
 # 3. Starts frontend dev server on unique port
-# 4. Launches Claude Code in that worktree
-# 5. Cleans up server and worktree when Claude exits
+# 4. Launches Codex CLI in that worktree
+# 5. Cleans up server and worktree when Codex exits
 #
 # Usage:
-#   ./scripts/claude-session.sh                      # Auto-generates session branch
-#   ./scripts/claude-session.sh feature/my-feature   # Uses specific branch name
-#   ./scripts/claude-session.sh --keep               # Don't cleanup on exit
-#   ./scripts/claude-session.sh --no-servers         # Skip dev server startup
-#   ./scripts/claude-session.sh --no-sync            # Skip auto-sync with origin/main
+#   ./scripts/codex-session.sh                      # Auto-generates session branch
+#   ./scripts/codex-session.sh feature/my-feature   # Uses specific branch name
+#   ./scripts/codex-session.sh --keep               # Don't cleanup on exit
+#   ./scripts/codex-session.sh --no-servers         # Skip dev server startup
+#   ./scripts/codex-session.sh --no-sync            # Skip auto-sync with origin/main
 
 set -e
 
@@ -88,7 +95,7 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             echo "Usage: $0 [--keep|--clean] [--no-servers] [--no-sync] [-m SLUG] [branch-name]"
             echo ""
-            echo "Launches Claude Code in an isolated git worktree with dev server."
+            echo "Launches Codex CLI in an isolated git worktree with dev server."
             echo "Uses shared backend on port $BACKEND_PORT (ensure it's running)."
             echo ""
             echo "Worktree lifecycle:"
@@ -102,7 +109,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-sync      Skip auto-sync with origin/main"
             echo "  -m, --memo SLUG  Append a short purpose slug to the auto-generated"
             echo "                   session branch name, e.g. -m sentinel-fix produces"
-            echo "                   session/claude-YYYYMMDD-HHMMSS-sentinel-fix."
+            echo "                   session/codex-YYYYMMDD-HHMMSS-sentinel-fix."
             echo "                   Slug must match ^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?\$"
             echo "                   (lowercase alphanumeric + hyphens, 1-40 chars,"
             echo "                    no leading or trailing hyphen)."
@@ -148,15 +155,15 @@ fi
 if [ -z "$BRANCH_NAME" ]; then
     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
     if [ -n "$MEMO" ]; then
-        BRANCH_NAME="session/claude-${TIMESTAMP}-${MEMO}"
+        BRANCH_NAME="session/codex-${TIMESTAMP}-${MEMO}"
     else
-        BRANCH_NAME="session/claude-${TIMESTAMP}"
+        BRANCH_NAME="session/codex-${TIMESTAMP}"
     fi
 fi
 
 # Testability: print the computed branch name and exit. Used by the bats
 # regression tests to exercise arg-parsing and name computation without
-# creating a worktree or launching Claude.
+# creating a worktree or launching Codex.
 if [ "$PRINT_BRANCH_NAME" = true ]; then
     echo "$BRANCH_NAME"
     exit 0
@@ -185,7 +192,7 @@ ASSIGNED_FRONTEND_PORT=""
 # ===================================================================
 
 echo "==================================================================="
-echo "  Claude Code Isolated Session Launcher"
+echo "  Codex CLI Isolated Session Launcher"
 echo "==================================================================="
 echo ""
 echo "  Creating isolated worktree for parallel development..."
@@ -196,7 +203,7 @@ echo ""
 # Cleanup function — defined early so trap catches failures during worktree setup
 cleanup() {
     echo ""
-    echo "  Claude exited. Cleaning up..."
+    echo "  Codex exited. Cleaning up..."
 
     if [ -n "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
         echo "   Stopping frontend server (PID $FRONTEND_PID)..."
@@ -211,7 +218,7 @@ cleanup() {
         echo "  Worktree preserved at: $WORKTREE_DIR"
         echo ""
         echo "To resume later:"
-        echo "   cd $WORKTREE_DIR && claude"
+        echo "   cd $WORKTREE_DIR && codex"
         echo ""
         echo "To cleanup when done:"
         echo "   $FW_PROJECT_ROOT/scripts/cleanup-worktree.sh $WORKTREE_DIR"
@@ -312,7 +319,7 @@ else
             ./venv/bin/pip install --quiet -r "$BACKEND_ROOT/requirements.txt" 2>/dev/null || true
             echo "   Backend dependencies installed"
         else
-            echo "   Venv creation failed - Claude will still work"
+            echo "   Venv creation failed - Codex will still work"
         fi
     fi
 
@@ -330,7 +337,13 @@ else
     # Bootstrap .claude/ into worktree — copies hooks, rules, agents, skills,
     # settings.json (physical copies); symlinks settings.local.json; fresh state/.
     # .claude/ is gitignored in all consumer projects, so git worktree add
-    # does NOT populate it — bootstrap_claude_dir fills the gap.
+    # does NOT populate it — bootstrap_claude_dir fills the gap. checkout-guard.py
+    # itself lives under .claude/hooks/ (host-agnostic script, invoked by both
+    # Claude's settings.json AND Codex's user-level $CODEX_HOME/config.toml
+    # PreToolUse entry) — this bootstrap step is what makes the SCRIPT present
+    # in the worktree; whether Codex actually INVOKES it still depends on the
+    # operator having trusted the hook at the user level (see the header note
+    # above and docs/adr/035-codex-host-safety-gate-port.md).
     if [ -d "$FW_PROJECT_ROOT/.claude" ]; then
         bootstrap_claude_dir "$FW_PROJECT_ROOT/.claude" "$WORKTREE_DIR"
         echo "   Configuration bootstrapped"
@@ -371,7 +384,7 @@ if [ "$NO_SYNC" = true ]; then
     echo "  Auto-sync disabled (--no-sync flag)"
 else
     echo "  Auto-syncing with origin/main..."
-    fw_session_sync_with_main "Claude"
+    fw_session_sync_with_main "Codex"
 fi
 
 # ===================================================================
@@ -408,7 +421,7 @@ fi
 
 echo ""
 echo "==================================================================="
-echo "  Worktree ready! Launching Claude Code..."
+echo "  Worktree ready! Launching Codex CLI..."
 if [ "$START_SERVERS" = true ] && { [ -n "$ASSIGNED_FRONTEND_PORT" ] || [ -n "$BACKEND_ROOT" ]; }; then
     echo ""
     echo "  TEST YOUR CHANGES AT:"
@@ -425,22 +438,56 @@ cd "$WORKTREE_DIR"
 unset GIT_DIR
 unset GIT_WORK_TREE
 
+# Create the session lock ourselves — see fw_session_create_codex_lock() in
+# _session_common.sh for why this launcher (not a hook) must do it: Codex has
+# no SessionStart-equivalent hook, so nothing else ever creates a fresh lock
+# for a Codex session. Without this, two Codex sessions could share this
+# worktree with zero protection.
+#
+# CODEX_SESSION_ID is a synthetic placeholder, not Codex's real session_id —
+# `codex` hasn't started yet, so that value doesn't exist. claimed=false marks
+# it as such; checkout-guard.py's first Bash call for this worktree adopts it
+# (rewrites session_id to the real one). See path_utils.create_session_lock's
+# `claimed` docstring.
+CODEX_SESSION_ID="codex-$(date +%s)-$$"
+LOCK_RESULT=$(fw_session_create_codex_lock "$CODEX_SESSION_ID" "$BRANCH_NAME" "$WORKTREE_DIR" "false")
+if [ "$LOCK_RESULT" != "OK" ]; then
+    # Hard-abort rather than warn-and-continue: unlike Claude (where
+    # checkout-guard.py is auto-wired in .claude/settings.json as a real
+    # backstop), Codex's guard only takes effect after the operator's own
+    # manual /hooks-trust config.toml step — which this script cannot verify
+    # from here. Launching without a lock in that case means zero concurrent-
+    # session protection, not just a delayed one, so this is the one point
+    # where the launcher can still stop it.
+    echo ""
+    echo "  BLOCKED: could not acquire session lock ($LOCK_RESULT)."
+    echo "  Another live session may already own this worktree, or the lock"
+    echo "  write itself failed. Launching anyway would give this session zero"
+    echo "  concurrent-session protection."
+    echo ""
+    echo "  If you're sure no other session is using this worktree, remove"
+    echo "  .claude/state/session-lock.json and re-run this script."
+    exit 1
+fi
+
 # Create helper script for git env
 cat > "$WORKTREE_DIR/.git-env" << EOF
-# Git environment for this worktree (auto-generated by claude-session.sh)
+# Git environment for this worktree (auto-generated by codex-session.sh)
 # Source this file if git commands fail: source .git-env
 export GIT_WORK_TREE="$WORKTREE_DIR"
 EOF
 
-# Launch Claude Code in a clean framework env so scripts inside claude's
-# shell auto-detect FW_PROJECT_ROOT from their own source location instead
-# of inheriting the launcher's (which resolves to the main-repo path, not
-# the worktree). Strips identity + override vars; retains cosmetic color
-# vars (FW_RED/GREEN/...) since they're harmless. Defense-in-depth for the
-# guard in _framework.sh that PR #143 added: without this scrub, the guard
-# warns on every framework script invocation inside claude's shell.
+# Launch Codex CLI in a clean framework env so scripts inside codex's shell
+# auto-detect FW_PROJECT_ROOT from their own source location instead of
+# inheriting the launcher's (which resolves to the main-repo path, not the
+# worktree). Strips identity + override vars; retains cosmetic color vars
+# (FW_RED/GREEN/...) since they're harmless. Defense-in-depth for the guard
+# in _framework.sh that PR #143 added: without this scrub, the guard warns
+# on every framework script invocation inside codex's shell.
 # `env -u` is preferred over `unset` so this script's own env remains
-# intact for the EXIT cleanup trap that runs after claude exits.
-env -u FW_PROJECT_ROOT -u FW_CONFIG -u FW_FW_DIR -u FW_ROOT_OVERRIDE -u FW_SKIP_PREREQ_CHECK claude
+# intact for the EXIT cleanup trap that runs after codex exits.
+# Bare `codex`, not `codex exec` — exec mode has no interactive backstop and
+# is the wrong mode for an interactive dev session.
+env -u FW_PROJECT_ROOT -u FW_CONFIG -u FW_FW_DIR -u FW_ROOT_OVERRIDE -u FW_SKIP_PREREQ_CHECK codex
 
 # Cleanup happens automatically via trap

@@ -18,8 +18,8 @@ cd "$FW_PROJECT_ROOT"
 fw_setup_git_env
 
 STATE_DIR="$FW_PROJECT_ROOT/.claude/state"
-NOTIFICATION_PROVIDER=$(fw_get_nested "notifications.provider" "none")
-NOTIFICATION_WEBHOOK_ENV=$(fw_get_nested "notifications.webhook_env" "")
+_NOTIFICATION_PROVIDER=$(fw_get_nested "notifications.provider" "none")
+_NOTIFICATION_WEBHOOK_ENV=$(fw_get_nested "notifications.webhook_env" "")
 
 # Parse arguments
 FORCE_MERGE=false

@@ -28,18 +28,24 @@ fi
 ARCHIVES_DIR="$FW_PROJECT_ROOT/docs/archives"
 
 # Search active insights file
+# Extraction is anchored to the '#NNN' token: a bare '[0-9]+' grab would also
+# harvest digits from grep's filename prefixes (absolute repo paths can carry
+# date-like digit runs, e.g. dated session-worktree names), producing a bogus
+# huge "next number".
+# `|| true` prevents _framework.sh's pipefail from silently killing the script
+# when grep matches nothing (empty insights file / no archive .md files).
 HIGHEST_ACTIVE=$(grep -oiE 'Insight\s*#[0-9]+' "$INSIGHTS_FILE" 2>/dev/null | \
-          grep -oE '[0-9]+' | \
+          grep -oE '#[0-9]+' | tr -d '#' | \
           sort -n | \
-          tail -1)
+          tail -1 || true)
 
-# Search archive files for insight numbers
+# Search archive files for insight numbers (-h: never emit filename prefixes)
 HIGHEST_ARCHIVE=""
 if [ -d "$ARCHIVES_DIR" ]; then
-    HIGHEST_ARCHIVE=$(grep -roiE 'Insight\s*#[0-9]+' "$ARCHIVES_DIR"/*.md 2>/dev/null | \
-              grep -oE '[0-9]+' | \
+    HIGHEST_ARCHIVE=$(grep -rhoiE 'Insight\s*#[0-9]+' "$ARCHIVES_DIR"/*.md 2>/dev/null | \
+              grep -oE '#[0-9]+' | tr -d '#' | \
               sort -n | \
-              tail -1)
+              tail -1 || true)
 fi
 
 # Use the highest number from either source
