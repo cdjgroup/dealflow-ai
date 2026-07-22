@@ -67,7 +67,7 @@ cmd_status() {
 
     if [ -n "$BACKEND_PORT" ] && [ "$BACKEND_PORT" != "0" ]; then
         if check_port "$BACKEND_PORT"; then
-            local pid=$(get_pid_by_port "$BACKEND_PORT")
+            local pid; pid=$(get_pid_by_port "$BACKEND_PORT")
             if test_server "$BACKEND_PORT" "$BACKEND_HEALTH"; then
                 echo -e "  Backend ($BACKEND_PORT):  ${FW_GREEN}Running (PID $pid) - Healthy${FW_NC}"
             else
@@ -80,7 +80,7 @@ cmd_status() {
 
     if [ -n "$FRONTEND_PORT" ] && [ "$FRONTEND_PORT" != "0" ]; then
         if check_port "$FRONTEND_PORT"; then
-            local pid=$(get_pid_by_port "$FRONTEND_PORT")
+            local pid; pid=$(get_pid_by_port "$FRONTEND_PORT")
             if test_server "$FRONTEND_PORT" "$FRONTEND_HEALTH"; then
                 echo -e "  Frontend ($FRONTEND_PORT): ${FW_GREEN}Running (PID $pid) - Healthy${FW_NC}"
             else
@@ -142,14 +142,14 @@ cmd_stop() {
     echo "Stopping servers..."
 
     if [ -n "$BACKEND_PORT" ] && check_port "$BACKEND_PORT"; then
-        local pid=$(get_pid_by_port "$BACKEND_PORT")
+        local pid; pid=$(get_pid_by_port "$BACKEND_PORT")
         echo "  Stopping backend (PID $pid)..."
         kill_process "$pid"
         echo -e "${FW_GREEN}Backend stopped${FW_NC}"
     fi
 
     if [ -n "$FRONTEND_PORT" ] && check_port "$FRONTEND_PORT"; then
-        local pid=$(get_pid_by_port "$FRONTEND_PORT")
+        local pid; pid=$(get_pid_by_port "$FRONTEND_PORT")
         echo "  Stopping frontend (PID $pid)..."
         kill_process "$pid"
         echo -e "${FW_GREEN}Frontend stopped${FW_NC}"
@@ -168,7 +168,7 @@ cmd_heal() {
     if [ -n "$BACKEND_PORT" ] && check_port "$BACKEND_PORT"; then
         if ! test_server "$BACKEND_PORT" "$BACKEND_HEALTH"; then
             echo -e "${FW_YELLOW}Backend is running but not responding - restarting...${FW_NC}"
-            local pid=$(get_pid_by_port "$BACKEND_PORT")
+            local pid; pid=$(get_pid_by_port "$BACKEND_PORT")
             kill_process "$pid"
             sleep 2
             if [ -n "$BACKEND_START" ]; then
@@ -182,7 +182,7 @@ cmd_heal() {
     if [ -n "$FRONTEND_PORT" ] && check_port "$FRONTEND_PORT"; then
         if ! test_server "$FRONTEND_PORT" "$FRONTEND_HEALTH"; then
             echo -e "${FW_YELLOW}Frontend is running but not responding - restarting...${FW_NC}"
-            local pid=$(get_pid_by_port "$FRONTEND_PORT")
+            local pid; pid=$(get_pid_by_port "$FRONTEND_PORT")
             kill_process "$pid"
             sleep 2
             if [ -n "$FRONTEND_START" ]; then

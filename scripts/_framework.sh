@@ -35,18 +35,121 @@ _fw_find_root() {
     return 1
 }
 
+# Cross-platform realpath (macOS lacks GNU realpath; use Python which is a prereq).
+# Exits non-zero with a clear diagnostic if python3 is missing, so callers don't
+# misdiagnose "empty result" as a containment violation (review HIGH-1/HIGH-2).
+_fw_realpath() {
+    local result
+    if ! result="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$1" 2>/dev/null)"; then
+        echo "ERROR: Could not resolve realpath for '$1' — is python3 available on PATH?" >&2
+        return 1
+    fi
+    if [ -z "$result" ]; then
+        echo "ERROR: realpath returned empty for '$1' (python3 unexpected output)" >&2
+        return 1
+    fi
+    printf '%s\n' "$result"
+}
+
 # Where is THIS script?
 _FW_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Project root: parent of scripts/ OR wherever config/framework.yaml lives
-FW_PROJECT_ROOT="$(_fw_find_root "$_FW_SCRIPT_DIR")" || {
-    # Fallback: assume scripts/ is one level below project root
-    FW_PROJECT_ROOT="$(cd "$_FW_SCRIPT_DIR/.." && pwd)"
-}
+# Honor pre-set FW_PROJECT_ROOT (for testing / fixtures); otherwise auto-detect.
+# Pre-set value must be realpath-resolvable AND inside a git repo root
+# (.git as file supports worktrees; .git as dir is standard). Fail-closed.
+#
+# Security notes (for reviewers):
+#  - Residual TOCTOU: the containment check validates once at source time; later
+#    consumers (grep, yq) reopen the path. Acceptable for a dev-tool threat model;
+#    exploitation requires repo-write access which is already game over.
+#  - FW_PROJECT_ROOT=/ is rejected upstream by the .git existence check (/.git
+#    doesn't exist on typical systems), so the containment pattern "/*" never
+#    vacuously matches.
+if [ -n "${FW_PROJECT_ROOT:-}" ]; then
+    _fw_preset_root="$FW_PROJECT_ROOT"
+    if ! FW_PROJECT_ROOT="$(_fw_realpath "$_fw_preset_root")"; then
+        exit 1  # _fw_realpath already reported the specific failure
+    fi
+    if [ ! -d "$FW_PROJECT_ROOT" ]; then
+        echo "ERROR: Pre-set FW_PROJECT_ROOT does not resolve to an existing directory: $_fw_preset_root" >&2
+        exit 1
+    fi
+    if [ ! -e "$FW_PROJECT_ROOT/.git" ]; then
+        echo "ERROR: Pre-set FW_PROJECT_ROOT is not a git repo root (no .git): $FW_PROJECT_ROOT" >&2
+        exit 1
+    fi
+    unset _fw_preset_root
+
+    # Cross-worktree env-var contamination guard.
+    # When FW_PROJECT_ROOT is pre-set but disagrees with the root derivable
+    # from BASH_SOURCE (i.e., the path this file was sourced from), the pre-set
+    # value is likely an inherited stale export from a prior invocation in a
+    # different worktree. Without this guard, validators and git-mutating
+    # scripts silently operate on the wrong tree — scanners return false-clean
+    # verdicts; sync/merge commands touch the wrong working tree. Prefer the
+    # script-derived location unless the caller explicitly opts in with
+    # FW_ROOT_OVERRIDE=1 (exact string match — `0`, `false`, empty, etc. all
+    # leave the guard active so "unset" and "explicit disable" behave the same).
+    # Skipped entirely when BASH_SOURCE[0] is unbound (non-bash invocation).
+    if [ "${FW_ROOT_OVERRIDE:-}" != "1" ] && [ -n "${BASH_SOURCE[0]:-}" ]; then
+        _fw_script_root="$(_fw_find_root "$_FW_SCRIPT_DIR")" || \
+            _fw_script_root="$(cd "$_FW_SCRIPT_DIR/.." && pwd)"
+        # Do NOT suppress _fw_realpath stderr — a missing python3 here would
+        # otherwise silently disable the guard and re-open the silent-wrong-
+        # answer path the guard exists to close.
+        if _fw_script_root="$(_fw_realpath "$_fw_script_root")"; then
+            if [ "$FW_PROJECT_ROOT" != "$_fw_script_root" ]; then
+                echo "_framework.sh: warning: FW_PROJECT_ROOT env (=$FW_PROJECT_ROOT) disagrees with script location (=$_fw_script_root); preferring script location. Set FW_ROOT_OVERRIDE=1 to force env value." >&2
+                FW_PROJECT_ROOT="$_fw_script_root"
+            fi
+        fi
+        unset _fw_script_root
+    fi
+else
+    FW_PROJECT_ROOT="$(_fw_find_root "$_FW_SCRIPT_DIR")" || {
+        # Fallback: assume scripts/ is one level below project root
+        FW_PROJECT_ROOT="$(cd "$_FW_SCRIPT_DIR/.." && pwd)"
+    }
+    # Canonicalize to match realpath'd containment check below
+    # (macOS /var is a symlink to /private/var; logical paths break string prefix match).
+    # Fail-closed if canonicalization fails, so we never silently accept an un-canonicalized
+    # path that would produce a misleading "outside FW_PROJECT_ROOT" error later (HIGH-2).
+    if ! FW_PROJECT_ROOT="$(_fw_realpath "$FW_PROJECT_ROOT")"; then
+        exit 1
+    fi
+fi
 export FW_PROJECT_ROOT
 
-# Config file path
-FW_CONFIG="$FW_PROJECT_ROOT/config/framework.yaml"
+# Honor pre-set FW_CONFIG (realpath-resolved, must be contained within FW_PROJECT_ROOT).
+# Otherwise default to $FW_PROJECT_ROOT/config/framework.yaml, also containment-checked
+# (catches symlinks escaping repo root).
+if [ -n "${FW_CONFIG:-}" ]; then
+    _fw_preset_cfg="$FW_CONFIG"
+    if ! FW_CONFIG="$(_fw_realpath "$_fw_preset_cfg")"; then
+        exit 1  # _fw_realpath already reported the specific failure
+    fi
+    unset _fw_preset_cfg
+else
+    FW_CONFIG="$FW_PROJECT_ROOT/config/framework.yaml"
+fi
+
+# Containment check: FW_CONFIG (realpath'd) MUST be inside FW_PROJECT_ROOT.
+# Pattern match requires literal "/" separator to avoid prefix-substring false positives
+# (e.g., /foo/bar is NOT inside /foo/barbaz). Fail-closed on realpath failure so
+# missing-python3 doesn't masquerade as a containment violation (HIGH-1).
+if [ -e "$FW_CONFIG" ]; then
+    if ! _fw_resolved_cfg="$(_fw_realpath "$FW_CONFIG")"; then
+        exit 1
+    fi
+    case "$_fw_resolved_cfg" in
+        "$FW_PROJECT_ROOT"/*) FW_CONFIG="$_fw_resolved_cfg" ;;
+        *)
+            echo "ERROR: FW_CONFIG ($_fw_resolved_cfg) resolves outside FW_PROJECT_ROOT ($FW_PROJECT_ROOT)" >&2
+            exit 1
+            ;;
+    esac
+    unset _fw_resolved_cfg
+fi
 
 if [ ! -f "$FW_CONFIG" ]; then
     echo "ERROR: config/framework.yaml not found at $FW_CONFIG" >&2
@@ -218,11 +321,11 @@ fw_get_nested() {
 # Usage: fw_get_list "ci.blocking_jobs"
 # Input YAML:
 #   blocking_jobs:
-#     - "backend-tests"
-#     - "frontend-tests"
+#     - "check-versions"
+#     - "framework-tests"
 # Output:
-#   backend-tests
-#   frontend-tests
+#   check-versions
+#   framework-tests
 fw_get_list() {
     local dotted_key="$1"
 
@@ -280,6 +383,7 @@ fw_resolve_path() {
     value="${value//\$HOME/$HOME}"
 
     # Expand leading ~
+    # shellcheck disable=SC2088  # Tilde expansion is handled manually below
     if [[ "$value" == "~/"* ]]; then
         value="$HOME/${value:2}"
     elif [[ "$value" == "~" ]]; then

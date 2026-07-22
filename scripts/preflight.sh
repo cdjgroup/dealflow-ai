@@ -16,8 +16,8 @@ cd "$FW_PROJECT_ROOT"
 fw_setup_git_env
 
 # Read config
-BACKEND_PORT=$(fw_get_nested "stack.backend.port" "")
-FRONTEND_PORT=$(fw_get_nested "stack.frontend.port" "3000")
+BACKEND_PORT=$(fw_get_nested "stack.backend.port" "8000")
+FRONTEND_PORT=$(fw_get_nested "stack.frontend.port" "3003")
 
 echo ""
 echo "================================================================"

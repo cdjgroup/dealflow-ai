@@ -94,6 +94,13 @@ validate_test_cmd() {
     fi
 }
 
+# Prefer project venv tools when present: put .venv/bin on PATH so bare
+# `pytest` in the configured test_command resolves to the project's Python
+# environment, not the system one. No-op if .venv doesn't exist.
+if [ -d ".venv/bin" ]; then
+    export PATH=".venv/bin:$PATH"
+fi
+
 # Validation for GREEN and REFACTOR phases
 if [ "$PHASE" = "green" ] || [ "$PHASE" = "refactor" ]; then
     if [ "$REQUIRE_TESTS" = "true" ]; then

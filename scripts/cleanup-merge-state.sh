@@ -6,7 +6,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/_framework.sh"
 
-cd "$FW_PROJECT_ROOT"
+cd "$FW_PROJECT_ROOT" || exit 1
 fw_setup_git_env
 
 # Resolve actual git dir (handles worktrees)
