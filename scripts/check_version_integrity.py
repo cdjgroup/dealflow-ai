@@ -137,7 +137,13 @@ def verify_repository(root: Path, expected: str | None = None) -> str:
     locations = configured_version_locations(config_path)
     if Path("VERSION") not in locations:
         raise VersionIntegrityError("versioning.locations must include canonical VERSION")
-    if Path("src/shipteam/__init__.py") not in locations:
+    # The runtime-projection and hatch invariants are framework-repo-specific:
+    # consumer projects receive this script via fw-sync but have no shipteam
+    # runtime package. Presence of the runtime file on disk is the
+    # discriminator, so the framework repo itself stays fail-closed.
+    runtime_init = Path("src/shipteam/__init__.py")
+    is_framework_repo = (root / runtime_init).is_file()
+    if is_framework_repo and runtime_init not in locations:
         raise VersionIntegrityError(
             "versioning.locations must include runtime src/shipteam/__init__.py"
         )
@@ -155,7 +161,7 @@ def verify_repository(root: Path, expected: str | None = None) -> str:
             errors.append(f"{relative_path}: expected {canonical}, got {actual}")
 
     pyproject = root / "pyproject.toml"
-    if not _hatch_uses_canonical_version(pyproject):
+    if is_framework_repo and not _hatch_uses_canonical_version(pyproject):
         errors.append("pyproject.toml: [tool.hatch.version] path must be VERSION")
 
     if errors:
