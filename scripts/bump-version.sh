@@ -135,9 +135,17 @@ echo -e "\n${FW_YELLOW}Changes:${FW_NC}"
 git diff || true
 
 # Verification: use the same fail-closed checker as CI and PyPI publishing.
-echo -e "\n${FW_YELLOW}Verification:${FW_NC}"
-python3 "$SCRIPT_DIR/check_version_integrity.py" \
-    --root "$FW_PROJECT_ROOT" \
-    --expected "$VERSION"
+# The canonical-VERSION verifier only applies to repos whose primary source IS
+# the VERSION file (the framework layout, and consumers that adopted it).
+# package.json/version.json-primary consumers skip it — their layout has no
+# canonical VERSION file for the verifier to anchor on (ADR-048).
+if [ "$PRIMARY_SOURCE" = "VERSION" ]; then
+    echo -e "\n${FW_YELLOW}Verification:${FW_NC}"
+    python3 "$SCRIPT_DIR/check_version_integrity.py" \
+        --root "$FW_PROJECT_ROOT" \
+        --expected "$VERSION"
+else
+    echo -e "\n${FW_YELLOW}Verification skipped:${FW_NC} versioning.primary_source is '$PRIMARY_SOURCE' (canonical-VERSION verifier applies only to VERSION-primary repos)"
+fi
 
 echo -e "\n${FW_GREEN}Version bump to $VERSION complete${FW_NC}"
