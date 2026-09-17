@@ -16,6 +16,7 @@
 #   ./scripts/codex-hooks-install.sh              # Install into $CODEX_HOME/config.toml
 #   ./scripts/codex-hooks-install.sh --dry-run    # Show what would change, write nothing
 #   ./scripts/codex-hooks-install.sh --codex-home /path/to/.codex
+#   ./scripts/codex-hooks-install.sh --enable-release-docs
 #
 # Idempotent: safe to re-run. Detects each hook entry independently (exact-line
 # match) and appends only the ones missing -- a partial install (e.g. only one
@@ -31,6 +32,7 @@ source "$SCRIPT_DIR/_framework.sh"
 
 CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
 DRY_RUN=0
+RELEASE_DOCS_ENABLED=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -46,6 +48,10 @@ while [ $# -gt 0 ]; do
             DRY_RUN=1
             shift
             ;;
+        --enable-release-docs)
+            RELEASE_DOCS_ENABLED=1
+            shift
+            ;;
         --help|-h)
             sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
@@ -56,6 +62,17 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+if [ "$RELEASE_DOCS_ENABLED" -eq 0 ] && [ -f "config/framework.yaml" ]; then
+    if awk '
+        /^hooks:[[:space:]]*$/ { in_hooks=1; next }
+        in_hooks && /^[^[:space:]#]/ { in_hooks=0 }
+        in_hooks && /^[[:space:]]+release_docs_gate:[[:space:]]*true([[:space:]#].*)?$/ { found=1 }
+        END { exit(found ? 0 : 1) }
+    ' config/framework.yaml; then
+        RELEASE_DOCS_ENABLED=1
+    fi
+fi
 
 if [ ! -d "$CODEX_HOME_DIR" ]; then
     echo "ERROR: Codex home not found: $CODEX_HOME_DIR" >&2
@@ -74,7 +91,7 @@ for p in "$GATE_PATH" "$GUARD_PATH"; do
     fi
 done
 
-python3 - "$CONFIG_TOML" "$GATE_PATH" "$GUARD_PATH" "$FW_PROJECT_ROOT" "$DRY_RUN" <<'PYEOF'
+python3 - "$CONFIG_TOML" "$GATE_PATH" "$GUARD_PATH" "$FW_PROJECT_ROOT" "$DRY_RUN" "$RELEASE_DOCS_ENABLED" <<'PYEOF'
 import re
 import shutil
 import sys
@@ -82,15 +99,20 @@ import tomllib
 from datetime import datetime
 from pathlib import Path
 
-config_path_str, gate_path, guard_path, project_root, dry_run_str = sys.argv[1:6]
+config_path_str, gate_path, guard_path, project_root, dry_run_str, release_docs_str = sys.argv[1:7]
 config_path = Path(config_path_str)
 dry_run = dry_run_str == "1"
+release_docs_enabled = release_docs_str == "1"
 
 sys.path.insert(0, str(Path(project_root) / "src"))
 from shipteam.codex_config import CodexHookSpec, render_codex_config_multi  # noqa: E402
 
 specs = [
-    CodexHookSpec(gate_path, status_message="ShipTeam safety gate"),
+    CodexHookSpec(
+        gate_path,
+        timeout=15 if release_docs_enabled else 10,
+        status_message="ShipTeam safety gate",
+    ),
     CodexHookSpec(guard_path, status_message="ShipTeam session-lock guard"),
 ]
 
@@ -129,6 +151,27 @@ content, codex_hooks_removed = re.subn(
 )
 
 
+def _repair_safety_timeout(text):
+    if not release_docs_enabled:
+        return text, False
+    lines = text.splitlines(keepends=True)
+    command_pattern = f'python3 \\"{gate_path}'
+    for index, line in enumerate(lines):
+        if line.startswith("command = ") and command_pattern in line:
+            for timeout_index in range(index + 1, min(index + 6, len(lines))):
+                if re.match(r"^timeout\s*=", lines[timeout_index]):
+                    ending = "\n" if lines[timeout_index].endswith("\n") else ""
+                    desired = f"timeout = 15{ending}"
+                    if lines[timeout_index] == desired:
+                        return text, False
+                    lines[timeout_index] = desired
+                    return "".join(lines), True
+    return text, False
+
+
+content, timeout_repaired = _repair_safety_timeout(content)
+
+
 def _line_present(line, text):
     # Exact-line match, not substring: a commented-out `# command = "..."` (a
     # user disabling the hook) contains the bare command string as a
@@ -138,14 +181,14 @@ def _line_present(line, text):
 
 missing_blocks = [block_text for command_line, block_text in rendered_blocks if not _line_present(command_line, content)]
 
-if not missing_blocks and not codex_hooks_removed:
+if not missing_blocks and not codex_hooks_removed and not timeout_repaired:
     print(f"Already installed: both ShipTeam hook entries found in {config_path}. No changes made.")
     sys.exit(0)
 
-if not missing_blocks and codex_hooks_removed:
+if not missing_blocks and (codex_hooks_removed or timeout_repaired):
     print(
-        f"Both ShipTeam hook entries already present; migrating {codex_hooks_removed} "
-        f"deprecated `codex_hooks` line(s) to rely on `hooks` (Codex >= v0.144.5)."
+        "Both ShipTeam hook entries already present; repairing local configuration "
+        f"(deprecated flags removed={codex_hooks_removed}, safety timeout repaired={timeout_repaired})."
     )
 
 if len(missing_blocks) < len(rendered_blocks):

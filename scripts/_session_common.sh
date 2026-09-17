@@ -116,24 +116,53 @@ start_frontend_server() {
     cd "$fe_dir" || { echo "   Cannot cd to $fe_dir"; return 1; }
     local logfile="/tmp/frontend-$port.log"
     touch "$logfile" && chmod 600 "$logfile"
-    # PORT env var is the universal fallback (Next.js reads it natively).
-    # port_flag (e.g., "--port" for Vite, "-p" for Next.js) is additive for
-    # frameworks that need an explicit CLI arg. Empty port_flag = PORT-only mode.
-    if [ -n "$FRONTEND_PORT_FLAG" ]; then
-        PORT=$port BROWSER=none $FRONTEND_START_CMD -- $FRONTEND_PORT_FLAG $port > "$logfile" 2>&1 &
-    else
-        PORT=$port BROWSER=none $FRONTEND_START_CMD > "$logfile" 2>&1 &
-    fi
+    # Parse the configured command as argv, never as shell source. The Python
+    # supervisor creates a dedicated process group and remains its identifiable
+    # leader while the configured command runs.
+    # Default the owner token here, in the shared lib, for the same reason
+    # fw_session_create_codex_lock defaults its `claimed` argument: the
+    # launchers that export FW_SESSION_OWNER_TOKEN are template-policy files
+    # consumers customize and fw-sync never auto-updates, so a consumer on a
+    # current shared lib can still be running a launcher that predates the
+    # token. A bare expansion aborts such a launcher outright under the
+    # `set -euo pipefail` inherited from _framework.sh. The token only has to
+    # pair this spawn with the identity probe below, so a launch-local value
+    # is sufficient whenever no session owner supplied one.
+    FRONTEND_GROUP_TOKEN="${FW_SESSION_OWNER_TOKEN:-fw-session-$$}-frontend"
+    PORT=$port BROWSER=none python3 -c '
+import os
+import shlex
+import signal
+import subprocess
+import sys
+
+token, command, port_flag, port = sys.argv[1:]
+argv = shlex.split(command)
+if not argv:
+    raise SystemExit("frontend start command is empty")
+if port_flag:
+    argv.extend(["--", port_flag, port])
+os.setsid()
+# Keep the identifiable group leader alive until its direct child resolves.
+# TERM still reaches the entire group; ordinary children exit and release this
+# wait, while a stubborn child leaves the supervisor alive for the bounded
+# cleanup probe to detect without an unbounded shell `wait`.
+signal.signal(signal.SIGTERM, lambda _signum, _frame: None)
+child = subprocess.Popen(argv)
+raise SystemExit(child.wait())
+' "$FRONTEND_GROUP_TOKEN" "$FRONTEND_START_CMD" \
+        "$FRONTEND_PORT_FLAG" "$port" > "$logfile" 2>&1 &
     FRONTEND_PID=$!
+    FRONTEND_PGID=$FRONTEND_PID
 
     sleep 3
 
-    if kill -0 $FRONTEND_PID 2>/dev/null; then
+    if fw_session_frontend_identity_matches \
+        "$FRONTEND_PID" "$FRONTEND_PGID" "$FRONTEND_GROUP_TOKEN"; then
         echo "   Frontend running: http://localhost:$port"
         return 0
     else
         echo "   Frontend failed to start (check /tmp/frontend-$port.log)"
-        FRONTEND_PID=""
         return 1
     fi
 }
@@ -143,13 +172,14 @@ start_frontend_server() {
 # ===================================================================
 
 # Create the session lock for a Codex session via path_utils.create_session_lock
-# — Codex has no SessionStart-equivalent hook, so nothing else ever creates a
-# fresh lock for a Codex session (checkout-guard.py only refreshes an existing
-# own-lock or blocks a foreign one; it never creates one). Honors a live
+# — this protects startup before a trusted Codex SessionStart hook can replace
+# the placeholder with the real session identity. checkout-guard provides the
+# first-tool fallback when SessionStart is unavailable. Honors a live
 # foreign session's lock (e.g. a Claude session resuming this same worktree)
 # rather than silently overwriting it. See docs/adr/039-codex-session-lock-guard-port.md.
 # Args: $1=session_id $2=branch $3=worktree_dir (must contain .claude/hooks)
 #       $4=claimed ("true"/"false", default "false"). This function is CODEX-ONLY
+#       $5=optional owner token
 #       (its sole caller is codex-session.sh) and by construction always runs
 #       BEFORE `codex` starts and mints its real session_id — so the lock it
 #       writes is ALWAYS a placeholder. The default is therefore "false", which
@@ -162,11 +192,38 @@ start_frontend_server() {
 # Echoes: "OK" (lock acquired), "CONFLICT" (live foreign lock OR the lock write
 # itself failed — see stderr), or "ERROR:<msg>" (import/exec failure before
 # create_session_lock could run)
+fw_session_install_codex_permission_profile() {
+    local worktree_dir="$1"
+    local framework_root
+    local runtime
+    framework_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)" || {
+        echo "ERROR:cannot resolve trusted session framework"
+        return 1
+    }
+    runtime="$framework_root/.claude/hooks/codex_permissions.py"
+    if [ ! -f "$runtime" ] || [ -L "$runtime" ]; then
+        echo "ERROR:trusted Codex permission profile runtime is missing or unsafe"
+        return 1
+    fi
+    python3 "$runtime" "$worktree_dir"
+}
+
 fw_session_create_codex_lock() {
     local session_id="$1"
     local branch="$2"
     local worktree_dir="$3"
     local claimed="${4:-false}"
+    local owner_token="${5:-}"
+    local permission_result
+
+    if ! permission_result="$(fw_session_install_codex_permission_profile "$worktree_dir" 2>&1)"; then
+        echo "${permission_result:-ERROR:Codex permission profile install failed}"
+        return 0
+    fi
+    if [ "$permission_result" != "OK" ]; then
+        echo "${permission_result:-ERROR:Codex permission profile install returned no result}"
+        return 0
+    fi
 
     # create_session_lock() resolves its target path via get_state_dir(),
     # which walks cwd upward looking for .git — it must run with cwd inside
@@ -174,13 +231,20 @@ fw_session_create_codex_lock() {
     # Subshell so this never mutates the caller's cwd.
     (
         cd "$worktree_dir" || { echo "ERROR:cannot cd to $worktree_dir"; exit 0; }
-        python3 - "$session_id" "$branch" "$worktree_dir" "$claimed" <<'PYEOF'
+        python3 - "$session_id" "$branch" "$worktree_dir" "$claimed" "$owner_token" <<'PYEOF'
 import sys
 sys.path.insert(0, f"{sys.argv[3]}/.claude/hooks")
 try:
     from path_utils import create_session_lock
     claimed = sys.argv[4].lower() == "true"
-    print("OK" if create_session_lock(sys.argv[1], sys.argv[2], claimed=claimed) else "CONFLICT")
+    owner_token = sys.argv[5] or None
+    print(
+        "OK"
+        if create_session_lock(
+            sys.argv[1], sys.argv[2], claimed=claimed, owner_token=owner_token
+        )
+        else "CONFLICT"
+    )
 except Exception as e:
     print(f"ERROR:{e}")
 PYEOF
@@ -191,27 +255,764 @@ PYEOF
 # Worktree Preservation Guard
 # ===================================================================
 
-# Decide whether the current worktree (caller must already be cd'd into it)
-# has unsaved work that makes destroying it unsafe. Echoes a non-empty
-# reason string if so, empty string if safe to destroy. Relies on the
-# caller's $BRANCH_NAME global — session/* branches are exempt from the
-# unpushed-commits check (disposable by design).
-fw_session_check_preserve_reason() {
-    local reason=""
-    if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-        reason="uncommitted changes"
-    elif [[ "$BRANCH_NAME" != session/* ]]; then
-        # Non-session branch: check for unpushed commits.
-        # No upstream = never pushed = treat all commits as unpushed.
-        if ! git rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then
-            if [ -n "$(git log --oneline 2>/dev/null | head -1)" ]; then
-                reason="branch has no upstream (commits would be lost)"
-            fi
-        elif [ -n "$(git log '@{u}..' --oneline 2>/dev/null)" ]; then
-            reason="unpushed commits"
-        fi
+# Run Git against an exact worktree after removing inherited overrides that
+# would otherwise disable repository discovery and pin probes elsewhere.
+fw_session_git_at_worktree() {
+    local exact_worktree_path="$1"
+    shift
+
+    env -u GIT_DIR -u GIT_WORK_TREE \
+        git -C "$exact_worktree_path" "$@"
+}
+
+# Capture the immutable device/inode identity of one exact physical directory.
+# The caller separately retains its canonical path for later comparison.
+fw_session_capture_directory_identity() {
+    local exact_path="$1"
+    local canonical_path="$2"
+    python3 - "$exact_path" "$canonical_path" <<'PYEOF'
+import os
+import stat
+import sys
+
+exact, canonical = sys.argv[1:]
+entry = os.lstat(exact)
+if not stat.S_ISDIR(entry.st_mode) or os.path.realpath(exact) != canonical:
+    raise SystemExit(1)
+print(entry.st_dev, entry.st_ino)
+PYEOF
+}
+
+# Remove only `.claude-port` relative to the captured physical worktree
+# directory. Opening with O_NOFOLLOW plus fstat identity verification prevents
+# an intermediate or final path replacement from redirecting the unlink.
+fw_session_unlink_port_file() {
+    local exact_worktree_path="$1"
+    local canonical_worktree="$2"
+    local expected_dev="$3"
+    local expected_ino="$4"
+
+    if [ "${FW_TEST_PORT_UNLINK_FAIL:-}" = "1" ]; then
+        echo "injected anchored port-file unlink failure" >&2
+        return 74
     fi
-    echo "$reason"
+    python3 - \
+        "$exact_worktree_path" "$canonical_worktree" \
+        "$expected_dev" "$expected_ino" <<'PYEOF'
+import errno
+import os
+import stat
+import sys
+
+exact, canonical, expected_dev, expected_ino = sys.argv[1:]
+expected = (int(expected_dev), int(expected_ino))
+try:
+    entry = os.lstat(exact)
+except OSError as error:
+    print(f"worktree identity probe failed: {error}", file=sys.stderr)
+    raise SystemExit(1)
+if (
+    not stat.S_ISDIR(entry.st_mode)
+    or (entry.st_dev, entry.st_ino) != expected
+    or os.path.realpath(exact) != canonical
+):
+    print("worktree identity changed before port-file cleanup", file=sys.stderr)
+    raise SystemExit(1)
+
+flags = os.O_RDONLY
+flags |= getattr(os, "O_DIRECTORY", 0)
+flags |= getattr(os, "O_NOFOLLOW", 0)
+try:
+    directory_fd = os.open(exact, flags)
+except OSError as error:
+    print(f"could not open captured worktree: {error}", file=sys.stderr)
+    raise SystemExit(1)
+try:
+    opened = os.fstat(directory_fd)
+    if (opened.st_dev, opened.st_ino) != expected:
+        print("opened worktree identity does not match capture", file=sys.stderr)
+        raise SystemExit(1)
+    try:
+        port_entry = os.stat(".claude-port", dir_fd=directory_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        raise SystemExit(0)
+    if stat.S_ISLNK(port_entry.st_mode):
+        print("refusing symlink .claude-port entry", file=sys.stderr)
+        raise SystemExit(1)
+    try:
+        os.unlink(".claude-port", dir_fd=directory_fd)
+    except FileNotFoundError:
+        pass
+finally:
+    os.close(directory_fd)
+PYEOF
+}
+
+# Classify one exact worktree path from the main checkout.  Python consumes
+# Git's bytes directly so command substitution cannot trim records and paths
+# quoted by pre-2.36 porcelain output are decoded without requiring `-z`.
+# Echoes: unknown, fully-absent, unregistered-with-residue,
+# registered-and-missing<TAB>branch, or registered-and-present<TAB>branch.
+fw_session_classify_worktree() {
+    local main_checkout="$1"
+    local exact_worktree_path="$2"
+
+    env -u GIT_DIR -u GIT_WORK_TREE \
+        python3 - "$main_checkout" "$exact_worktree_path" <<'PYEOF'
+import os
+import subprocess
+import sys
+
+main_checkout, target = sys.argv[1:]
+env = os.environ.copy()
+env.pop("GIT_DIR", None)
+env.pop("GIT_WORK_TREE", None)
+try:
+    result = subprocess.run(
+        ["git", "-C", main_checkout, "worktree", "list", "--porcelain"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        env=env,
+        check=False,
+    )
+except OSError:
+    print("unknown")
+    raise SystemExit
+if result.returncode:
+    print("unknown")
+    raise SystemExit
+
+def unquote_git_path(value):
+    if not (value.startswith(b'"') and value.endswith(b'"')):
+        return os.fsdecode(value)
+    value = value[1:-1]
+    output = bytearray()
+    escapes = {
+        ord("a"): 7, ord("b"): 8, ord("t"): 9, ord("n"): 10,
+        ord("v"): 11, ord("f"): 12, ord("r"): 13,
+        ord("\\"): 92, ord('"'): 34,
+    }
+    index = 0
+    while index < len(value):
+        byte = value[index]
+        if byte != 92:
+            output.append(byte)
+            index += 1
+            continue
+        index += 1
+        if index >= len(value):
+            output.append(92)
+            break
+        byte = value[index]
+        if 48 <= byte <= 55:
+            digits = bytearray()
+            while index < len(value) and len(digits) < 3 and 48 <= value[index] <= 55:
+                digits.append(value[index])
+                index += 1
+            output.append(int(digits.decode("ascii"), 8))
+            continue
+        output.append(escapes.get(byte, byte))
+        index += 1
+    return os.fsdecode(bytes(output))
+
+canonical_target = os.path.realpath(target)
+registered_branch = None
+for record in result.stdout.split(b"\n\n"):
+    path = None
+    branch = ""
+    for line in record.splitlines():
+        if line.startswith(b"worktree "):
+            path = unquote_git_path(line[len(b"worktree "):])
+        elif line.startswith(b"branch "):
+            branch = os.fsdecode(line[len(b"branch "):])
+        elif line == b"detached":
+            branch = "(detached)"
+    if path is not None and os.path.realpath(path) == canonical_target:
+        registered_branch = branch or "(unknown)"
+        break
+
+present = os.path.lexists(target)
+if registered_branch is not None:
+    state = "registered-and-present" if present else "registered-and-missing"
+    print(f"{state}\t{registered_branch}")
+elif present:
+    print("unregistered-with-residue")
+else:
+    print("fully-absent")
+PYEOF
+}
+
+# Refuse to resume a directory unless Git registers that exact path for the
+# exact requested local branch. This closes collisions in the legacy
+# slash-to-hyphen directory encoding (for example feat/a-b vs feat-a/b).
+fw_session_validate_existing_worktree() {
+    local main_checkout="$1"
+    local exact_worktree_path="$2"
+    local expected_branch="$3"
+    local observed state branch
+
+    observed="$(fw_session_classify_worktree "$main_checkout" "$exact_worktree_path")"
+    state="${observed%%	*}"
+    if [ "$observed" = "$state" ]; then
+        branch=""
+    else
+        branch="${observed#*	}"
+    fi
+    if [ "$state" != "registered-and-present" ]; then
+        echo "ERROR: refusing to resume $exact_worktree_path: exact worktree state is $state" >&2
+        return 1
+    fi
+    if [ "$branch" != "refs/heads/$expected_branch" ]; then
+        echo "ERROR: refusing to resume $exact_worktree_path: registered branch is $branch, requested refs/heads/$expected_branch (directory-name collision or stale worktree)" >&2
+        return 1
+    fi
+    if [ ! -d "$exact_worktree_path" ] || [ -L "$exact_worktree_path" ]; then
+        echo "ERROR: refusing to resume $exact_worktree_path: target is not a physical directory" >&2
+        return 1
+    fi
+}
+
+# Validate the launcher-owned lock and emit stable evidence for a later
+# same-instance recheck. A non-OK line is a user-facing preserve reason.
+fw_session_check_lock_reason() {
+    local lock_path="$1"
+    local ownership_nonce="$2"
+    local expected_branch="$3"
+    local canonical_worktree="$4"
+
+    python3 - \
+        "$lock_path" "$ownership_nonce" "$expected_branch" \
+        "$canonical_worktree" <<'PYEOF'
+import json
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+lock_path = Path(sys.argv[1])
+canonical_worktree = Path(os.path.realpath(sys.argv[4]))
+expected_lock = canonical_worktree / ".claude" / "state" / "session-lock.json"
+if (
+    not lock_path.is_file()
+    or lock_path.is_symlink()
+    or Path(os.path.realpath(lock_path)) != expected_lock
+):
+    print("session lock is missing")
+    raise SystemExit
+try:
+    resolved_lock = lock_path.resolve(strict=True)
+    if resolved_lock != expected_lock:
+        raise ValueError("lock resolved outside canonical worktree")
+    before = resolved_lock.stat()
+    lock = json.loads(resolved_lock.read_text())
+    after = resolved_lock.stat()
+except Exception:
+    print("session lock is malformed")
+    raise SystemExit
+if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
+    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns
+):
+    print("session lock changed during validation")
+    raise SystemExit
+if not isinstance(lock, dict):
+    print("session lock schema is invalid")
+    raise SystemExit
+if not isinstance(lock.get("session_id"), str) or not lock["session_id"]:
+    print("session lock schema is invalid")
+    raise SystemExit
+pid = lock.get("pid")
+if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+    print("session lock schema is invalid")
+    raise SystemExit
+try:
+    started = datetime.fromisoformat(lock["started_at"].replace("Z", "+00:00"))
+    started_age = (datetime.now(started.tzinfo) - started).total_seconds()
+    if started_age < 0:
+        print("session lock start time is invalid")
+        raise SystemExit
+except (KeyError, TypeError, ValueError):
+    print("session lock schema is invalid")
+    raise SystemExit
+try:
+    heartbeat = datetime.fromisoformat(
+        lock["last_heartbeat"].replace("Z", "+00:00")
+    )
+    now = datetime.now(heartbeat.tzinfo)
+    age_seconds = (now - heartbeat).total_seconds()
+    if age_seconds < 0:
+        print("session lock heartbeat is invalid")
+        raise SystemExit
+    if age_seconds > 1800:
+        print("session lock is stale")
+        raise SystemExit
+except (KeyError, TypeError, ValueError):
+    print("session lock is stale")
+    raise SystemExit
+if lock.get("claimed") is not True:
+    print("session lock is not claimed")
+elif lock.get("owner_token") != sys.argv[2]:
+    print("session lock owner mismatch")
+elif lock.get("branch") != sys.argv[3]:
+    print("session lock branch mismatch")
+elif lock.get("worktree_path") != sys.argv[4]:
+    print("session lock worktree mismatch")
+else:
+    evidence = [
+        str(resolved_lock),
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    ]
+    print("OK:" + json.dumps(evidence, separators=(",", ":")))
+PYEOF
+}
+
+# Echo a non-empty reason unless CLEAN_WORKTREE=true and
+# FW_SESSION_CLEANUP_ARMED=true and the request proves lock ownership, exact
+# worktree/branch identity, clean Git-visible state, and local commit
+# containment. Zero-argument legacy callers always preserve.
+fw_session_check_preserve_reason() {
+    if [ "$#" -eq 0 ]; then
+        echo "cleanup ownership was not validated"
+        return 0
+    fi
+
+    local exact_worktree_path="$1"
+    local expected_branch="$2"
+    local ownership_nonce="$3"
+    local launch_base_oid="$4"
+    local branch_created_this_launch="$5"
+
+    if [ "${CLEAN_WORKTREE:-}" != "true" ] || \
+       [ "${FW_SESSION_CLEANUP_ARMED:-}" != "true" ] || \
+       [ -z "$ownership_nonce" ]; then
+        echo "cleanup request is not armed"
+        return 0
+    fi
+
+    local canonical_worktree
+    canonical_worktree="$(cd "$exact_worktree_path" 2>/dev/null && pwd -P)" || {
+        echo "worktree probe failed"
+        return 0
+    }
+
+    local initial_lock_evidence
+    if ! initial_lock_evidence="$(
+        fw_session_check_lock_reason \
+            "$exact_worktree_path/.claude/state/session-lock.json" \
+            "$ownership_nonce" "$expected_branch" "$canonical_worktree"
+    )"; then
+        echo "session lock probe failed"
+        return 0
+    fi
+    if [[ "$initial_lock_evidence" != OK:* ]]; then
+        echo "$initial_lock_evidence"
+        return 0
+    fi
+
+    local current_branch
+    current_branch="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" symbolic-ref --quiet --short HEAD 2>/dev/null
+    )" || {
+        echo "worktree branch could not be resolved"
+        return 0
+    }
+    if [ "$current_branch" != "$expected_branch" ]; then
+        echo "worktree branch mismatch"
+        return 0
+    fi
+
+    local status_output
+    status_output="$(
+        mktemp "${TMPDIR:-/tmp}/shipteam-status.XXXXXX"
+    )" || {
+        echo "worktree status probe failed"
+        return 0
+    }
+    if ! \
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" status \
+            --porcelain=v1 -z --untracked-files=all \
+            --ignore-submodules=none >"$status_output" 2>/dev/null; then
+        rm -f "$status_output"
+        echo "worktree status probe failed"
+        return 0
+    fi
+    if [ -s "$status_output" ]; then
+        rm -f "$status_output"
+        echo "worktree has uncommitted changes"
+        return 0
+    fi
+    rm -f "$status_output"
+
+    local ahead_reason
+    ahead_reason="$(
+        fw_session_check_ahead_reason \
+            "$exact_worktree_path" "$launch_base_oid" \
+            "$branch_created_this_launch"
+    )"
+    if [ -n "$ahead_reason" ]; then
+        echo "$ahead_reason"
+        return 0
+    fi
+
+    local final_lock_evidence
+    if ! final_lock_evidence="$(
+        fw_session_check_lock_reason \
+            "$exact_worktree_path/.claude/state/session-lock.json" \
+            "$ownership_nonce" "$expected_branch" "$canonical_worktree"
+    )"; then
+        echo "session lock probe failed"
+        return 0
+    fi
+    if [[ "$final_lock_evidence" != OK:* ]]; then
+        echo "$final_lock_evidence"
+        return 0
+    fi
+    if [ "$final_lock_evidence" != "$initial_lock_evidence" ]; then
+        echo "session lock changed during validation"
+        return 0
+    fi
+    echo ""
+}
+
+fw_session_check_ahead_reason() {
+    local exact_worktree_path="$1"
+    local launch_base_oid="$2"
+    local branch_created_this_launch="$3"
+
+    if ! fw_session_git_at_worktree \
+        "$exact_worktree_path" rev-parse --is-inside-work-tree \
+        >/dev/null 2>&1; then
+        echo "repository probe failed"
+        return 0
+    fi
+
+    local head_oid
+    head_oid="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" rev-parse --verify 'HEAD^{commit}' 2>/dev/null
+    )" || {
+        echo "HEAD probe failed"
+        return 0
+    }
+    if ! fw_session_git_at_worktree \
+        "$exact_worktree_path" cat-file -e "$head_oid^{commit}" \
+        >/dev/null 2>&1; then
+        echo "HEAD object probe failed"
+        return 0
+    fi
+
+    if [ "$branch_created_this_launch" = "true" ]; then
+        local baseline_oid
+        baseline_oid="$(
+            fw_session_git_at_worktree \
+                "$exact_worktree_path" rev-parse --verify \
+                "$launch_base_oid^{commit}" 2>/dev/null
+        )" || {
+            echo "launch baseline $launch_base_oid is invalid (probe failed)"
+            return 0
+        }
+        if [ "$head_oid" != "$baseline_oid" ]; then
+            echo "branch HEAD $head_oid moved from launch baseline $launch_base_oid"
+        else
+            echo ""
+        fi
+        return 0
+    fi
+
+    local current_branch upstream remote
+    current_branch="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" symbolic-ref --quiet --short HEAD 2>/dev/null
+    )" || {
+        echo "branch could not be resolved"
+        return 0
+    }
+    upstream="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" rev-parse \
+            --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null
+    )" || {
+        echo "branch has no remote upstream"
+        return 0
+    }
+    remote="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" config --get \
+            "branch.$current_branch.remote" 2>/dev/null
+    )" || true
+    if [ -z "$remote" ] || [ "$remote" = "." ]; then
+        echo "branch upstream is not remote"
+        return 0
+    fi
+    local upstream_oid
+    upstream_oid="$(
+        fw_session_git_at_worktree \
+            "$exact_worktree_path" rev-parse --verify \
+            "$upstream^{commit}" 2>/dev/null
+    )" || {
+        echo "upstream $upstream probe failed"
+        return 0
+    }
+    local merge_base_status
+    if fw_session_git_at_worktree \
+        "$exact_worktree_path" merge-base --is-ancestor \
+        "$head_oid" "$upstream_oid" >/dev/null 2>&1; then
+        echo ""
+        return 0
+    else
+        merge_base_status=$?
+    fi
+    if [ "$merge_base_status" -eq 1 ]; then
+        echo "branch HEAD $head_oid is ahead of or not contained by upstream $upstream"
+        return 0
+    fi
+    echo "reachability probe failed for HEAD $head_oid and upstream $upstream"
+}
+
+# Remove one exact worktree from the main checkout without forcing or pruning.
+# On failure, leave git's stderr visible and report the exact state observed by
+# a fresh registration/path probe.
+fw_session_remove_worktree() {
+    local main_checkout="$1"
+    local exact_worktree_path="$2"
+    local ownership_nonce="$3"
+    local expected_branch="$4"
+    local canonical_snapshot="$5"
+    local remove_status
+
+    python3 - \
+        "$main_checkout" "$exact_worktree_path" \
+        "$ownership_nonce" "$expected_branch" "$canonical_snapshot" <<'PYEOF'
+import fcntl
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+(
+    main,
+    selected_target,
+    owner_token,
+    expected_branch,
+    canonical_snapshot,
+) = sys.argv[1:]
+if (
+    not os.path.isabs(selected_target)
+    or os.path.islink(selected_target)
+    or not os.path.isdir(selected_target)
+):
+    print("  Worktree removal failed: target identity changed", file=sys.stderr)
+    raise SystemExit(1)
+if (
+    not os.path.isabs(canonical_snapshot)
+    or os.path.realpath(canonical_snapshot) != canonical_snapshot
+    or os.path.realpath(selected_target) != canonical_snapshot
+):
+    print("  Worktree removal failed: target identity changed", file=sys.stderr)
+    raise SystemExit(1)
+lock_path = (
+    Path(canonical_snapshot) / ".claude" / "state" / "session-lock.json"
+)
+guard_path = lock_path.with_name(lock_path.name + ".guard")
+flags = os.O_CREAT | os.O_RDWR
+flags |= getattr(os, "O_CLOEXEC", 0)
+flags |= getattr(os, "O_NOFOLLOW", 0)
+fd = os.open(guard_path, flags, 0o600)
+with os.fdopen(fd, "a+") as guard:
+    fcntl.flock(guard.fileno(), fcntl.LOCK_EX)
+    try:
+        if lock_path.is_symlink() or lock_path.resolve(strict=True) != lock_path:
+            raise ValueError("lock path changed")
+        lock = json.loads(lock_path.read_text())
+        if not isinstance(lock, dict):
+            raise ValueError("lock schema")
+        if lock.get("claimed") is not True:
+            raise ValueError("lock is not claimed")
+        if lock.get("owner_token") != owner_token:
+            raise ValueError("lock owner mismatch")
+        if lock.get("branch") != expected_branch:
+            raise ValueError("lock branch mismatch")
+        if lock.get("worktree_path") != canonical_snapshot:
+            raise ValueError("lock worktree mismatch")
+        for key in ("started_at", "last_heartbeat"):
+            parsed = datetime.fromisoformat(lock[key].replace("Z", "+00:00"))
+            age = (datetime.now(parsed.tzinfo) - parsed).total_seconds()
+            if age < 0:
+                raise ValueError(f"{key} is in the future")
+            if key == "last_heartbeat" and age > 1800:
+                raise ValueError("lock is stale")
+        env = os.environ.copy()
+        env.pop("GIT_DIR", None)
+        env.pop("GIT_WORK_TREE", None)
+        top = subprocess.run(
+            ["git", "-C", canonical_snapshot, "rev-parse", "--show-toplevel"],
+            env=env, text=True, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        branch = subprocess.run(
+            ["git", "-C", canonical_snapshot, "symbolic-ref",
+             "--quiet", "--short", "HEAD"],
+            env=env, text=True, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        if (
+            top.returncode != 0
+            or os.path.realpath(top.stdout.strip()) != canonical_snapshot
+            or branch.returncode != 0
+            or branch.stdout.strip() != expected_branch
+        ):
+            raise ValueError("worktree registration or branch changed")
+    except Exception as exc:
+        print(
+            f"  Worktree removal failed: session lock validation: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    # Keep the authorization guard through Git's non-force removal.
+    completed = subprocess.run(
+        ["git", "-C", main, "worktree", "remove", canonical_snapshot],
+        env=env,
+    )
+    raise SystemExit(completed.returncode)
+PYEOF
+    remove_status=$?
+
+    local observed
+    observed="$(fw_session_classify_worktree "$main_checkout" "$exact_worktree_path")"
+    observed="${observed%%	*}"
+    if [ "$remove_status" -eq 0 ] && [ "$observed" = "fully-absent" ]; then
+        return 0
+    fi
+
+    echo "  Worktree removal failed: $observed" >&2
+    if [ "$remove_status" -eq 0 ]; then
+        return 1
+    fi
+    return "$remove_status"
+}
+
+# Verify that the direct supervisor still has the expected process group and
+# random argv token immediately before group signaling.
+fw_session_frontend_identity_matches() {
+    local frontend_pid="$1"
+    local frontend_pgid="$2"
+    local frontend_token="$3"
+
+    if [ "${FW_TEST_FRONTEND_IDENTITY_FAIL_COUNT:-0}" -gt 0 ] 2>/dev/null; then
+        FW_TEST_FRONTEND_IDENTITY_FAIL_COUNT=$(
+            expr "${FW_TEST_FRONTEND_IDENTITY_FAIL_COUNT:-0}" - 1
+        )
+        export FW_TEST_FRONTEND_IDENTITY_FAIL_COUNT
+        echo "injected transient frontend identity-probe failure" >&2
+        return 1
+    fi
+    python3 - "$frontend_pid" "$frontend_pgid" "$frontend_token" <<'PYEOF'
+import subprocess
+import sys
+
+pid, expected_pgid, token = sys.argv[1:]
+try:
+    result = subprocess.run(
+        ["ps", "-o", "pgid=", "-o", "command=", "-p", pid],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+except OSError:
+    raise SystemExit(1)
+line = result.stdout.strip()
+if result.returncode or not line:
+    raise SystemExit(1)
+parts = line.split(None, 1)
+if len(parts) != 2 or parts[0] != expected_pgid or token not in parts[1]:
+    raise SystemExit(1)
+PYEOF
+}
+
+# Return success while any non-zombie member of the exact group lives.
+fw_session_frontend_group_has_live_members() {
+    local frontend_pgid="$1"
+    python3 - "$frontend_pgid" <<'PYEOF'
+import subprocess
+import sys
+
+expected = int(sys.argv[1])
+try:
+    result = subprocess.run(
+        ["ps", "-eo", "pid=,pgid=,stat="],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=False,
+    )
+except OSError:
+    raise SystemExit(2)
+if result.returncode:
+    raise SystemExit(2)
+for line in result.stdout.splitlines():
+    parts = line.split()
+    if len(parts) >= 3 and int(parts[1]) == expected and "Z" not in parts[2]:
+        raise SystemExit(0)
+raise SystemExit(1)
+PYEOF
+}
+
+# Stop and reap the launcher-owned process group. Identity is checked before
+# TERM and disappearance is bounded; an unverified or stubborn tree fails
+# closed so its worktree is not removed.
+fw_session_stop_frontend() {
+    local frontend_pid="$1"
+    local frontend_pgid="$2"
+    local frontend_token="$3"
+    local attempts=0
+    local group_status
+
+    case "$frontend_pid" in
+        ''|*[!0-9]*)
+            echo "  Frontend cleanup failed: invalid process-group identity" >&2
+            return 1
+            ;;
+    esac
+    case "$frontend_pgid" in
+        ''|*[!0-9]*)
+            echo "  Frontend cleanup failed: invalid process-group identity" >&2
+            return 1
+            ;;
+    esac
+    if ! fw_session_frontend_identity_matches \
+        "$frontend_pid" "$frontend_pgid" "$frontend_token"; then
+        echo "  Frontend cleanup failed: launcher-owned process identity could not be verified; preserving worktree" >&2
+        return 1
+    fi
+    echo "   Stopping frontend process group $frontend_pgid..."
+    kill -TERM -- "-$frontend_pgid" 2>/dev/null || {
+        echo "  Frontend cleanup failed: could not signal process group $frontend_pgid" >&2
+        return 1
+    }
+    while [ "$attempts" -lt 20 ]; do
+        fw_session_frontend_group_has_live_members "$frontend_pgid"
+        group_status=$?
+        if [ "$group_status" -eq 1 ]; then
+            wait "$frontend_pid" 2>/dev/null || true
+            return 0
+        fi
+        if [ "$group_status" -gt 1 ]; then
+            echo "  Frontend cleanup failed: process-group probe failed; preserving worktree" >&2
+            return 1
+        fi
+        sleep 0.1
+        attempts=$((attempts + 1))
+    done
+    echo "  Frontend cleanup failed: process group $frontend_pgid did not stop after TERM; preserving worktree" >&2
+    return 1
 }
 
 # ===================================================================
@@ -326,6 +1127,25 @@ CONFLICT_EOF
             fi
         fi
     fi
+
+    # Best-effort CI-health backfill (ADR-066 AC-1): fire-and-forget, never blocks
+    # session launch. backfill_ci_health() already fails closed on any
+    # git/gh error and bounds itself with per-subprocess timeouts (~66s
+    # worst case for a full lookback window). Running it detached in the
+    # background means that worst case is invisible to the interactive
+    # session regardless of gh's responsiveness. Must run with cwd ==
+    # $WORKTREE_DIR: `-m scripts.ci_health_backfill` resolves the `scripts`
+    # package via cwd, and the module writes its watermark relative to cwd.
+    # stderr is captured (not discarded) so a pre-backfill_ci_health()
+    # startup failure -- missing python3, a broken `scripts` package import
+    # -- leaves a trace instead of silently disabling ADR-066 AC-1 forever. The
+    # target directory is gitignored and absent on a fresh worktree; bash
+    # resolves the >> redirect before exec'ing python3, so a missing
+    # directory would silently no-op the whole command (defeating the
+    # stderr-capture fix above) unless created first.
+    mkdir -p "$WORKTREE_DIR/.context/metrics"
+    ( cd "$WORKTREE_DIR" && python3 -m scripts.ci_health_backfill \
+        >/dev/null 2>>"$WORKTREE_DIR/.context/metrics/ci-backfill-startup.log" & ) 2>/dev/null
 
     cd "$FW_PROJECT_ROOT" || { echo "   Cannot cd back to $FW_PROJECT_ROOT"; return 1; }
 }
