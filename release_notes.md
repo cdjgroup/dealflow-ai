@@ -1,5 +1,12 @@
 # Release Notes — v0.6.8
 
+## Unreleased — Codex network opt-in
+
+Codex sessions launched with `scripts/codex-session.sh` get network access when
+`SHIPTEAM_NETWORK=on` is exported (ShipTeam 0.14.247). The override is added at
+launch for this worktree's profile only and never written to `.codex/config.toml`.
+Unset or `off` changes nothing.
+
 ## DealFlow AI: Trust Filter Fix + Approval Reliability
 
 Aligned the system prompt with the trust-filtered tool set so "Never allow" takes effect instantly, made approved-tool execution server-side to work around the unfixed vercel/ai#10980 SDK bug, and extended the context-aware `needsApproval` wrapper to every tool (not just writes).

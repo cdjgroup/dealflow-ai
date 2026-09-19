@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] — 2026-09-19 — Codex network opt-in
+
+### Added
+- **Codex network opt-in** — `SHIPTEAM_NETWORK=on` gives Codex sessions network
+  access at launch; the shared session script delivers the helper (ShipTeam 0.14.247).
+
 ## [0.6.8] - 2026-04-17
 
 ### Fixed

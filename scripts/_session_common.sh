@@ -208,6 +208,43 @@ fw_session_install_codex_permission_profile() {
     python3 "$runtime" "$worktree_dir"
 }
 
+# fw_session_codex_network_args <worktree_dir>
+# Operator opt-in to network for AI tool sessions: SHIPTEAM_NETWORK=on.
+# The generated profile extends Codex's `:workspace`, whose network default is
+# OFF, and its name is a per-worktree hash — so no user-level
+# $CODEX_HOME/config.toml can reach it (ADR-080 addendum). This prints a
+# launch-time override for exactly this worktree's profile, one argument per
+# line, and never writes the profile file. Unset/off prints nothing: ShipTeam
+# never emits network.enabled=false, which Codex misreports as an
+# "admin-enforced policy". Warnings go to stderr; always returns 0.
+fw_session_codex_network_args() {
+    local worktree_dir="$1"
+    local config="$worktree_dir/.codex/config.toml"
+    local profile
+
+    case "${SHIPTEAM_NETWORK:-}" in
+        ""|off) return 0 ;;
+        on) ;;
+        *)
+            echo "WARN: SHIPTEAM_NETWORK='${SHIPTEAM_NETWORK}' ignored (use on or off)" >&2
+            return 0
+            ;;
+    esac
+    if [ ! -f "$config" ] || [ -L "$config" ] || [ ! -r "$config" ]; then
+        echo "WARN: SHIPTEAM_NETWORK=on ignored: no readable ShipTeam Codex profile at $config" >&2
+        return 0
+    fi
+    # A line parse is enough only because the launcher has already regenerated
+    # or validated this whole file (fw_session_install_codex_permission_profile)
+    # before calling here; do not reuse this against an unvalidated file.
+    profile="$(sed -n 's/^default_permissions = "\(shipteam_worktree_[0-9a-f]\{16\}\)"$/\1/p' "$config" 2>/dev/null | head -n 1 || true)"
+    if [ -z "$profile" ]; then
+        echo "WARN: SHIPTEAM_NETWORK=on ignored: $config has no ShipTeam default_permissions profile" >&2
+        return 0
+    fi
+    printf '%s\n' "-c" "permissions.${profile}.network.enabled=true"
+}
+
 fw_session_create_codex_lock() {
     local session_id="$1"
     local branch="$2"
