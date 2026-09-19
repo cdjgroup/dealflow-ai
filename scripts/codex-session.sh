@@ -488,6 +488,12 @@ EOF
 # intact for the EXIT cleanup trap that runs after codex exits.
 # Bare `codex`, not `codex exec` — exec mode has no interactive backstop and
 # is the wrong mode for an interactive dev session.
-env -u FW_PROJECT_ROOT -u FW_CONFIG -u FW_FW_DIR -u FW_ROOT_OVERRIDE -u FW_SKIP_PREREQ_CHECK codex
+# The only extra arguments are the operator's SHIPTEAM_NETWORK=on opt-in; the
+# `${arr[@]+...}` form keeps an empty array safe under bash 3.2 `set -u`.
+CODEX_NETWORK_ARGS=()
+while IFS= read -r arg; do
+    CODEX_NETWORK_ARGS+=("$arg")
+done < <(fw_session_codex_network_args "$WORKTREE_DIR")
+env -u FW_PROJECT_ROOT -u FW_CONFIG -u FW_FW_DIR -u FW_ROOT_OVERRIDE -u FW_SKIP_PREREQ_CHECK codex ${CODEX_NETWORK_ARGS[@]+"${CODEX_NETWORK_ARGS[@]}"}
 
 # Cleanup happens automatically via trap
